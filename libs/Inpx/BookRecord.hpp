@@ -4,19 +4,19 @@
 #include <string>
 #include <vector>
 
-namespace LibIndexer::Inpx {
+namespace Librium::Inpx {
 
-struct Author
+struct CAuthor
 {
     std::string lastName;
     std::string firstName;
     std::string middleName;
 
     [[nodiscard]] std::string FullName() const
-    {
+{
         std::string name = lastName;
-        if (!firstName.empty())
-        {
+        if (!firstName.empty()) 
+{
             name += ", " + firstName;
             if (!middleName.empty())
                 name += " " + middleName;
@@ -25,14 +25,14 @@ struct Author
     }
 
     [[nodiscard]] bool IsEmpty() const
-    {
+{
         return lastName.empty() && firstName.empty();
     }
 };
 
-struct BookRecord
+struct CBookRecord
 {
-    std::vector<Author>      authors;
+    std::vector<CAuthor>      authors;
     std::vector<std::string> genres;
     std::string              title;
     std::string              series;
@@ -57,9 +57,15 @@ struct BookRecord
     std::string              coverMime;
 
     [[nodiscard]] std::string FilePath() const
-    {
+{
         return fileName + "." + fileExt;
     }
 };
 
-} // namespace LibIndexer::Inpx
+} // namespace Librium::Inpx
+
+
+
+
+
+

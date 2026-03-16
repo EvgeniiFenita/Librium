@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 
-namespace LibIndexer::Zip {
+namespace Librium::Zip {
 
-struct ZipEntry
+struct CZipEntry
 {
     std::string name;
     uint64_t    uncompressedSize{0};
@@ -19,13 +19,14 @@ struct ZipEntry
 class CZipError : public std::runtime_error
 {
 public:
-    explicit CZipError(const std::string& msg) : std::runtime_error(msg) {}
+    explicit CZipError(const std::string& msg) : std::runtime_error(msg) 
+{}
 };
 
 class CZipReader
 {
 public:
-    [[nodiscard]] static std::vector<ZipEntry> ListEntries(const std::string& zipPath);
+    [[nodiscard]] static std::vector<CZipEntry> ListEntries(const std::string& zipPath);
 
     [[nodiscard]] static std::vector<uint8_t> ReadEntry(
         const std::string& zipPath,
@@ -38,7 +39,13 @@ public:
 
     static void IterateEntryNames(
         const std::string& zipPath,
-        const std::function<bool(const ZipEntry& entry)>& callback);
+        const std::function<bool(const CZipEntry& entry)>& callback);
 };
 
-} // namespace LibIndexer::Zip
+} // namespace Librium::Zip
+
+
+
+
+
+

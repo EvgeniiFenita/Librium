@@ -2,13 +2,13 @@
 
 #include <fstream>
 
-namespace LibIndexer::Query {
+namespace Librium::Query {
 
-nlohmann::json CQuerySerializer::ToJson(const QueryResult& result)
+nlohmann::json CQuerySerializer::ToJson(const QueryResult& result) 
 {
     nlohmann::json jBooks = nlohmann::json::array();
-    for (const auto& b : result.books)
-    {
+    for (const auto& b : result.books) 
+{
         nlohmann::json jAuthors = nlohmann::json::array();
         for (const auto& a : b.authors)
             jAuthors.push_back({
@@ -43,7 +43,7 @@ nlohmann::json CQuerySerializer::ToJson(const QueryResult& result)
     const auto& p = result.params;
     nlohmann::json jQuery = {
         {"title",          p.title},
-        {"author",         p.author},
+        {"CAuthor",         p.author},
         {"genre",          p.genre},
         {"series",         p.series},
         {"language",       p.language},
@@ -66,7 +66,7 @@ nlohmann::json CQuerySerializer::ToJson(const QueryResult& result)
     };
 }
 
-void CQuerySerializer::SaveToFile(const QueryResult& result, const std::string& path)
+void CQuerySerializer::SaveToFile(const QueryResult& result, const std::string& path) 
 {
     std::ofstream f(path);
     if (!f.is_open())
@@ -74,4 +74,10 @@ void CQuerySerializer::SaveToFile(const QueryResult& result, const std::string& 
     f << ToJson(result).dump(2) << "\n";
 }
 
-} // namespace LibIndexer::Query
+} // namespace Librium::Query
+
+
+
+
+
+

@@ -14,3 +14,4 @@ target_link_libraries(Indexer PRIVATE
     QueryLib
     CLI11::CLI11
 )
+

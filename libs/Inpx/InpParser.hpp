@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 
-namespace LibIndexer::Inpx {
+namespace Librium::Inpx {
 
-struct InpParseStats
+struct CInpParseStats
 {
     size_t totalLines{0};
     size_t parsedOk{0};
@@ -19,27 +19,34 @@ struct InpParseStats
 class CInpParser
 {
 public:
-    [[nodiscard]] std::vector<BookRecord> Parse(const std::string& inpxPath);
+    [[nodiscard]] std::vector<CBookRecord> Parse(const std::string& inpxPath);
 
-    InpParseStats ParseStreaming(
+    CInpParseStats ParseStreaming(
         const std::string& inpxPath,
-        const std::function<bool(BookRecord&&)>& onBook);
+        const std::function<bool(CBookRecord&&)>& onBook);
 
-    [[nodiscard]] const InpParseStats& LastStats() const { return m_stats; }
+    [[nodiscard]] const CInpParseStats& LastStats() const
+{ return m_stats; }
 
 private:
-    InpParseStats m_stats;
+    CInpParseStats m_stats;
 
-    std::vector<BookRecord> ParseInpData(
+    std::vector<CBookRecord> ParseInpData(
         const std::vector<uint8_t>& data,
         const std::string& archiveName,
-        InpParseStats& stats);
+        CInpParseStats& stats);
 
-    BookRecord ParseLine(const std::string& line, const std::string& archiveName);
+    CBookRecord ParseLine(const std::string& line, const std::string& archiveName);
 
-    static Author        ParseAuthor(const std::string& s);
+    static CAuthor        ParseAuthor(const std::string& s);
     static std::vector<std::string> Split(const std::string& s, char delim);
     static std::string   Trim(const std::string& s);
 };
 
-} // namespace LibIndexer::Inpx
+} // namespace Librium::Inpx
+
+
+
+
+
+

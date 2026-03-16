@@ -12,3 +12,4 @@ target_link_libraries(Query PRIVATE
     QueryLib
     CLI11::CLI11
 )
+

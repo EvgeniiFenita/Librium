@@ -3,7 +3,7 @@
 #include "QueryResult.hpp"
 #include "Database/Database.hpp"
 
-namespace LibIndexer::Query {
+namespace Librium::Query {
 
 class CBookQuery
 {
@@ -13,4 +13,10 @@ public:
         const QueryParams& params);
 };
 
-} // namespace LibIndexer::Query
+} // namespace Librium::Query
+
+
+
+
+
+

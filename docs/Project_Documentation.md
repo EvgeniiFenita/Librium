@@ -159,6 +159,7 @@ The configuration file defines paths and filters for the indexing process.
 ## 6. Development Guidelines
 
 - **Naming**: Use **PascalCase** for all files and CMake targets.
-- **Classes**: Prefix with `C` (e.g., `CDatabase`).
+- **Namespaces**: Use the top-level namespace `Librium::` (e.g., `Librium::Database`).
+- **Classes**: All classes and major data structures must start with `C` (e.g., `CDatabase`, `CBookRecord`).
 - **Safety**: Prefer RAII and smart pointers. Avoid raw `sqlite3` calls outside the `Database` module.
-- **Includes**: Use the module-relative format: `#include "Database/Database.hpp"`.
+- **Includes**: Use the module-relative format: `#include "Database/Database.hpp"`. Always ensure includes do not contain `C/I/E` prefixes even if the classes do.

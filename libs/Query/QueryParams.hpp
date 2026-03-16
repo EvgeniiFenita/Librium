@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-namespace LibIndexer::Query {
+namespace Librium::Query {
 
 struct QueryParams
 {
@@ -24,4 +24,10 @@ struct QueryParams
     int64_t     offset{0};
 };
 
-} // namespace LibIndexer::Query
+} // namespace Librium::Query
+
+
+
+
+
+

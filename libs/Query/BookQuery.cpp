@@ -4,23 +4,23 @@
 
 #include <sstream>
 
-namespace LibIndexer::Query {
+namespace Librium::Query {
 
 namespace {
 
-std::string Like(const std::string& s)
+std::string Like(const std::string& s) 
 {
     // Escape % and _ in LIKE patterns, then wrap with %
     std::string out;
-    for (char c : s)
-    {
+    for (char c : s) 
+{
         if (c == '%' || c == '_' || c == '\\') out += '\\';
         out += c;
     }
     return "%" + out + "%";
 }
 
-std::vector<AuthorInfo> FetchAuthors(sqlite3* db, int64_t bookId)
+std::vector<AuthorInfo> FetchAuthors(sqlite3* db, int64_t bookId) 
 {
     std::vector<AuthorInfo> result;
     sqlite3_stmt* s = nullptr;
@@ -29,8 +29,8 @@ std::vector<AuthorInfo> FetchAuthors(sqlite3* db, int64_t bookId)
         "FROM authors a JOIN book_authors ba ON ba.author_id=a.id "
         "WHERE ba.book_id=?", -1, &s, nullptr);
     sqlite3_bind_int64(s, 1, bookId);
-    while (sqlite3_step(s) == SQLITE_ROW)
-    {
+    while (sqlite3_step(s) == SQLITE_ROW) 
+{
         AuthorInfo ai;
         auto col = [&](int i) -> std::string
         {
@@ -46,7 +46,7 @@ std::vector<AuthorInfo> FetchAuthors(sqlite3* db, int64_t bookId)
     return result;
 }
 
-std::vector<std::string> FetchGenres(sqlite3* db, int64_t bookId)
+std::vector<std::string> FetchGenres(sqlite3* db, int64_t bookId) 
 {
     std::vector<std::string> result;
     sqlite3_stmt* s = nullptr;
@@ -54,8 +54,8 @@ std::vector<std::string> FetchGenres(sqlite3* db, int64_t bookId)
         "SELECT g.code FROM genres g JOIN book_genres bg ON bg.genre_id=g.id "
         "WHERE bg.book_id=?", -1, &s, nullptr);
     sqlite3_bind_int64(s, 1, bookId);
-    while (sqlite3_step(s) == SQLITE_ROW)
-    {
+    while (sqlite3_step(s) == SQLITE_ROW) 
+{
         const auto* t = reinterpret_cast<const char*>(sqlite3_column_text(s, 0));
         if (t) result.emplace_back(t);
     }
@@ -65,7 +65,7 @@ std::vector<std::string> FetchGenres(sqlite3* db, int64_t bookId)
 
 } // namespace
 
-QueryResult CBookQuery::Execute(Db::CDatabase& db, const QueryParams& params)
+QueryResult CBookQuery::Execute(Db::CDatabase& db, const QueryParams& params) 
 {
     QueryResult result;
     result.params = params;
@@ -95,7 +95,7 @@ QueryResult CBookQuery::Execute(Db::CDatabase& db, const QueryParams& params)
     if (params.withCover)
         conditions.push_back("b.cover IS NOT NULL");
 
-    // Author needs a subquery
+    // CAuthor needs a subquery
     if (!params.author.empty())
         conditions.push_back(
             "b.id IN (SELECT ba.book_id FROM book_authors ba "
@@ -114,11 +114,11 @@ QueryResult CBookQuery::Execute(Db::CDatabase& db, const QueryParams& params)
             "b.series_id IN (SELECT id FROM series WHERE name LIKE ? ESCAPE '\\')");
 
     std::string whereClause;
-    if (!conditions.empty())
-    {
+    if (!conditions.empty()) 
+{
         whereClause = " WHERE ";
-        for (size_t i = 0; i < conditions.size(); ++i)
-        {
+        for (size_t i = 0; i < conditions.size(); ++i) 
+{
             if (i > 0) whereClause += " AND ";
             whereClause += conditions[i];
         }
@@ -130,44 +130,54 @@ QueryResult CBookQuery::Execute(Db::CDatabase& db, const QueryParams& params)
         + whereClause;
 
     // Bind helper
-    auto bindParams = [&](sqlite3_stmt* s)
-    {
+    auto bindParams = [&](sqlite3_stmt* s) 
+{
         int idx = 1;
-        if (!params.title.empty()) {
+        if (!params.title.empty()) 
+{
             std::string val = Like(params.title);
             sqlite3_bind_text(s, idx++, val.c_str(), -1, SQLITE_TRANSIENT);
         }
-        if (!params.language.empty()) {
+        if (!params.language.empty()) 
+{
             sqlite3_bind_text(s, idx++, params.language.c_str(), -1, SQLITE_TRANSIENT);
         }
-        if (!params.libId.empty()) {
+        if (!params.libId.empty()) 
+{
             sqlite3_bind_text(s, idx++, params.libId.c_str(), -1, SQLITE_TRANSIENT);
         }
-        if (!params.archiveName.empty()) {
+        if (!params.archiveName.empty()) 
+{
             sqlite3_bind_text(s, idx++, params.archiveName.c_str(), -1, SQLITE_TRANSIENT);
         }
-        if (!params.dateFrom.empty()) {
+        if (!params.dateFrom.empty()) 
+{
             sqlite3_bind_text(s, idx++, params.dateFrom.c_str(), -1, SQLITE_TRANSIENT);
         }
-        if (!params.dateTo.empty()) {
+        if (!params.dateTo.empty()) 
+{
             sqlite3_bind_text(s, idx++, params.dateTo.c_str(), -1, SQLITE_TRANSIENT);
         }
-        if (!params.yearFrom.empty()) {
+        if (!params.yearFrom.empty()) 
+{
             sqlite3_bind_text(s, idx++, params.yearFrom.c_str(), -1, SQLITE_TRANSIENT);
         }
-        if (params.ratingMin > 0) {
+        if (params.ratingMin > 0) 
+{
             sqlite3_bind_int(s, idx++, params.ratingMin);
         }
-        if (!params.author.empty())
-        {
+        if (!params.author.empty()) 
+{
             auto lk = Like(params.author);
             sqlite3_bind_text(s, idx++, lk.c_str(), -1, SQLITE_TRANSIENT);
             sqlite3_bind_text(s, idx++, lk.c_str(), -1, SQLITE_TRANSIENT);
         }
-        if (!params.genre.empty()) {
+        if (!params.genre.empty()) 
+{
             sqlite3_bind_text(s, idx++, params.genre.c_str(), -1, SQLITE_TRANSIENT);
         }
-        if (!params.series.empty()) {
+        if (!params.series.empty()) 
+{
             std::string val = Like(params.series);
             sqlite3_bind_text(s, idx++, val.c_str(), -1, SQLITE_TRANSIENT);
         }
@@ -211,8 +221,8 @@ QueryResult CBookQuery::Execute(Db::CDatabase& db, const QueryParams& params)
         sqlite3_prepare_v2(raw, selectSql.c_str(), -1, &s, nullptr);
         bindParams(s);
 
-        while (sqlite3_step(s) == SQLITE_ROW)
-        {
+        while (sqlite3_step(s) == SQLITE_ROW) 
+{
             auto col = [&](int i) -> std::string
             {
                 const auto* t = reinterpret_cast<const char*>(sqlite3_column_text(s, i));
@@ -246,4 +256,10 @@ QueryResult CBookQuery::Execute(Db::CDatabase& db, const QueryParams& params)
     return result;
 }
 
-} // namespace LibIndexer::Query
+} // namespace Librium::Query
+
+
+
+
+
+

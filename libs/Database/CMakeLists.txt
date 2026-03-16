@@ -11,3 +11,4 @@ target_link_libraries(Database PUBLIC
     Inpx
     sqlite3_lib
 )
+

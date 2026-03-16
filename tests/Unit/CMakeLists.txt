@@ -41,7 +41,7 @@ target_link_libraries(UnitTests PRIVATE
 )
 
 target_compile_definitions(UnitTests PRIVATE
-    LIBINDEXER_TEST_DATA_DIR="${UNIT_TEST_DATA_DIR}"
+    LIBRIUM_TEST_DATA_DIR="${UNIT_TEST_DATA_DIR}"
 )
 
 add_dependencies(UnitTests generate_unit_test_data)
@@ -49,3 +49,4 @@ add_dependencies(UnitTests generate_unit_test_data)
 include(CTest)
 include(Catch)
 catch_discover_tests(UnitTests)
+

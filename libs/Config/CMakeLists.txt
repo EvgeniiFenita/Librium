@@ -10,3 +10,4 @@ target_link_libraries(Config PUBLIC
     Inpx
     nlohmann_json::nlohmann_json
 )
+

@@ -81,15 +81,15 @@ CREATE INDEX IF NOT EXISTS idx_book_genres    ON book_genres(genre_id);
 
 } // namespace
 
-namespace LibIndexer::Db {
+namespace Librium::Db {
 
-void CDatabase::Check(int rc, const char* context)
+void CDatabase::Check(int rc, const char* context) 
 {
     if (rc != SQLITE_OK && rc != SQLITE_ROW && rc != SQLITE_DONE)
         throw CDbError(std::string(context) + ": rc=" + std::to_string(rc));
 }
 
-CDatabase::CDatabase(const std::string& path)
+CDatabase::CDatabase(const std::string& path) 
 {
     int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX;
     Check(sqlite3_open_v2(path.c_str(), &m_db, flags, nullptr), "open");
@@ -97,37 +97,41 @@ CDatabase::CDatabase(const std::string& path)
     PrepareStatements();
 }
 
-CDatabase::~CDatabase()
+CDatabase::~CDatabase() 
 {
     FinalizeStatements();
     if (m_db) sqlite3_close_v2(m_db);
 }
 
-void CDatabase::Exec(const char* sql)
+void CDatabase::Exec(const char* sql) 
 {
     char* err = nullptr;
     int rc = sqlite3_exec(m_db, sql, nullptr, nullptr, &err);
-    if (rc != SQLITE_OK)
-    {
+    if (rc != SQLITE_OK) 
+{
         std::string msg = err ? err : "unknown";
         sqlite3_free(err);
         throw CDbError(std::string("exec failed: ") + msg);
     }
 }
 
-void CDatabase::CreateSchema() { Exec(k_schema); }
+void CDatabase::CreateSchema() 
+{ Exec(k_schema); }
 
-void CDatabase::BeginTransaction() { Exec("BEGIN"); }
-void CDatabase::Commit()           { Exec("COMMIT"); }
-void CDatabase::Rollback()         { Exec("ROLLBACK"); }
+void CDatabase::BeginTransaction() 
+{ Exec("BEGIN"); }
+void CDatabase::Commit() 
+{ Exec("COMMIT"); }
+void CDatabase::Rollback() 
+{ Exec("ROLLBACK"); }
 
 int64_t CDatabase::LastInsertRowId() const
-    { return sqlite3_last_insert_rowid(m_db); }
+{ return sqlite3_last_insert_rowid(m_db); }
 
-void CDatabase::PrepareStatements()
+void CDatabase::PrepareStatements() 
 {
-    auto P = [&](sqlite3_stmt*& s, const char* sql)
-    { Check(sqlite3_prepare_v2(m_db, sql, -1, &s, nullptr), sql); };
+    auto P = [&](sqlite3_stmt*& s, const char* sql) 
+{ Check(sqlite3_prepare_v2(m_db, sql, -1, &s, nullptr), sql); };
 
     P(m_stmtBookExists,
         "SELECT 1 FROM books b JOIN archives a ON a.id=b.archive_id "
@@ -156,16 +160,18 @@ void CDatabase::PrepareStatements()
         "cover=?5,cover_mime=?6 WHERE id=?7");
 }
 
-void CDatabase::FinalizeStatements()
+void CDatabase::FinalizeStatements() 
 {
-    auto F = [](sqlite3_stmt*& s){ if(s){ sqlite3_finalize(s); s=nullptr; } };
+    auto F = [](sqlite3_stmt*& s) 
+{ if(s) 
+{ sqlite3_finalize(s); s=nullptr; } };
     F(m_stmtBookExists); F(m_stmtInsertAuthor); F(m_stmtGetAuthor);
     F(m_stmtInsertGenre); F(m_stmtGetGenre); F(m_stmtInsertArchive);
     F(m_stmtGetArchive); F(m_stmtInsertBook); F(m_stmtInsertBookAuthor);
     F(m_stmtInsertBookGenre); F(m_stmtUpdateFb2);
 }
 
-int64_t CDatabase::GetOrCreateAuthor(const Inpx::Author& a)
+int64_t CDatabase::GetOrCreateAuthor(const Inpx::CAuthor& a) 
 {
     sqlite3_reset(m_stmtInsertAuthor);
     sqlite3_bind_text(m_stmtInsertAuthor,1,a.lastName.c_str(),-1,SQLITE_STATIC);
@@ -181,7 +187,7 @@ int64_t CDatabase::GetOrCreateAuthor(const Inpx::Author& a)
     return sqlite3_column_int64(m_stmtGetAuthor, 0);
 }
 
-int64_t CDatabase::GetOrCreateGenre(const std::string& genre)
+int64_t CDatabase::GetOrCreateGenre(const std::string& genre) 
 {
     sqlite3_reset(m_stmtInsertGenre);
     sqlite3_bind_text(m_stmtInsertGenre,1,genre.c_str(),-1,SQLITE_STATIC);
@@ -193,7 +199,7 @@ int64_t CDatabase::GetOrCreateGenre(const std::string& genre)
     return sqlite3_column_int64(m_stmtGetGenre, 0);
 }
 
-int64_t CDatabase::GetOrCreateSeries(const std::string& series)
+int64_t CDatabase::GetOrCreateSeries(const std::string& series) 
 {
     if (series.empty()) return 0;
     sqlite3_stmt* s = nullptr;
@@ -209,7 +215,7 @@ int64_t CDatabase::GetOrCreateSeries(const std::string& series)
     return id;
 }
 
-int64_t CDatabase::GetOrCreatePublisher(const std::string& pub)
+int64_t CDatabase::GetOrCreatePublisher(const std::string& pub) 
 {
     if (pub.empty()) return 0;
     sqlite3_stmt* s = nullptr;
@@ -225,7 +231,7 @@ int64_t CDatabase::GetOrCreatePublisher(const std::string& pub)
     return id;
 }
 
-int64_t CDatabase::GetOrCreateArchive(const std::string& archiveName)
+int64_t CDatabase::GetOrCreateArchive(const std::string& archiveName) 
 {
     sqlite3_reset(m_stmtInsertArchive);
     sqlite3_bind_text(m_stmtInsertArchive,1,archiveName.c_str(),-1,SQLITE_STATIC);
@@ -237,7 +243,7 @@ int64_t CDatabase::GetOrCreateArchive(const std::string& archiveName)
     return sqlite3_column_int64(m_stmtGetArchive, 0);
 }
 
-bool CDatabase::BookExists(const std::string& libId, const std::string& archiveName)
+bool CDatabase::BookExists(const std::string& libId, const std::string& archiveName) 
 {
     sqlite3_reset(m_stmtBookExists);
     sqlite3_bind_text(m_stmtBookExists,1,libId.c_str(),-1,SQLITE_STATIC);
@@ -245,7 +251,7 @@ bool CDatabase::BookExists(const std::string& libId, const std::string& archiveN
     return sqlite3_step(m_stmtBookExists) == SQLITE_ROW;
 }
 
-int64_t CDatabase::InsertBook(const Inpx::BookRecord& rec, const Fb2::Fb2Data& fb2)
+int64_t CDatabase::InsertBook(const Inpx::CBookRecord& rec, const Fb2::CFb2Data& fb2) 
 {
     int64_t archiveId   = GetOrCreateArchive(rec.archiveName);
     int64_t seriesId    = GetOrCreateSeries(rec.series);
@@ -271,8 +277,8 @@ int64_t CDatabase::InsertBook(const Inpx::BookRecord& rec, const Fb2::Fb2Data& f
     sqlite3_bind_text(m_stmtInsertBook, 15, fb2.isbn.c_str(),        -1, SQLITE_STATIC);
     sqlite3_bind_text(m_stmtInsertBook, 16, fb2.publishYear.c_str(), -1, SQLITE_STATIC);
 
-    if (!fb2.coverData.empty())
-    {
+    if (!fb2.coverData.empty()) 
+{
         sqlite3_bind_blob(m_stmtInsertBook,17,
             fb2.coverData.data(), static_cast<int>(fb2.coverData.size()), SQLITE_STATIC);
         sqlite3_bind_text(m_stmtInsertBook,18, fb2.coverMime.c_str(),-1,SQLITE_STATIC);
@@ -293,17 +299,17 @@ int64_t CDatabase::InsertBook(const Inpx::BookRecord& rec, const Fb2::Fb2Data& f
     int64_t bookId = LastInsertRowId();
     if (bookId == 0) return 0;
 
-    for (const auto& author : rec.authors)
-    {
-        int64_t aid = GetOrCreateAuthor(author);
+    for (const auto& CAuthor : rec.authors) 
+{
+        int64_t aid = GetOrCreateAuthor(CAuthor);
         sqlite3_reset(m_stmtInsertBookAuthor);
         sqlite3_bind_int64(m_stmtInsertBookAuthor,1,bookId);
         sqlite3_bind_int64(m_stmtInsertBookAuthor,2,aid);
         sqlite3_step(m_stmtInsertBookAuthor);
     }
 
-    for (const auto& genre : rec.genres)
-    {
+    for (const auto& genre : rec.genres) 
+{
         int64_t gid = GetOrCreateGenre(genre);
         sqlite3_reset(m_stmtInsertBookGenre);
         sqlite3_bind_int64(m_stmtInsertBookGenre,1,bookId);
@@ -314,7 +320,7 @@ int64_t CDatabase::InsertBook(const Inpx::BookRecord& rec, const Fb2::Fb2Data& f
     return bookId;
 }
 
-void CDatabase::UpdateBookFb2(int64_t bookId, const Fb2::Fb2Data& fb2)
+void CDatabase::UpdateBookFb2(int64_t bookId, const Fb2::CFb2Data& fb2) 
 {
     int64_t pubId = GetOrCreatePublisher(fb2.publisher);
     sqlite3_reset(m_stmtUpdateFb2);
@@ -322,8 +328,8 @@ void CDatabase::UpdateBookFb2(int64_t bookId, const Fb2::Fb2Data& fb2)
     pubId ? sqlite3_bind_int64(m_stmtUpdateFb2,2,pubId) : sqlite3_bind_null(m_stmtUpdateFb2,2);
     sqlite3_bind_text(m_stmtUpdateFb2,3,fb2.isbn.c_str(),-1,SQLITE_STATIC);
     sqlite3_bind_text(m_stmtUpdateFb2,4,fb2.publishYear.c_str(),-1,SQLITE_STATIC);
-    if (!fb2.coverData.empty())
-    {
+    if (!fb2.coverData.empty()) 
+{
         sqlite3_bind_blob(m_stmtUpdateFb2,5,fb2.coverData.data(),
             static_cast<int>(fb2.coverData.size()),SQLITE_STATIC);
         sqlite3_bind_text(m_stmtUpdateFb2,6,fb2.coverMime.c_str(),-1,SQLITE_STATIC);
@@ -333,7 +339,7 @@ void CDatabase::UpdateBookFb2(int64_t bookId, const Fb2::Fb2Data& fb2)
     sqlite3_step(m_stmtUpdateFb2);
 }
 
-std::vector<std::string> CDatabase::GetIndexedArchives()
+std::vector<std::string> CDatabase::GetIndexedArchives() 
 {
     std::vector<std::string> result;
     sqlite3_stmt* s = nullptr;
@@ -345,7 +351,7 @@ std::vector<std::string> CDatabase::GetIndexedArchives()
     return result;
 }
 
-void CDatabase::MarkArchiveIndexed(const std::string& archiveName)
+void CDatabase::MarkArchiveIndexed(const std::string& archiveName) 
 {
     sqlite3_stmt* s = nullptr;
     sqlite3_prepare_v2(m_db,
@@ -354,7 +360,7 @@ void CDatabase::MarkArchiveIndexed(const std::string& archiveName)
     sqlite3_step(s); sqlite3_finalize(s);
 }
 
-bool CDatabase::ArchiveExists(const std::string& archiveName)
+bool CDatabase::ArchiveExists(const std::string& archiveName) 
 {
     sqlite3_stmt* s = nullptr;
     sqlite3_prepare_v2(m_db,
@@ -385,4 +391,10 @@ int64_t CDatabase::CountAuthors() const
     return n;
 }
 
-} // namespace LibIndexer::Db
+} // namespace Librium::Db
+
+
+
+
+
+

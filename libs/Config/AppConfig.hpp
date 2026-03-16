@@ -7,18 +7,21 @@
 #include <string>
 #include <vector>
 
-namespace LibIndexer::Config {
+namespace Librium::Config {
 
-class CConfigError : public std::runtime_error
+class ConfigError : public std::runtime_error
 {
 public:
-    explicit CConfigError(const std::string& msg) : std::runtime_error(msg) {}
+    explicit ConfigError(const std::string& msg) : std::runtime_error(msg) 
+{}
 };
 
-struct DatabaseConfig   { std::string path{"library.db"}; };
-struct LibraryConfig    { std::string inpxPath; std::string archivesDir; };
+struct CDatabaseConfig
+{ std::string path{"library.db"}; };
+struct CLibraryConfig
+{ std::string inpxPath; std::string archivesDir; };
 
-struct ImportConfig
+struct CImportConfig
 {
     bool        parseFb2{true};
     int         threadCount{4};
@@ -26,7 +29,7 @@ struct ImportConfig
     std::string mode{"full"};
 };
 
-struct FiltersConfig
+struct CFiltersConfig
 {
     std::vector<std::string> excludeLanguages;
     std::vector<std::string> includeLanguages;
@@ -38,7 +41,7 @@ struct FiltersConfig
     std::vector<std::string> excludeKeywords;
 };
 
-struct LoggingConfig
+struct CLoggingConfig
 {
     std::string level{"info"};
     std::string file{""};
@@ -48,11 +51,11 @@ struct LoggingConfig
 class CAppConfig
 {
 public:
-    DatabaseConfig database;
-    LibraryConfig  library;
-    ImportConfig   import;
-    FiltersConfig  filters;
-    LoggingConfig  logging;
+    CDatabaseConfig database;
+    CLibraryConfig  library;
+    CImportConfig   import;
+    CFiltersConfig  filters;
+    CLoggingConfig  logging;
 
     [[nodiscard]] static CAppConfig Defaults();
     [[nodiscard]] static CAppConfig Load(const std::string& path);
@@ -62,13 +65,20 @@ public:
 class CBookFilter
 {
 public:
-    explicit CBookFilter(const FiltersConfig& cfg);
-    [[nodiscard]] bool ShouldInclude(const Inpx::BookRecord& record) const;
-    [[nodiscard]] const std::string& LastReason() const { return m_lastReason; }
+    explicit CBookFilter(const CFiltersConfig& cfg);
+    [[nodiscard]] bool ShouldInclude(const Inpx::CBookRecord& record) const;
+    [[nodiscard]] const std::string& LastReason() const
+{ return m_lastReason; }
 
 private:
-    FiltersConfig       m_cfg;
+    CFiltersConfig       m_cfg;
     mutable std::string m_lastReason;
 };
 
-} // namespace LibIndexer::Config
+} // namespace Librium::Config
+
+
+
+
+
+

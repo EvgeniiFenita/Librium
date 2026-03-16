@@ -11,3 +11,4 @@ target_link_libraries(QueryLib PUBLIC
     Database
     nlohmann_json::nlohmann_json
 )
+

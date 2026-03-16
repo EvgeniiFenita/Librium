@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace LibIndexer::Query {
+namespace Librium::Query {
 
 struct AuthorInfo
 {
@@ -41,4 +41,10 @@ struct QueryResult
     QueryParams             params;
 };
 
-} // namespace LibIndexer::Query
+} // namespace Librium::Query
+
+
+
+
+
+

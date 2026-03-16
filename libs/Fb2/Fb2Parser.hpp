@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
-namespace LibIndexer::Fb2 {
+namespace Librium::Fb2 {
 
-struct Fb2Data
+struct CFb2Data
 {
     std::string          annotation;
     std::string          keywords;
@@ -17,14 +17,21 @@ struct Fb2Data
     std::string          coverMime;
     std::string          parseError;
 
-    [[nodiscard]] bool IsOk() const { return parseError.empty(); }
+    [[nodiscard]] bool IsOk() const
+{ return parseError.empty(); }
 };
 
 class CFb2Parser
 {
 public:
-    [[nodiscard]] Fb2Data Parse(const std::vector<uint8_t>& data);
-    [[nodiscard]] Fb2Data Parse(const std::string& xmlText);
+    [[nodiscard]] CFb2Data Parse(const std::vector<uint8_t>& data);
+    [[nodiscard]] CFb2Data Parse(const std::string& xmlText);
 };
 
-} // namespace LibIndexer::Fb2
+} // namespace Librium::Fb2
+
+
+
+
+
+

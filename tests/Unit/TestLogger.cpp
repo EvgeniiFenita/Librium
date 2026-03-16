@@ -6,17 +6,17 @@
 #include <vector>
 #include "Log/Logger.hpp"
 
-using namespace LibIndexer::Log;
+using namespace Librium::Log;
 
 namespace {
-std::string ReadFile(const std::string& p)
+std::string ReadFile(const std::string& p) 
 {
     std::ifstream f(p);
     return {std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
 }
 } // namespace
 
-TEST_CASE("Info writes [INFO] tag", "[logger]")
+TEST_CASE("Info writes [INFO] tag", "[logger]") 
 {
     const std::string tmp = "tlog1.log";
     std::filesystem::remove(tmp);
@@ -27,7 +27,7 @@ TEST_CASE("Info writes [INFO] tag", "[logger]")
     REQUIRE(ReadFile(tmp).find("[INFO]") != std::string::npos);
     std::filesystem::remove(tmp);
 }
-TEST_CASE("Debug suppressed below Info level", "[logger]")
+TEST_CASE("Debug suppressed below Info level", "[logger]") 
 {
     const std::string tmp = "tlog2.log";
     std::filesystem::remove(tmp);
@@ -41,7 +41,7 @@ TEST_CASE("Debug suppressed below Info level", "[logger]")
     REQUIRE(c.find("visible") != std::string::npos);
     std::filesystem::remove(tmp);
 }
-TEST_CASE("Format overload works", "[logger]")
+TEST_CASE("Format overload works", "[logger]") 
 {
     const std::string tmp = "tlog3.log";
     std::filesystem::remove(tmp);
@@ -51,7 +51,7 @@ TEST_CASE("Format overload works", "[logger]")
     REQUIRE(ReadFile(tmp).find("x=99") != std::string::npos);
     std::filesystem::remove(tmp);
 }
-TEST_CASE("Thread-safe under concurrent writes", "[logger]")
+TEST_CASE("Thread-safe under concurrent writes", "[logger]") 
 {
     const std::string tmp = "tlog4.log";
     std::filesystem::remove(tmp);
@@ -59,10 +59,17 @@ TEST_CASE("Thread-safe under concurrent writes", "[logger]")
     
     std::vector<std::thread> threads;
     for (int i = 0; i < 8; ++i)
-        threads.emplace_back([i](){ for (int j=0;j<100;++j) CLogger::Instance().Info("t{}j{}",i,j); });
+        threads.emplace_back([i]() 
+{ for (int j=0;j<100;++j) CLogger::Instance().Info("t{}j{}",i,j); });
     for (auto& t : threads) t.join();
     
     CLogger::Instance().SetFile("");
     std::filesystem::remove(tmp);
     SUCCEED("No crash");
 }
+
+
+
+
+
+

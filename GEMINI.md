@@ -26,8 +26,17 @@
 - **Modularity**: New features should go into new modules in `libs/` with their own `CMakeLists.txt`.
 - **Includes**: Every library must add `libs/` to its include paths. Headers must be included as `#include "ModuleName/Header.hpp"`.
 
+## Safety & Precision Rules
+- **Dependency Protection**: NEVER modify files in `vcpkg_installed/`, `out/`, `.git/`, or `.vs/`. All mass-refactoring (regex) MUST be restricted to a whitelist: `libs/`, `apps/`, `tests/`.
+- **Accurate Refactoring**: 
+    - Use word boundaries (`\b`) in regex to avoid partial matches.
+    - Double-check that renaming internal symbols doesn't break CLI arguments or string literals (e.g., `--author` should not become `--CAuthor`).
+    - When adding `C` prefixes to classes, ensure `#include` directives stay prefix-free if the file name hasn't changed (Rule #15).
+- **Verification Workflow**: After any structural change or mass-rename, ALWAYS run:
+    1. `.\Build.ps1 -Preset x64-debug`
+    2. `.\RunAllTests.ps1 -Preset x64-debug`
+
 ## Documentation & Communication
 - **English Only**: ALL comments, documentation, and messages MUST be in English.
 - **No Transliteration**: Transliteration (writing localized words in Latin) is strictly forbidden.
 - **Sync**: Keep `docs/Project_Documentation.md` and `docs/Code_Style_Guidelines.md` updated with ANY structural or naming changes.
-- **Precedence**: Instructions in `docs/Code_Style_Guidelines.md` are foundational.

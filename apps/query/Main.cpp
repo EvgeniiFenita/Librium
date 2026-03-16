@@ -12,19 +12,21 @@
 
 #include <CLI/CLI.hpp>
 
-using namespace LibIndexer;
+using namespace Librium;
 
 #ifdef _WIN32
 #include <windows.h>
 #include <shellapi.h>
 
-std::string utf16_to_utf8(const std::wstring& utf16) {
+std::string utf16_to_utf8(const std::wstring& utf16) 
+{
     if (utf16.empty()) return {};
     auto u8 = std::filesystem::path(utf16).u8string();
     return std::string(u8.begin(), u8.end());
 }
 
-std::vector<std::string> get_utf8_args() {
+std::vector<std::string> get_utf8_args() 
+{
     int argc;
     LPWSTR* argvw = CommandLineToArgvW(GetCommandLineW(), &argc);
     if (!argvw) return {};
@@ -35,7 +37,7 @@ std::vector<std::string> get_utf8_args() {
 }
 #endif
 
-int main(int argc, char* argv[])
+int main(int argc, char* argv[]) 
 {
     std::vector<std::string> args;
 #ifdef _WIN32
@@ -44,7 +46,7 @@ int main(int argc, char* argv[])
     for (int i = 0; i < argc; ++i) args.push_back(argv[i]);
 #endif
 
-    CLI::App app{"libquery - book query tool for libindexer database"};
+    CLI::App app{"libquery - book query tool for Librium database"};
     app.set_version_flag("--version,-v",
         std::string("libquery v") + Apps::Query::VersionString);
 
@@ -55,7 +57,7 @@ int main(int argc, char* argv[])
 
     Query::QueryParams params;
     app.add_option("--title",       params.title,       "Partial title match");
-    app.add_option("--author",      params.author,      "Partial author name match");
+    app.add_option("--author",       params.author,       "Partial author name match");
     app.add_option("--genre",       params.genre,       "Exact genre code");
     app.add_option("--series",      params.series,      "Partial series match");
     app.add_option("--language",    params.language,    "Exact language code");
@@ -79,12 +81,13 @@ int main(int argc, char* argv[])
 
     try {
         app.parse((int)argv_utf8.size(), argv_utf8.data());
-    } catch (const CLI::ParseError &e) {
+    } catch (const CLI::ParseError &e) 
+{
         return app.exit(e);
     }
 
-    if (!logLevel.empty())
-    {
+    if (!logLevel.empty()) 
+{
         using namespace Log;
         if      (logLevel == "debug") CLogger::Instance().SetLevel(ELogLevel::Debug);
         else if (logLevel == "warn")  CLogger::Instance().SetLevel(ELogLevel::Warn);
@@ -105,11 +108,17 @@ int main(int argc, char* argv[])
 
         Log::CLogger::Instance().Info("Saved to {}", outputPath);
     }
-    catch (const std::exception& e)
-    {
+    catch (const std::exception& e) 
+{
         std::cerr << "Error: " << e.what() << "\n";
         return 1;
     }
 
     return 0;
 }
+
+
+
+
+
+

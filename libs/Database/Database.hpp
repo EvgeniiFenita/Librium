@@ -12,15 +12,16 @@
 struct sqlite3;
 struct sqlite3_stmt;
 
-namespace LibIndexer::Db {
+namespace Librium::Db {
 
 class CDbError : public std::runtime_error
 {
 public:
-    explicit CDbError(const std::string& msg) : std::runtime_error(msg) {}
+    explicit CDbError(const std::string& msg) : std::runtime_error(msg) 
+{}
 };
 
-struct ImportStats
+struct CImportStats
 {
     size_t booksInserted{0};
     size_t booksUpdated{0};
@@ -31,7 +32,7 @@ struct ImportStats
     size_t archivesProcessed{0};
 
     void PrintSummary() const
-    {
+{
         std::cout << "\n=== Import Summary ===\n"
                   << "  Archives processed : " << archivesProcessed << "\n"
                   << "  Books inserted     : " << booksInserted     << "\n"
@@ -57,14 +58,14 @@ public:
     void Rollback();
 
     [[nodiscard]] int64_t InsertBook(
-        const Inpx::BookRecord& record,
-        const Fb2::Fb2Data&     fb2 = {});
+        const Inpx::CBookRecord& record,
+        const Fb2::CFb2Data&     fb2 = {});
 
     [[nodiscard]] bool BookExists(
         const std::string& libId,
         const std::string& archiveName);
 
-    void UpdateBookFb2(int64_t bookId, const Fb2::Fb2Data& fb2);
+    void UpdateBookFb2(int64_t bookId, const Fb2::CFb2Data& fb2);
 
     [[nodiscard]] std::vector<std::string> GetIndexedArchives();
     void MarkArchiveIndexed(const std::string& archiveName);
@@ -73,7 +74,8 @@ public:
     [[nodiscard]] int64_t CountBooks() const;
     [[nodiscard]] int64_t CountAuthors() const;
 
-    sqlite3* Handle() { return m_db; }
+    sqlite3* Handle() 
+{ return m_db; }
 
 private:
     sqlite3* m_db{nullptr};
@@ -94,7 +96,7 @@ private:
     void PrepareStatements();
     void FinalizeStatements();
 
-    [[nodiscard]] int64_t GetOrCreateAuthor(const Inpx::Author& author);
+    [[nodiscard]] int64_t GetOrCreateAuthor(const Inpx::CAuthor& CAuthor);
     [[nodiscard]] int64_t GetOrCreateGenre(const std::string& genre);
     [[nodiscard]] int64_t GetOrCreateSeries(const std::string& series);
     [[nodiscard]] int64_t GetOrCreatePublisher(const std::string& publisher);
@@ -105,4 +107,10 @@ private:
     static void Check(int rc, const char* context);
 };
 
-} // namespace LibIndexer::Db
+} // namespace Librium::Db
+
+
+
+
+
+

@@ -12,15 +12,16 @@
 #include <unordered_set>
 #include <vector>
 
-namespace LibIndexer::Indexer {
+namespace Librium::Indexer {
 
 class CIndexer
 {
 public:
     explicit CIndexer(Config::CAppConfig cfg);
 
-    [[nodiscard]] Db::ImportStats Run();
-    void RequestStop() { m_stopRequested = true; }
+    [[nodiscard]] Db::CImportStats Run();
+    void RequestStop() 
+{ m_stopRequested = true; }
 
     [[nodiscard]] std::vector<std::string> GetNewArchives(
         Db::CDatabase& db, const std::string& inpxPath);
@@ -33,21 +34,29 @@ private:
     std::atomic<size_t>       m_filteredCount{0};
     std::atomic<size_t>       m_errorCount{0};
 
-    struct WorkItem   { Inpx::BookRecord record; };
-    struct ResultItem { Inpx::BookRecord record; Fb2::Fb2Data fb2; };
+    struct CWorkItem
+{ Inpx::CBookRecord record; };
+    struct CResultItem
+{ Inpx::CBookRecord record; Fb2::CFb2Data fb2; };
 
     static constexpr size_t k_workQueueSize   = 5000;
     static constexpr size_t k_resultQueueSize = 2000;
 
-    CThreadSafeQueue<WorkItem>   m_workQueue{k_workQueueSize};
-    CThreadSafeQueue<ResultItem> m_resultQueue{k_resultQueueSize};
+    CThreadSafeQueue<CWorkItem>   m_workQueue{k_workQueueSize};
+    CThreadSafeQueue<CResultItem> m_resultQueue{k_resultQueueSize};
 
     void ProducerThread(const std::string& inpxPath,
                         const Config::CBookFilter& filter);
 
     void WorkerThread(const std::string& archivesDir, bool parseFb2);
 
-    Db::ImportStats WriterThread(Db::CDatabase& db, size_t batchSize);
+    Db::CImportStats WriterThread(Db::CDatabase& db, size_t batchSize);
 };
 
-} // namespace LibIndexer::Indexer
+} // namespace Librium::Indexer
+
+
+
+
+
+

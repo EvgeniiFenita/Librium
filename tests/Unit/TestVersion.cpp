@@ -2,9 +2,15 @@
 
 #include "Version.hpp"
 
-TEST_CASE("libindexer version constants", "[version]")
+TEST_CASE("Librium version constants", "[version]") 
 {
-    REQUIRE(LibIndexer::Apps::Indexer::VersionMajor == 0);
-    REQUIRE(LibIndexer::Apps::Indexer::VersionMinor == 1);
-    REQUIRE(std::string(LibIndexer::Apps::Indexer::VersionString) == "0.1.0");
+    REQUIRE(Librium::Apps::Indexer::VersionMajor == 0);
+    REQUIRE(Librium::Apps::Indexer::VersionMinor == 1);
+    REQUIRE(std::string(Librium::Apps::Indexer::VersionString) == "0.1.0");
 }
+
+
+
+
+
+

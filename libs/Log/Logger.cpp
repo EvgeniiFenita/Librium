@@ -4,21 +4,21 @@
 #include <ctime>
 #include <iostream>
 
-namespace LibIndexer::Log {
+namespace Librium::Log {
 
-CLogger& CLogger::Instance()
+CLogger& CLogger::Instance() 
 {
     static CLogger instance;
     return instance;
 }
 
-void CLogger::SetLevel(ELogLevel level)
+void CLogger::SetLevel(ELogLevel level) 
 {
     std::lock_guard lock(m_mutex);
     m_level = level;
 }
 
-void CLogger::SetFile(const std::string& path)
+void CLogger::SetFile(const std::string& path) 
 {
     std::lock_guard lock(m_mutex);
     if (m_file.is_open())
@@ -27,7 +27,7 @@ void CLogger::SetFile(const std::string& path)
         m_file.open(path, std::ios::app);
 }
 
-void CLogger::Log(ELogLevel level, const std::string& message)
+void CLogger::Log(ELogLevel level, const std::string& message) 
 {
     if (level < m_level)
         return;
@@ -45,8 +45,8 @@ void CLogger::Log(ELogLevel level, const std::string& message)
     std::strftime(ts, sizeof(ts), "%H:%M:%S", &tm);
 
     const char* levelStr = "INFO";
-    switch (level)
-    {
+    switch (level) 
+{
         case ELogLevel::Debug: levelStr = "DEBUG"; break;
         case ELogLevel::Info:  levelStr = "INFO";  break;
         case ELogLevel::Warn:  levelStr = "WARN";  break;
@@ -56,8 +56,8 @@ void CLogger::Log(ELogLevel level, const std::string& message)
     const std::string line = std::string("[") + ts + "] [" + levelStr + "] " + message + "\n";
 
     std::lock_guard lock(m_mutex);
-    if (m_file.is_open())
-    {
+    if (m_file.is_open()) 
+{
         m_file << line;
         m_file.flush();
     }
@@ -68,4 +68,10 @@ void CLogger::Log(ELogLevel level, const std::string& message)
     }
 }
 
-} // namespace LibIndexer::Log
+} // namespace Librium::Log
+
+
+
+
+
+

@@ -7,10 +7,10 @@
 
 namespace {
 
-pugi::xml_node FindChild(const pugi::xml_node& parent, const char* localName)
+pugi::xml_node FindChild(const pugi::xml_node& parent, const char* localName) 
 {
-    for (auto& child : parent.children())
-    {
+    for (auto& child : parent.children()) 
+{
         const char* name  = child.name();
         const char* colon = strchr(name, ':');
         const char* local = colon ? colon + 1 : name;
@@ -20,20 +20,20 @@ pugi::xml_node FindChild(const pugi::xml_node& parent, const char* localName)
     return {};
 }
 
-std::string CollectText(const pugi::xml_node& node)
+std::string CollectText(const pugi::xml_node& node) 
 {
     std::string result;
-    for (auto& child : node)
-    {
-        if (child.type() == pugi::node_pcdata || child.type() == pugi::node_cdata)
-        {
+    for (auto& child : node) 
+{
+        if (child.type() == pugi::node_pcdata || child.type() == pugi::node_cdata) 
+{
             result += child.value();
         }
         else
         {
             auto sub = CollectText(child);
-            if (!sub.empty())
-            {
+            if (!sub.empty()) 
+{
                 if (!result.empty() && result.back() != ' ')
                     result += ' ';
                 result += sub;
@@ -43,32 +43,33 @@ std::string CollectText(const pugi::xml_node& node)
     return result;
 }
 
-constexpr std::array<int8_t, 256> MakeB64Table()
+constexpr std::array<int8_t, 256> MakeB64Table() 
 {
     std::array<int8_t, 256> t{};
     t.fill(-1);
-    for (int i = 0; i < 26; ++i) { t['A'+i] = i; t['a'+i] = 26+i; }
+    for (int i = 0; i < 26; ++i) 
+{ t['A'+i] = i; t['a'+i] = 26+i; }
     for (int i = 0; i < 10; ++i)   t['0'+i] = 52+i;
     t['+'] = 62; t['/'] = 63; t['='] = 0;
     return t;
 }
 
-std::vector<uint8_t> DecodeBase64(const std::string& encoded)
+std::vector<uint8_t> DecodeBase64(const std::string& encoded) 
 {
     static constexpr auto TABLE = MakeB64Table();
     std::vector<uint8_t> out;
     out.reserve(encoded.size() * 3 / 4);
     int buf = 0, bits = 0;
-    for (unsigned char c : encoded)
-    {
+    for (unsigned char c : encoded) 
+{
         if (c == '\n' || c == '\r' || c == ' ') continue;
         if (c == '=') break;
         int8_t val = TABLE[c];
         if (val < 0) continue;
         buf = (buf << 6) | val;
         bits += 6;
-        if (bits >= 8)
-        {
+        if (bits >= 8) 
+{
             bits -= 8;
             out.push_back(static_cast<uint8_t>(buf >> bits));
             buf &= (1 << bits) - 1;
@@ -79,20 +80,20 @@ std::vector<uint8_t> DecodeBase64(const std::string& encoded)
 
 } // namespace
 
-namespace LibIndexer::Fb2 {
+namespace Librium::Fb2 {
 
-Fb2Data CFb2Parser::Parse(const std::string& xmlText)
+CFb2Data CFb2Parser::Parse(const std::string& xmlText) 
 {
     std::vector<uint8_t> data(xmlText.begin(), xmlText.end());
     return Parse(data);
 }
 
-Fb2Data CFb2Parser::Parse(const std::vector<uint8_t>& data)
+CFb2Data CFb2Parser::Parse(const std::vector<uint8_t>& data) 
 {
-    Fb2Data result;
+    CFb2Data result;
 
-    if (data.empty())
-    {
+    if (data.empty()) 
+{
         result.parseError = "Empty input";
         return result;
     }
@@ -103,15 +104,15 @@ Fb2Data CFb2Parser::Parse(const std::vector<uint8_t>& data)
         pugi::parse_default | pugi::parse_ws_pcdata_single,
         pugi::encoding_auto);
 
-    if (!pr)
-    {
+    if (!pr) 
+{
         result.parseError = std::string("XML error: ") + pr.description();
         return result;
     }
 
     auto root = doc.first_child();
-    if (!root)
-    {
+    if (!root) 
+{
         result.parseError = "No root element";
         return result;
     }
@@ -122,8 +123,8 @@ Fb2Data CFb2Parser::Parse(const std::vector<uint8_t>& data)
 
     // Annotation
     auto ann = FindChild(titleInfo, "annotation");
-    if (ann)
-    {
+    if (ann) 
+{
         result.annotation = CollectText(ann);
         // Trim leading/trailing whitespace
         auto& a = result.annotation;
@@ -136,8 +137,8 @@ Fb2Data CFb2Parser::Parse(const std::vector<uint8_t>& data)
     if (kw) result.keywords = kw.text().get();
 
     // Publish info
-    if (publishInfo)
-    {
+    if (publishInfo) 
+{
         auto pub = FindChild(publishInfo, "publisher");
         if (pub) result.publisher = pub.text().get();
         auto isbn = FindChild(publishInfo, "isbn");
@@ -148,30 +149,30 @@ Fb2Data CFb2Parser::Parse(const std::vector<uint8_t>& data)
 
     // Cover
     auto coverpage = FindChild(titleInfo, "coverpage");
-    if (coverpage)
-    {
+    if (coverpage) 
+{
         auto img = FindChild(coverpage, "image");
-        if (img)
-        {
+        if (img) 
+{
             std::string href;
-            for (auto& attr : img.attributes())
-            {
+            for (auto& attr : img.attributes()) 
+{
                 std::string aname = attr.name();
-                if (aname == "href" || aname.find("href") != std::string::npos)
-                    { href = attr.value(); break; }
+                if (aname == "href" || aname.find("href") != std::string::npos) 
+{ href = attr.value(); break; }
             }
-            if (!href.empty() && href[0] == '#')
-            {
+            if (!href.empty() && href[0] == '#') 
+{
                 std::string bid = href.substr(1);
-                for (auto& node : root.children())
-                {
+                for (auto& node : root.children()) 
+{
                     std::string nname = node.name();
                     if (nname == "binary" || (nname.size() > 6 &&
-                        nname.substr(nname.size()-6) == "binary"))
-                    {
+                        nname.substr(nname.size()-6) == "binary")) 
+{
                         auto idAttr = node.attribute("id");
-                        if (idAttr && bid == idAttr.value())
-                        {
+                        if (idAttr && bid == idAttr.value()) 
+{
                             result.coverMime = node.attribute("content-type").value();
                             result.coverData = DecodeBase64(node.text().get());
                             break;
@@ -185,4 +186,10 @@ Fb2Data CFb2Parser::Parse(const std::vector<uint8_t>& data)
     return result;
 }
 
-} // namespace LibIndexer::Fb2
+} // namespace Librium::Fb2
+
+
+
+
+
+

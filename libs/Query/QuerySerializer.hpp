@@ -5,7 +5,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
-namespace LibIndexer::Query {
+namespace Librium::Query {
 
 class CQuerySerializer
 {
@@ -14,4 +14,10 @@ public:
     static void SaveToFile(const QueryResult& result, const std::string& path);
 };
 
-} // namespace LibIndexer::Query
+} // namespace Librium::Query
+
+
+
+
+
+

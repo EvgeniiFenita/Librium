@@ -5,16 +5,17 @@
 #include <optional>
 #include <queue>
 
-namespace LibIndexer::Indexer {
+namespace Librium::Indexer {
 
 template<typename T>
 class CThreadSafeQueue
 {
 public:
-    explicit CThreadSafeQueue(size_t maxSize = 0) : m_maxSize(maxSize) {}
+    explicit CThreadSafeQueue(size_t maxSize = 0) : m_maxSize(maxSize) 
+{}
 
-    void Push(T value)
-    {
+    void Push(T value) 
+{
         std::unique_lock lock(m_mutex);
         if (m_maxSize > 0)
             m_cvNotFull.wait(lock, [&]{ return m_queue.size() < m_maxSize || m_closed; });
@@ -23,8 +24,8 @@ public:
         m_cvNotEmpty.notify_one();
     }
 
-    [[nodiscard]] std::optional<T> Pop()
-    {
+    [[nodiscard]] std::optional<T> Pop() 
+{
         std::unique_lock lock(m_mutex);
         m_cvNotEmpty.wait(lock, [&]{ return !m_queue.empty() || m_closed; });
         if (m_queue.empty()) return std::nullopt;
@@ -34,8 +35,8 @@ public:
         return value;
     }
 
-    void Close()
-    {
+    void Close() 
+{
         std::lock_guard lock(m_mutex);
         m_closed = true;
         m_cvNotEmpty.notify_all();
@@ -43,7 +44,7 @@ public:
     }
 
     [[nodiscard]] size_t Size() const
-    {
+{
         std::lock_guard lock(m_mutex);
         return m_queue.size();
     }
@@ -57,4 +58,10 @@ private:
     bool                    m_closed{false};
 };
 
-} // namespace LibIndexer::Indexer
+} // namespace Librium::Indexer
+
+
+
+
+
+
