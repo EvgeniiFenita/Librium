@@ -133,32 +133,44 @@ QueryResult CBookQuery::Execute(Db::CDatabase& db, const QueryParams& params)
     auto bindParams = [&](sqlite3_stmt* s)
     {
         int idx = 1;
-        if (!params.title.empty())
-            sqlite3_bind_text(s, idx++, Like(params.title).c_str(), -1, SQLITE_TRANSIENT);
-        if (!params.language.empty())
-            sqlite3_bind_text(s, idx++, params.language.c_str(), -1, SQLITE_STATIC);
-        if (!params.libId.empty())
-            sqlite3_bind_text(s, idx++, params.libId.c_str(), -1, SQLITE_STATIC);
-        if (!params.archiveName.empty())
-            sqlite3_bind_text(s, idx++, params.archiveName.c_str(), -1, SQLITE_STATIC);
-        if (!params.dateFrom.empty())
-            sqlite3_bind_text(s, idx++, params.dateFrom.c_str(), -1, SQLITE_STATIC);
-        if (!params.dateTo.empty())
-            sqlite3_bind_text(s, idx++, params.dateTo.c_str(), -1, SQLITE_STATIC);
-        if (!params.yearFrom.empty())
-            sqlite3_bind_text(s, idx++, params.yearFrom.c_str(), -1, SQLITE_STATIC);
-        if (params.ratingMin > 0)
+        if (!params.title.empty()) {
+            std::string val = Like(params.title);
+            sqlite3_bind_text(s, idx++, val.c_str(), -1, SQLITE_TRANSIENT);
+        }
+        if (!params.language.empty()) {
+            sqlite3_bind_text(s, idx++, params.language.c_str(), -1, SQLITE_TRANSIENT);
+        }
+        if (!params.libId.empty()) {
+            sqlite3_bind_text(s, idx++, params.libId.c_str(), -1, SQLITE_TRANSIENT);
+        }
+        if (!params.archiveName.empty()) {
+            sqlite3_bind_text(s, idx++, params.archiveName.c_str(), -1, SQLITE_TRANSIENT);
+        }
+        if (!params.dateFrom.empty()) {
+            sqlite3_bind_text(s, idx++, params.dateFrom.c_str(), -1, SQLITE_TRANSIENT);
+        }
+        if (!params.dateTo.empty()) {
+            sqlite3_bind_text(s, idx++, params.dateTo.c_str(), -1, SQLITE_TRANSIENT);
+        }
+        if (!params.yearFrom.empty()) {
+            sqlite3_bind_text(s, idx++, params.yearFrom.c_str(), -1, SQLITE_TRANSIENT);
+        }
+        if (params.ratingMin > 0) {
             sqlite3_bind_int(s, idx++, params.ratingMin);
+        }
         if (!params.author.empty())
         {
             auto lk = Like(params.author);
             sqlite3_bind_text(s, idx++, lk.c_str(), -1, SQLITE_TRANSIENT);
             sqlite3_bind_text(s, idx++, lk.c_str(), -1, SQLITE_TRANSIENT);
         }
-        if (!params.genre.empty())
-            sqlite3_bind_text(s, idx++, params.genre.c_str(), -1, SQLITE_STATIC);
-        if (!params.series.empty())
-            sqlite3_bind_text(s, idx++, Like(params.series).c_str(), -1, SQLITE_TRANSIENT);
+        if (!params.genre.empty()) {
+            sqlite3_bind_text(s, idx++, params.genre.c_str(), -1, SQLITE_TRANSIENT);
+        }
+        if (!params.series.empty()) {
+            std::string val = Like(params.series);
+            sqlite3_bind_text(s, idx++, val.c_str(), -1, SQLITE_TRANSIENT);
+        }
     };
 
     sqlite3* raw = db.Handle();

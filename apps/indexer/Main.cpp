@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include <CLI/CLI.hpp>
 #include <sqlite3.h>
@@ -87,11 +88,42 @@ static void PrintStats(const std::string& dbPath)
     std::cout << "\n";
 }
 
+#ifdef _WIN32
+#include <windows.h>
+#include <shellapi.h>
+
+std::string utf16_to_utf8(const std::wstring& utf16) {
+    if (utf16.empty()) return {};
+    auto u8 = std::filesystem::path(utf16).u8string();
+    return std::string(u8.begin(), u8.end());
+}
+
+std::vector<std::string> get_utf8_args() {
+    int argc;
+    LPWSTR* argvw = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (!argvw) return {};
+    std::vector<std::string> args;
+    for (int i = 0; i < argc; ++i) args.push_back(utf16_to_utf8(argvw[i]));
+    LocalFree(argvw);
+    return args;
+}
+#endif
+
 int main(int argc, char* argv[])
 {
-    CLI::App app{"libindexer — INPX library indexer"};
+    std::vector<std::string> args;
+#ifdef _WIN32
+    args = get_utf8_args();
+#else
+    for (int i = 0; i < argc; ++i) args.push_back(argv[i]);
+#endif
+
+    CLI::App app{"libindexer - INPX library indexer"};
     app.set_version_flag("--version,-v",
         std::string("libindexer v") + Apps::Indexer::VersionString);
+    
+    // ... rest of main ...
+    // Note: replacing argc/argv in CLI11_PARSE
 
     std::string logLevel;
 
@@ -125,7 +157,15 @@ int main(int argc, char* argv[])
     std::string initOutput = "config.json";
     initCmd->add_option("--output", initOutput, "Output path");
 
-    CLI11_PARSE(app, argc, argv);
+    // Create argc/argv wrapper for CLI11
+    std::vector<const char*> argv_utf8;
+    for (const auto& a : args) argv_utf8.push_back(a.c_str());
+
+    try {
+        app.parse((int)argv_utf8.size(), argv_utf8.data());
+    } catch (const CLI::ParseError &e) {
+        return app.exit(e);
+    }
 
     if (*initCmd)
     {

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(libindexer_project VERSION 0.1.0 LANGUAGES CXX C)
+project(Librium VERSION 0.1.0 LANGUAGES CXX C)
 
 # Suppress warnings from third-party dependencies fetched via FetchContent
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
