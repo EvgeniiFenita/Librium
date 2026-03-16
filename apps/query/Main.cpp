@@ -1,6 +1,6 @@
 #include "Version.hpp"
 
-#include "Db/Database.hpp"
+#include "Database/Database.hpp"
 #include "Log/Logger.hpp"
 #include "Query/BookQuery.hpp"
 #include "Query/QuerySerializer.hpp"

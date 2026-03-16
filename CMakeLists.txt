@@ -42,23 +42,40 @@ target_compile_definitions(sqlite3_lib PRIVATE
     SQLITE_ENABLE_JSON1
 )
 
-add_subdirectory(libs/core)
-add_subdirectory(apps/indexer)
-add_subdirectory(apps/query)
+# ------------------------------------------------------------------
+# Libraries (lib)
+# ------------------------------------------------------------------
+add_subdirectory(libs/Log)
+add_subdirectory(libs/Zip)
+add_subdirectory(libs/Fb2)
+add_subdirectory(libs/Inpx)
+add_subdirectory(libs/Config)
+add_subdirectory(libs/Database)
+add_subdirectory(libs/Query)
 
+# ------------------------------------------------------------------
+# Applications (bin)
+# ------------------------------------------------------------------
+add_subdirectory(apps/Indexer)
+add_subdirectory(apps/Query)
+
+# ------------------------------------------------------------------
+# Tests (test)
+# ------------------------------------------------------------------
 enable_testing()
-add_subdirectory(tests)
+add_subdirectory(tests/Unit)
 
-find_program(POWERSHELL_EXE NAMES pwsh powershell)
-if(POWERSHELL_EXE)
-    add_custom_target(integration_tests
-        COMMAND ${POWERSHELL_EXE}
-            -ExecutionPolicy Bypass
-            -File "${CMAKE_SOURCE_DIR}/tests/integration/Run-Tests.ps1"
-            -Config "$<CONFIG>"
-        DEPENDS libindexer libquery
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+if(Python3_EXECUTABLE)
+    add_custom_target(IntegrationTests
+        COMMAND ${Python3_EXECUTABLE}
+            "${CMAKE_SOURCE_DIR}/tests/Integration/RunIntegrationTests.py"
+            --indexer "$<TARGET_FILE:Indexer>"
+            --query "$<TARGET_FILE:Query>"
+            --data-dir "${CMAKE_BINARY_DIR}/tests/Integration/Data"
+        DEPENDS Indexer Query
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-        COMMENT "Running PowerShell end-to-end integration tests"
+        COMMENT "Running Python end-to-end integration tests"
         VERBATIM
     )
 endif()

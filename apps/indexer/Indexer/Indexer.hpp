@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Config/AppConfig.hpp"
-#include "Db/Database.hpp"
+#include "Database/Database.hpp"
 #include "Fb2/Fb2Parser.hpp"
 #include "Inpx/BookRecord.hpp"
 #include "ThreadSafeQueue.hpp"

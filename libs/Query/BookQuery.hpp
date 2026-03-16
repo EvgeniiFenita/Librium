@@ -1,7 +1,7 @@
 #pragma once
 
 #include "QueryResult.hpp"
-#include "Db/Database.hpp"
+#include "Database/Database.hpp"
 
 namespace LibIndexer::Query {
 

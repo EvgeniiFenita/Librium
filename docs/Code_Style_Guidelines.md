@@ -266,24 +266,27 @@ Avoid unnecessary includes.
 
 ---
 
-# 14. Comments
+# 14. Language and Comments
 
-All comments must be written **in English**.
+- **No Transliteration**: Using transliteration (e.g., writing Russian words using the Latin alphabet) is strictly forbidden.
+- **English Only**: All comments, documentation, log messages, and CLI outputs must be written in **English**.
+- Exception: Test data may contain localized strings (e.g., Cyrillic titles) to verify Unicode support.
+
+Correct:
+```cpp
+// Initialize the database connection
+```
+
+Incorrect:
+```cpp
+// Inicializatsiya podklyucheniya k baze dannyh
+```
 
 ---
 
 # 15. File Naming
 
-File names must use **PascalCase** and must **not include prefixes** `C`, `I`, `E`.
-
-Correct:
-
-```
-UserService.h
-UserService.cpp
-UserRepository.h
-GameState.h
-```
+All project-specific files must use **PascalCase** (`ThisIsFile.cpp`). This applies to source files (`.cpp`, `.hpp`, `.h`), scripts (`.py`, `.ps1`), and configuration files (`.json`, `.xml`, `.md`). Standard build system files (`CMakeLists.txt`, `vcpkg.json`, `CMakePresets.json`) and version control files (`.gitignore`) remain unchanged.
 
 Incorrect:
 
@@ -293,6 +296,27 @@ IUserRepository.h
 EGameState.h
 user_service.h
 userService.h
+run-tests.ps1
+```
+
+---
+
+# 26. Build Target Naming
+
+All binary and library targets in CMake must be named in **PascalCase** (`MyLib`, `MyApp`).
+
+Correct:
+
+```cmake
+add_library(Config STATIC AppConfig.cpp)
+add_executable(Indexer Main.cpp)
+```
+
+Incorrect:
+
+```cmake
+add_library(libindexer_core STATIC ...)
+add_executable(libquery Main.cpp)
 ```
 
 ---

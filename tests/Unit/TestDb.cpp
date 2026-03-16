@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "Db/Database.hpp"
+#include "Database/Database.hpp"
 #include "Inpx/BookRecord.hpp"
 
 using namespace LibIndexer;

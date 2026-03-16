@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <filesystem>
-#include "Db/Database.hpp"
+#include "Database/Database.hpp"
 #include "Fb2/Fb2Parser.hpp"
 #include "Inpx/BookRecord.hpp"
 #include "Query/BookQuery.hpp"
