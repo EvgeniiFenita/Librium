@@ -1,0 +1,16 @@
+{
+  "database":  { "path": "library.db" },
+  "library":   { "inpxPath": "library.inpx", "archivesDir": "C:/books/archives" },
+  "import":    { "parseFb2": true, "threadCount": 8, "transactionBatchSize": 1000, "mode": "full" },
+  "filters": {
+    "excludeLanguages": [],
+    "includeLanguages": ["ru"],
+    "excludeGenres":    ["humor_anekdot"],
+    "includeGenres":    [],
+    "minFileSize":      10240,
+    "maxFileSize":      0,
+    "excludeAuthors":   [],
+    "excludeKeywords":  []
+  },
+  "logging": { "level": "info", "file": "libindexer.log", "progressInterval": 5000 }
+}
