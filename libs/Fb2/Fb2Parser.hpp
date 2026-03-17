@@ -6,7 +6,7 @@
 
 namespace Librium::Fb2 {
 
-struct CFb2Data
+struct SFb2Data
 {
     std::string          annotation;
     std::string          keywords;
@@ -18,20 +18,16 @@ struct CFb2Data
     std::string          parseError;
 
     [[nodiscard]] bool IsOk() const
-{ return parseError.empty(); }
+    { 
+        return parseError.empty(); 
+    }
 };
 
 class CFb2Parser
 {
 public:
-    [[nodiscard]] CFb2Data Parse(const std::vector<uint8_t>& data);
-    [[nodiscard]] CFb2Data Parse(const std::string& xmlText);
+    [[nodiscard]] SFb2Data Parse(const std::vector<uint8_t>& data);
+    [[nodiscard]] SFb2Data Parse(const std::string& xmlText);
 };
 
 } // namespace Librium::Fb2
-
-
-
-
-
-

@@ -12,10 +12,10 @@ class CThreadSafeQueue
 {
 public:
     explicit CThreadSafeQueue(size_t maxSize = 0) : m_maxSize(maxSize) 
-{}
+    {}
 
     void Push(T value) 
-{
+    {
         std::unique_lock lock(m_mutex);
         if (m_maxSize > 0)
             m_cvNotFull.wait(lock, [&]{ return m_queue.size() < m_maxSize || m_closed; });
@@ -25,7 +25,7 @@ public:
     }
 
     [[nodiscard]] std::optional<T> Pop() 
-{
+    {
         std::unique_lock lock(m_mutex);
         m_cvNotEmpty.wait(lock, [&]{ return !m_queue.empty() || m_closed; });
         if (m_queue.empty()) return std::nullopt;
@@ -36,7 +36,7 @@ public:
     }
 
     void Close() 
-{
+    {
         std::lock_guard lock(m_mutex);
         m_closed = true;
         m_cvNotEmpty.notify_all();
@@ -44,7 +44,7 @@ public:
     }
 
     [[nodiscard]] size_t Size() const
-{
+    {
         std::lock_guard lock(m_mutex);
         return m_queue.size();
     }
@@ -59,9 +59,3 @@ private:
 };
 
 } // namespace Librium::Indexer
-
-
-
-
-
-

@@ -11,8 +11,7 @@ def main():
         script_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(script_dir, "data")
     
-    archives_dir = os.path.join(data_dir, "archives")
-    os.makedirs(archives_dir, exist_ok=True)
+    os.makedirs(data_dir, exist_ok=True)
 
     # test.zip for ZipReader tests
     test_zip_path = os.path.join(data_dir, "test.zip")
@@ -21,7 +20,7 @@ def main():
         zf.writestr("subdir/another.txt", "another file")
     print(f"Created {test_zip_path}")
 
-    # test_library.inpx for InpParser + Indexer tests
+    # test.inpx for InpParser + Indexer tests
     SEP = "\x04"
 
     def inp_line(authors, genres, title, series="", serno="",
@@ -48,7 +47,7 @@ def main():
                  lang="en", rating="4"),
     ]
 
-    inpx_path = os.path.join(data_dir, "test_library.inpx")
+    inpx_path = os.path.join(data_dir, "test.inpx")
     with zipfile.ZipFile(inpx_path, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("fb2-test-001.zip.inp",
                     "\r\n".join(lines) + "\r\n")

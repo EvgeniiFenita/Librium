@@ -135,9 +135,8 @@ class TestLibraryGenerator:
             z.writestr('version.info', '20240101\r\n')
 
 class IntegrationTester:
-    def __init__(self, indexer_exe, query_exe, data_dir):
-        self.indexer_exe = indexer_exe
-        self.query_exe = query_exe
+    def __init__(self, librium_exe, data_dir):
+        self.librium_exe = librium_exe
         self.data_dir = Path(data_dir)
         self.db_path = self.data_dir / "library.db"
         self.output_dir = self.data_dir / "out"
@@ -172,21 +171,23 @@ class IntegrationTester:
             print(f"         Actual:   {actual}")
             self.fail_count += 1
 
-    def run_indexer(self, command, config_path):
-        cmd = [self.indexer_exe, command, "--config", str(config_path)]
+    def run_librium(self, args):
+        cmd = [self.librium_exe] + args
         res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
-        return res.returncode
+        if res.returncode != 0:
+            print(f"Command failed: {' '.join(cmd)}")
+            print(f"Exit code: {res.returncode}")
+            print(f"Stderr: {res.stderr}")
+        return res
 
     def run_query(self, out_name, extra_args=None):
         out_path = self.output_dir / out_name
-        cmd = [self.query_exe, "--db", str(self.db_path), "--output", str(out_path)]
+        args = ["query", "--db", str(self.db_path), "--output", str(out_path)]
         if extra_args:
-            cmd.extend(extra_args)
+            args.extend(extra_args)
         
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8")
+        res = self.run_librium(args)
         if res.returncode != 0:
-            print(f"Query failed with code {res.returncode}")
-            print(f"Stderr: {res.stderr}")
             return None
         
         with open(out_path, "r", encoding="utf-8") as f:
@@ -220,8 +221,8 @@ class IntegrationTester:
         
         if self.db_path.exists(): self.db_path.unlink()
         
-        ret = self.run_indexer("import", cfg_v1)
-        self.assert_equal(ret, 0, "Indexer import exits with 0")
+        res = self.run_librium(["import", "--config", str(cfg_v1)])
+        self.assert_equal(res.returncode, 0, "Librium import exits with 0")
         
         data = self.run_query("v1_all.json", ["--limit", "0"])
         self.assert_equal(data["totalFound"], 7, "Found 7 books in V1")
@@ -230,8 +231,8 @@ class IntegrationTester:
         print("\n--- Test: Upgrade Import (V2) ---")
         cfg_v2 = self.create_config(self.data_dir / "v2", "v2")
         
-        ret = self.run_indexer("upgrade", cfg_v2)
-        self.assert_equal(ret, 0, "Indexer upgrade exits with 0")
+        res = self.run_librium(["upgrade", "--config", str(cfg_v2)])
+        self.assert_equal(res.returncode, 0, "Librium upgrade exits with 0")
         
         data = self.run_query("v2_all.json", ["--limit", "0"])
         self.assert_equal(data["totalFound"], 10, "Found 10 books in V2")
@@ -268,8 +269,7 @@ class IntegrationTester:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--indexer", required=True)
-    parser.add_argument("--query", required=True)
+    parser.add_argument("--librium", required=True)
     parser.add_argument("--data-dir", required=True)
     parser.add_argument("--keep-data", action="store_true")
     args = parser.parse_args()
@@ -284,7 +284,7 @@ if __name__ == "__main__":
     gen.generate_v1()
     gen.generate_v2()
 
-    tester = IntegrationTester(args.indexer, args.query, data_dir)
+    tester = IntegrationTester(args.librium, data_dir)
     success = tester.run()
     
     if not args.keep_data:

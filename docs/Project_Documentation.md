@@ -6,7 +6,7 @@
 
 ## 1. Project Architecture
 
-The project is organized into independent, reusable static libraries and specialized applications. All project-specific targets and files follow the **PascalCase** naming convention.
+The project is organized into independent, reusable static libraries and a single unified CLI application. All project-specific targets and files follow the **PascalCase** naming convention.
 
 ### Module Overview
 
@@ -27,8 +27,10 @@ The project is organized into independent, reusable static libraries and special
 ```text
 Librium/
 ├── apps/
-│   ├── Indexer/            ← Indexer application (multithreaded E2E pipeline)
-│   └── Query/              ← Query application (CLI search interface)
+│   └── Librium/            ← Unified CLI application
+│       ├── Commands/       ← CLI command implementations
+│       ├── Indexer/        ← Multithreaded indexing pipeline
+│       └── Main.cpp        ← Application entry point
 ├── libs/
 │   ├── Config/             ← App settings & JSON loading
 │   ├── Database/           ← SQLite schema & data persistence
@@ -83,55 +85,52 @@ The master script runs both Unit (C++) and Integration (Python) tests:
 
 ## 4. CLI Usage Examples
 
-### Building the Database (Indexer)
+The `Librium` unified CLI tool provides all functionality through subcommands.
+
+### Building the Database
 
 1.  **Initialize a default configuration**:
     ```powershell
-    .\Indexer.exe init-config --output AppConfig.json
+    .\Librium.exe init-config --output AppConfig.json
     ```
 
 2.  **Run a full import**:
     ```powershell
-    .\Indexer.exe import --config AppConfig.json --threads 8
+    .\Librium.exe import --config AppConfig.json --threads 8
     ```
 
 3.  **Upgrade an existing database** (only process new archives):
     ```powershell
-    .\Indexer.exe upgrade --config AppConfig.json
+    .\Librium.exe upgrade --config AppConfig.json
     ```
 
 4.  **Show database statistics**:
     ```powershell
-    .\Indexer.exe stats --db library.db
+    .\Librium.exe stats --db library.db
     ```
 
-### Querying the Database (Query)
+### Querying the Database
 
-The `Query` tool searches the database and outputs results in a structured JSON format.
+The `query` subcommand searches the database and outputs results in a structured JSON format.
 
 1.  **Search by author and language**:
     ```powershell
-    .\Query.exe --db library.db --output results.json --author "Толстой" --language "ru"
+    .\Librium.exe query --db library.db --output results.json --author "Толстой" --language "ru"
     ```
 
 2.  **Filter by genre and rating**:
     ```powershell
-    .\Query.exe --db library.db --output top_sf.json --genre "sf" --rating-min 5
+    .\Librium.exe query --db library.db --output top_sf.json --genre "sf" --rating-min 5
     ```
 
 3.  **Find a specific book by ID**:
     ```powershell
-    .\Query.exe --db library.db --output book.json --lib-id "200007"
+    .\Librium.exe query --db library.db --output book.json --lib-id "200007"
     ```
 
 4.  **Pagination and Limit**:
     ```powershell
-    .\Query.exe --db library.db --output page2.json --limit 20 --offset 20
-    ```
-
-5.  **Only books with annotations**:
-    ```powershell
-    .\Query.exe --db library.db --output with_desc.json --with-annotation
+    .\Librium.exe query --db library.db --output page2.json --limit 20 --offset 20
     ```
 
 ---

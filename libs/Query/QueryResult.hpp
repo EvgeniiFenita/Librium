@@ -8,43 +8,37 @@
 
 namespace Librium::Query {
 
-struct AuthorInfo
+struct SAuthorInfo
 {
     std::string lastName;
     std::string firstName;
     std::string middleName;
 };
 
-struct BookResult
+struct SBookResult
 {
-    std::string              libId;
-    std::string              title;
-    std::vector<AuthorInfo>  authors;
-    std::vector<std::string> genres;
-    std::string              series;
-    int                      seriesNumber{0};
-    std::string              language;
-    std::string              dateAdded;
-    int                      rating{0};
-    uint64_t                 fileSize{0};
-    std::string              archiveName;
-    std::string              annotation;
-    std::string              publisher;
-    std::string              isbn;
-    std::string              publishYear;
+    std::string               libId;
+    std::string               title;
+    std::vector<SAuthorInfo>  authors;
+    std::vector<std::string>  genres;
+    std::string               series;
+    int                       seriesNumber{0};
+    std::string               language;
+    std::string               dateAdded;
+    int                       rating{0};
+    uint64_t                  fileSize{0};
+    std::string               archiveName;
+    std::string               annotation;
+    std::string               publisher;
+    std::string               isbn;
+    std::string               publishYear;
 };
 
-struct QueryResult
+struct SQueryResult
 {
-    std::vector<BookResult> books;
-    int64_t                 totalFound{0};
-    QueryParams             params;
+    std::vector<SBookResult> books;
+    int64_t                  totalFound{0};
+    SQueryParams             params;
 };
 
 } // namespace Librium::Query
-
-
-
-
-
-

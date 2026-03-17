@@ -6,17 +6,17 @@
 
 namespace Librium::Inpx {
 
-struct CAuthor
+struct SAuthor
 {
     std::string lastName;
     std::string firstName;
     std::string middleName;
 
     [[nodiscard]] std::string FullName() const
-{
+    {
         std::string name = lastName;
         if (!firstName.empty()) 
-{
+        {
             name += ", " + firstName;
             if (!middleName.empty())
                 name += " " + middleName;
@@ -25,14 +25,14 @@ struct CAuthor
     }
 
     [[nodiscard]] bool IsEmpty() const
-{
+    {
         return lastName.empty() && firstName.empty();
     }
 };
 
-struct CBookRecord
+struct SBookRecord
 {
-    std::vector<CAuthor>      authors;
+    std::vector<SAuthor>     authors;
     std::vector<std::string> genres;
     std::string              title;
     std::string              series;
@@ -57,15 +57,9 @@ struct CBookRecord
     std::string              coverMime;
 
     [[nodiscard]] std::string FilePath() const
-{
+    {
         return fileName + "." + fileExt;
     }
 };
 
 } // namespace Librium::Inpx
-
-
-
-
-
-

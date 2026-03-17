@@ -13,15 +13,21 @@ class ConfigError : public std::runtime_error
 {
 public:
     explicit ConfigError(const std::string& msg) : std::runtime_error(msg) 
-{}
+    {}
 };
 
-struct CDatabaseConfig
-{ std::string path{"library.db"}; };
-struct CLibraryConfig
-{ std::string inpxPath; std::string archivesDir; };
+struct SDatabaseConfig
+{ 
+    std::string path{"library.db"}; 
+};
 
-struct CImportConfig
+struct SLibraryConfig
+{ 
+    std::string inpxPath; 
+    std::string archivesDir; 
+};
+
+struct SImportConfig
 {
     bool        parseFb2{true};
     int         threadCount{4};
@@ -29,7 +35,7 @@ struct CImportConfig
     std::string mode{"full"};
 };
 
-struct CFiltersConfig
+struct SFiltersConfig
 {
     std::vector<std::string> excludeLanguages;
     std::vector<std::string> includeLanguages;
@@ -41,7 +47,7 @@ struct CFiltersConfig
     std::vector<std::string> excludeKeywords;
 };
 
-struct CLoggingConfig
+struct SLoggingConfig
 {
     std::string level{"info"};
     std::string file{""};
@@ -51,11 +57,11 @@ struct CLoggingConfig
 class CAppConfig
 {
 public:
-    CDatabaseConfig database;
-    CLibraryConfig  library;
-    CImportConfig   import;
-    CFiltersConfig  filters;
-    CLoggingConfig  logging;
+    SDatabaseConfig database;
+    SLibraryConfig  library;
+    SImportConfig   import;
+    SFiltersConfig  filters;
+    SLoggingConfig  logging;
 
     [[nodiscard]] static CAppConfig Defaults();
     [[nodiscard]] static CAppConfig Load(const std::string& path);
@@ -65,20 +71,16 @@ public:
 class CBookFilter
 {
 public:
-    explicit CBookFilter(const CFiltersConfig& cfg);
-    [[nodiscard]] bool ShouldInclude(const Inpx::CBookRecord& record) const;
+    explicit CBookFilter(const SFiltersConfig& cfg);
+    [[nodiscard]] bool ShouldInclude(const Inpx::SBookRecord& record) const;
     [[nodiscard]] const std::string& LastReason() const
-{ return m_lastReason; }
+    { 
+        return m_lastReason; 
+    }
 
 private:
-    CFiltersConfig       m_cfg;
+    SFiltersConfig      m_cfg;
     mutable std::string m_lastReason;
 };
 
 } // namespace Librium::Config
-
-
-
-
-
-

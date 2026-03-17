@@ -1,83 +1,71 @@
 #include "QuerySerializer.hpp"
 
+#include <nlohmann/json.hpp>
 #include <fstream>
 
 namespace Librium::Query {
 
-nlohmann::json CQuerySerializer::ToJson(const QueryResult& result) 
+nlohmann::json CQuerySerializer::ToJson(const SQueryResult& result)
 {
-    nlohmann::json jBooks = nlohmann::json::array();
-    for (const auto& b : result.books) 
-{
-        nlohmann::json jAuthors = nlohmann::json::array();
+    nlohmann::json j;
+    j["totalFound"] = result.totalFound;
+    j["books"] = nlohmann::json::array();
+
+    for (const auto& b : result.books)
+    {
+        nlohmann::json jb;
+        jb["libId"] = b.libId;
+        jb["title"] = b.title;
+        jb["series"] = b.series;
+        jb["seriesNumber"] = b.seriesNumber;
+        jb["language"] = b.language;
+        jb["dateAdded"] = b.dateAdded;
+        jb["rating"] = b.rating;
+        jb["fileSize"] = b.fileSize;
+        jb["archiveName"] = b.archiveName;
+        jb["annotation"] = b.annotation;
+        jb["publisher"] = b.publisher;
+        jb["isbn"] = b.isbn;
+        jb["publishYear"] = b.publishYear;
+
+        jb["authors"] = nlohmann::json::array();
         for (const auto& a : b.authors)
-            jAuthors.push_back({
-                {"lastName",   a.lastName},
-                {"firstName",  a.firstName},
+        {
+            jb["authors"].push_back({
+                {"lastName", a.lastName},
+                {"firstName", a.firstName},
                 {"middleName", a.middleName}
             });
+        }
 
-        nlohmann::json jGenres = nlohmann::json::array();
-        for (const auto& g : b.genres)
-            jGenres.push_back(g);
-
-        jBooks.push_back({
-            {"libId",        b.libId},
-            {"title",        b.title},
-            {"authors",      jAuthors},
-            {"genres",       jGenres},
-            {"series",       b.series},
-            {"seriesNumber", b.seriesNumber},
-            {"language",     b.language},
-            {"dateAdded",    b.dateAdded},
-            {"rating",       b.rating},
-            {"fileSize",     b.fileSize},
-            {"archiveName",  b.archiveName},
-            {"annotation",   b.annotation},
-            {"publisher",    b.publisher},
-            {"isbn",         b.isbn},
-            {"publishYear",  b.publishYear}
-        });
+        jb["genres"] = b.genres;
+        j["books"].push_back(jb);
     }
 
     const auto& p = result.params;
-    nlohmann::json jQuery = {
+    j["params"] = {
         {"title",          p.title},
-        {"CAuthor",         p.author},
+        {"author",         p.author},
         {"genre",          p.genre},
         {"series",         p.series},
         {"language",       p.language},
         {"libId",          p.libId},
         {"archiveName",    p.archiveName},
-        {"yearFrom",       p.yearFrom},
         {"dateFrom",       p.dateFrom},
         {"dateTo",         p.dateTo},
         {"ratingMin",      p.ratingMin},
         {"withAnnotation", p.withAnnotation},
-        {"withCover",      p.withCover},
         {"limit",          p.limit},
         {"offset",         p.offset}
     };
 
-    return {
-        {"totalFound", result.totalFound},
-        {"query",      jQuery},
-        {"books",      jBooks}
-    };
+    return j;
 }
 
-void CQuerySerializer::SaveToFile(const QueryResult& result, const std::string& path) 
+void CQuerySerializer::SaveToFile(const SQueryResult& result, const std::string& path)
 {
     std::ofstream f(path);
-    if (!f.is_open())
-        throw std::runtime_error("Cannot open output file: " + path);
     f << ToJson(result).dump(2) << "\n";
 }
 
 } // namespace Librium::Query
-
-
-
-
-
-

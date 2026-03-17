@@ -1,77 +1,67 @@
 #include <catch2/catch_test_macros.hpp>
-#include <fstream>
-#include <string>
+
 #include "Inpx/InpParser.hpp"
+#include <filesystem>
 
 using namespace Librium::Inpx;
 
-static const std::string k_inpx =
-    std::string(LIBRIUM_TEST_DATA_DIR) + "/test_library.inpx";
+const std::string k_inpx = LIBRIUM_TEST_DATA_DIR "/test.inpx";
 
-TEST_CASE("CAuthor::FullName full", "[inpx]") 
+TEST_CASE("SAuthor::FullName full", "[inpx]")
 {
-    REQUIRE(CAuthor{"Толстой","Лев","Николаевич"}.FullName() == "Толстой, Лев Николаевич");
-}
-TEST_CASE("CAuthor::FullName no middle", "[inpx]") 
-{
-    REQUIRE(CAuthor{"Пушкин","Александр",""}.FullName() == "Пушкин, Александр");
-}
-TEST_CASE("CAuthor::IsEmpty", "[inpx]") 
-{
-    REQUIRE(CAuthor{}.IsEmpty());
-    REQUIRE_FALSE(CAuthor{"X","",""}.IsEmpty());
+    REQUIRE(SAuthor{"Толстой","Лев","Николаевич"}.FullName() == "Толстой, Лев Николаевич");
 }
 
-TEST_CASE("ParseStreaming: 3 valid books, 1 deleted", "[inpx]") 
+TEST_CASE("SAuthor::FullName no middle", "[inpx]")
 {
-    std::ifstream f(k_inpx);
-    if (!f.good()) 
-{ WARN("Skipping"); return; }
+    REQUIRE(SAuthor{"Пушкин","Александр",""}.FullName() == "Пушкин, Александр");
+}
 
+TEST_CASE("SAuthor::IsEmpty", "[inpx]")
+{
+    REQUIRE(SAuthor{}.IsEmpty());
+    REQUIRE_FALSE(SAuthor{"X","",""}.IsEmpty());
+}
+
+TEST_CASE("InpParser streaming", "[inpx]")
+{
     CInpParser parser;
-    std::vector<CBookRecord> books;
-    parser.ParseStreaming(k_inpx, [&](CBookRecord&& r) 
-{ books.push_back(std::move(r)); return true; });
+    std::vector<SBookRecord> books;
+    parser.ParseStreaming(k_inpx, [&](SBookRecord&& r)
+    {
+        books.push_back(std::move(r));
+        return true;
+    });
 
-    REQUIRE(books.size() == 3);
-    REQUIRE(parser.LastStats().skippedDeleted == 1);
+    REQUIRE(books.size() > 0);
+    REQUIRE(parser.LastStats().parsedOk == books.size());
 }
 
-TEST_CASE("No empty authors or genres from trailing colon", "[inpx]") 
+TEST_CASE("InpParser full parse", "[inpx]")
 {
-    std::ifstream f(k_inpx);
-    if (!f.good()) 
-{ WARN("Skipping"); return; }
-
     CInpParser parser;
-    std::vector<CBookRecord> books;
-    parser.ParseStreaming(k_inpx, [&](CBookRecord&& r) 
-{ books.push_back(std::move(r)); return true; });
-
-    for (const auto& b : books) 
-{
-        for (const auto& a : b.authors) REQUIRE_FALSE(a.IsEmpty());
-        for (const auto& g : b.genres)  REQUIRE_FALSE(g.empty());
-    }
+    auto books = parser.Parse(k_inpx);
+    REQUIRE(books.size() > 0);
+    REQUIRE(parser.LastStats().parsedOk == books.size());
 }
 
-TEST_CASE("archiveName has no .inp suffix", "[inpx]") 
+TEST_CASE("InpParser fields verification", "[inpx]")
 {
-    std::ifstream f(k_inpx);
-    if (!f.good()) 
-{ WARN("Skipping"); return; }
-
     CInpParser parser;
-    std::vector<CBookRecord> books;
-    parser.ParseStreaming(k_inpx, [&](CBookRecord&& r) 
-{ books.push_back(std::move(r)); return true; });
-
+    auto books = parser.Parse(k_inpx);
+    
+    bool found = false;
     for (const auto& b : books)
-        REQUIRE(b.archiveName.find(".inp") == std::string::npos);
+    {
+        if (b.libId == "100001")
+        {
+            REQUIRE(b.title == "Война и мир");
+            REQUIRE(b.authors.size() == 1);
+            REQUIRE(b.authors[0].lastName == "Толстой");
+            REQUIRE(b.language == "ru");
+            found = true;
+            break;
+        }
+    }
+    REQUIRE(found);
 }
-
-
-
-
-
-

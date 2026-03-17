@@ -25,35 +25,42 @@ CAppConfig CAppConfig::Load(const std::string& path)
         throw ConfigError("Cannot open config: " + path);
 
     json j;
-    try { j = json::parse(f); }
+    try 
+    { 
+        j = json::parse(f); 
+    }
     catch (const json::parse_error& e) 
-{ throw ConfigError(std::string("JSON parse error: ") + e.what()); }
+    { 
+        throw ConfigError(std::string("JSON parse error: ") + e.what()); 
+    }
 
     CAppConfig cfg = Defaults();
 
     auto get = [&](const json& obj, const char* key, auto& val) 
-{
+    {
         if (obj.contains(key)) val = obj[key].get<std::decay_t<decltype(val)>>();
     };
 
     if (j.contains("database")) get(j["database"], "path", cfg.database.path);
     if (j.contains("library")) 
-{
+    {
         get(j["library"], "inpxPath",    cfg.library.inpxPath);
         get(j["library"], "archivesDir", cfg.library.archivesDir);
     }
     if (j.contains("import")) 
-{
+    {
         get(j["import"], "parseFb2",            cfg.import.parseFb2);
         get(j["import"], "threadCount",         cfg.import.threadCount);
         get(j["import"], "transactionBatchSize",cfg.import.transactionBatchSize);
         get(j["import"], "mode",                cfg.import.mode);
     }
     if (j.contains("filters")) 
-{
+    {
         auto& fi = j["filters"];
         auto gv = [&](const char* k, std::vector<std::string>& v) 
-{ if (fi.contains(k)) v = fi[k].get<std::vector<std::string>>(); };
+        { 
+            if (fi.contains(k)) v = fi[k].get<std::vector<std::string>>(); 
+        };
         gv("excludeLanguages", cfg.filters.excludeLanguages);
         gv("includeLanguages", cfg.filters.includeLanguages);
         gv("excludeGenres",    cfg.filters.excludeGenres);
@@ -64,7 +71,7 @@ CAppConfig CAppConfig::Load(const std::string& path)
         if (fi.contains("maxFileSize")) cfg.filters.maxFileSize = fi["maxFileSize"].get<uint64_t>();
     }
     if (j.contains("logging")) 
-{
+    {
         get(j["logging"], "level",            cfg.logging.level);
         get(j["logging"], "file",             cfg.logging.file);
         get(j["logging"], "progressInterval", cfg.logging.progressInterval);
@@ -94,56 +101,64 @@ void CAppConfig::Save(const std::string& path) const
     f << j.dump(2) << "\n";
 }
 
-CBookFilter::CBookFilter(const CFiltersConfig& cfg) : m_cfg(cfg) 
+CBookFilter::CBookFilter(const SFiltersConfig& cfg) : m_cfg(cfg) 
 {}
 
-bool CBookFilter::ShouldInclude(const Inpx::CBookRecord& rec) const
+bool CBookFilter::ShouldInclude(const Inpx::SBookRecord& rec) const
 {
     m_lastReason.clear();
 
     // include whitelist
     if (!m_cfg.includeLanguages.empty()) 
-{
+    {
         bool found = std::find(m_cfg.includeLanguages.begin(),
                                m_cfg.includeLanguages.end(),
                                rec.language) != m_cfg.includeLanguages.end();
         if (!found) 
-{ m_lastReason = "language not in include list: " + rec.language; return false; }
+        { 
+            m_lastReason = "language not in include list: " + rec.language; return false; 
+        }
     }
     // exclude list
     for (const auto& ex : m_cfg.excludeLanguages)
         if (ex == rec.language) 
-{ m_lastReason = "excluded language: " + rec.language; return false; }
+        { 
+            m_lastReason = "excluded language: " + rec.language; return false; 
+        }
 
     // genres
     if (!m_cfg.includeGenres.empty()) 
-{
+    {
         bool any = false;
         for (const auto& g : rec.genres)
             if (std::find(m_cfg.includeGenres.begin(), m_cfg.includeGenres.end(), g)
                 != m_cfg.includeGenres.end()) 
-{ any = true; break; }
+            { 
+                any = true; break; 
+            }
         if (!any) 
-{ m_lastReason = "genre not in include list"; return false; }
+        { 
+            m_lastReason = "genre not in include list"; return false; 
+        }
     }
     for (const auto& g : rec.genres)
         for (const auto& ex : m_cfg.excludeGenres)
             if (ex == g) 
-{ m_lastReason = "excluded genre: " + g; return false; }
+            { 
+                m_lastReason = "excluded genre: " + g; return false; 
+            }
 
     // size
     if (m_cfg.minFileSize > 0 && rec.fileSize < m_cfg.minFileSize) 
-{ m_lastReason = "file too small"; return false; }
+    { 
+        m_lastReason = "file too small"; return false; 
+    }
     if (m_cfg.maxFileSize > 0 && rec.fileSize > m_cfg.maxFileSize) 
-{ m_lastReason = "file too large"; return false; }
+    { 
+        m_lastReason = "file too large"; return false; 
+    }
 
     return true;
 }
 
 } // namespace Librium::Config
-
-
-
-
-
-

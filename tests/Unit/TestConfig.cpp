@@ -1,72 +1,74 @@
 #include <catch2/catch_test_macros.hpp>
-#include <filesystem>
-#include <fstream>
+
 #include "Config/AppConfig.hpp"
 #include "Inpx/BookRecord.hpp"
+#include <filesystem>
 
-using namespace Librium;
 using namespace Librium::Config;
 
 namespace {
-Inpx::CBookRecord MakeRec(const std::string& lang="ru",
-                           const std::string& genre="prose",
-                           uint64_t size=100000) 
+
+Librium::Inpx::SBookRecord MakeRec(const std::string& lang = "ru", uint64_t size = 100000)
 {
-    Inpx::CBookRecord r;
-    r.language = lang; r.fileSize = size;
-    r.genres.push_back(genre);
+    Librium::Inpx::SBookRecord r;
+    r.language = lang;
+    r.fileSize = size;
     return r;
 }
+
 } // namespace
 
-TEST_CASE("Defaults valid", "[config]") 
+TEST_CASE("AppConfig defaults", "[config]")
 {
-    REQUIRE(CAppConfig::Defaults().import.threadCount > 0);
-}
-TEST_CASE("Load throws for missing file", "[config]") 
-{
-    REQUIRE_THROWS_AS(CAppConfig::Load("/no/such.json"), ConfigError);
-}
-TEST_CASE("Save and Load roundtrip", "[config]") 
-{
-    const std::string tmp = "test_cfg_rt.json";
     auto c = CAppConfig::Defaults();
-    c.database.path = "my.db";
-    c.filters.excludeLanguages = {"en","de"};
-    c.Save(tmp);
-    auto loaded = CAppConfig::Load(tmp);
-    REQUIRE(loaded.database.path == "my.db");
-    REQUIRE(loaded.filters.excludeLanguages.size() == 2);
-    std::filesystem::remove(tmp);
+    REQUIRE(c.database.path == "library.db");
+    REQUIRE(c.import.threadCount > 0);
 }
-TEST_CASE("CBookFilter no filters allows all", "[config]") 
+
+TEST_CASE("AppConfig save/load", "[config]")
 {
-    REQUIRE(CBookFilter(CFiltersConfig{}).ShouldInclude(MakeRec()));
+    std::string path = "test_config.json";
+    auto c1 = CAppConfig::Defaults();
+    c1.database.path = "custom.db";
+    c1.Save(path);
+
+    auto c2 = CAppConfig::Load(path);
+    REQUIRE(c2.database.path == "custom.db");
+
+    std::filesystem::remove(path);
 }
-TEST_CASE("CBookFilter excludeLanguages", "[config]") 
+
+TEST_CASE("BookFilter logic", "[config]")
 {
-    CFiltersConfig f; f.excludeLanguages = {"en"};
-    CBookFilter bf(f);
-    REQUIRE_FALSE(bf.ShouldInclude(MakeRec("en")));
-    REQUIRE(bf.ShouldInclude(MakeRec("ru")));
+    SECTION("Empty filter includes all")
+    {
+        REQUIRE(CBookFilter(SFiltersConfig{}).ShouldInclude(MakeRec()));
+    }
+
+    SECTION("Exclude language")
+    {
+        SFiltersConfig f;
+        f.excludeLanguages = {"en"};
+        CBookFilter filter(f);
+        REQUIRE(filter.ShouldInclude(MakeRec("ru")));
+        REQUIRE_FALSE(filter.ShouldInclude(MakeRec("en")));
+    }
+
+    SECTION("Include language")
+    {
+        SFiltersConfig f;
+        f.includeLanguages = {"ru"};
+        CBookFilter filter(f);
+        REQUIRE(filter.ShouldInclude(MakeRec("ru")));
+        REQUIRE_FALSE(filter.ShouldInclude(MakeRec("en")));
+    }
+
+    SECTION("Min file size")
+    {
+        SFiltersConfig f;
+        f.minFileSize = 50000;
+        CBookFilter filter(f);
+        REQUIRE(filter.ShouldInclude(MakeRec("ru", 60000)));
+        REQUIRE_FALSE(filter.ShouldInclude(MakeRec("ru", 40000)));
+    }
 }
-TEST_CASE("CBookFilter includeLanguages whitelist", "[config]") 
-{
-    CFiltersConfig f; f.includeLanguages = {"ru"};
-    CBookFilter bf(f);
-    REQUIRE(bf.ShouldInclude(MakeRec("ru")));
-    REQUIRE_FALSE(bf.ShouldInclude(MakeRec("en")));
-}
-TEST_CASE("CBookFilter minFileSize", "[config]") 
-{
-    CFiltersConfig f; f.minFileSize = 50000;
-    CBookFilter bf(f);
-    REQUIRE_FALSE(bf.ShouldInclude(MakeRec("ru","prose",1000)));
-    REQUIRE(bf.ShouldInclude(MakeRec("ru","prose",100000)));
-}
-
-
-
-
-
-

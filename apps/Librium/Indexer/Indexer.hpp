@@ -19,12 +19,13 @@ class CIndexer
 public:
     explicit CIndexer(Config::CAppConfig cfg);
 
-    [[nodiscard]] Db::CImportStats Run();
+    [[nodiscard]] Db::SImportStats Run();
     void RequestStop() 
-{ m_stopRequested = true; }
+    {
+        m_stopRequested = true;
+    }
 
-    [[nodiscard]] std::vector<std::string> GetNewArchives(
-        Db::CDatabase& db, const std::string& inpxPath);
+    [[nodiscard]] std::vector<std::string> GetNewArchives(Db::CDatabase& db, const std::string& inpxPath);
 
 private:
     Config::CAppConfig        m_cfg;
@@ -34,29 +35,26 @@ private:
     std::atomic<size_t>       m_filteredCount{0};
     std::atomic<size_t>       m_errorCount{0};
 
-    struct CWorkItem
-{ Inpx::CBookRecord record; };
-    struct CResultItem
-{ Inpx::CBookRecord record; Fb2::CFb2Data fb2; };
+    struct SWorkItem
+    {
+        Inpx::SBookRecord record;
+    };
+
+    struct SResultItem
+    {
+        Inpx::SBookRecord record;
+        Fb2::SFb2Data     fb2;
+    };
 
     static constexpr size_t k_workQueueSize   = 5000;
     static constexpr size_t k_resultQueueSize = 2000;
 
-    CThreadSafeQueue<CWorkItem>   m_workQueue{k_workQueueSize};
-    CThreadSafeQueue<CResultItem> m_resultQueue{k_resultQueueSize};
+    CThreadSafeQueue<SWorkItem>   m_workQueue{k_workQueueSize};
+    CThreadSafeQueue<SResultItem> m_resultQueue{k_resultQueueSize};
 
-    void ProducerThread(const std::string& inpxPath,
-                        const Config::CBookFilter& filter);
-
+    void ProducerThread(const std::string& inpxPath, const Config::CBookFilter& filter);
     void WorkerThread(const std::string& archivesDir, bool parseFb2);
-
-    Db::CImportStats WriterThread(Db::CDatabase& db, size_t batchSize);
+    Db::SImportStats WriterThread(Db::CDatabase& db, size_t batchSize);
 };
 
 } // namespace Librium::Indexer
-
-
-
-
-
-

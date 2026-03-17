@@ -62,8 +62,7 @@ add_subdirectory(libs/Query)
 # ------------------------------------------------------------------
 # Applications (bin)
 # ------------------------------------------------------------------
-add_subdirectory(apps/Indexer)
-add_subdirectory(apps/Query)
+add_subdirectory(apps/Librium)
 
 # ------------------------------------------------------------------
 # Tests (test)
@@ -76,13 +75,11 @@ if(Python3_EXECUTABLE)
     add_custom_target(IntegrationTests
         COMMAND ${Python3_EXECUTABLE}
             "${CMAKE_SOURCE_DIR}/tests/Integration/RunIntegrationTests.py"
-            --indexer "$<TARGET_FILE:Indexer>"
-            --query "$<TARGET_FILE:Query>"
+            --librium "$<TARGET_FILE:Librium>"
             --data-dir "${CMAKE_BINARY_DIR}/tests/Integration/Data"
-        DEPENDS Indexer Query
+        DEPENDS Librium
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
         COMMENT "Running Python end-to-end integration tests"
         VERBATIM
     )
 endif()
-

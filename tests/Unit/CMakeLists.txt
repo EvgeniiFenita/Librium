@@ -27,8 +27,7 @@ add_executable(UnitTests
 )
 
 target_include_directories(UnitTests PRIVATE
-    ${CMAKE_SOURCE_DIR}/apps/Indexer
-    ${CMAKE_SOURCE_DIR}/apps/Query
+    ${CMAKE_SOURCE_DIR}/apps/Librium
 )
 
 target_link_libraries(UnitTests PRIVATE

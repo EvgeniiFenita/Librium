@@ -10,14 +10,8 @@ namespace Librium::Query {
 class CQuerySerializer
 {
 public:
-    [[nodiscard]] static nlohmann::json ToJson(const QueryResult& result);
-    static void SaveToFile(const QueryResult& result, const std::string& path);
+    [[nodiscard]] static nlohmann::json ToJson(const SQueryResult& result);
+    static void SaveToFile(const SQueryResult& result, const std::string& path);
 };
 
 } // namespace Librium::Query
-
-
-
-
-
-

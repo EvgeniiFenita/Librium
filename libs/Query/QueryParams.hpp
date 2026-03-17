@@ -5,7 +5,7 @@
 
 namespace Librium::Query {
 
-struct QueryParams
+struct SQueryParams
 {
     std::string title;
     std::string author;
@@ -25,9 +25,3 @@ struct QueryParams
 };
 
 } // namespace Librium::Query
-
-
-
-
-
-

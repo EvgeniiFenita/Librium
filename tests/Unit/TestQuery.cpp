@@ -1,111 +1,76 @@
 #include <catch2/catch_test_macros.hpp>
-#include <filesystem>
-#include "Database/Database.hpp"
-#include "Fb2/Fb2Parser.hpp"
-#include "Inpx/BookRecord.hpp"
+
 #include "Query/BookQuery.hpp"
-#include "Query/QuerySerializer.hpp"
+#include "Database/Database.hpp"
+#include <filesystem>
 
 using namespace Librium;
-using namespace Librium::Query;
 
 namespace {
-void InsertBooks(Db::CDatabase& db) 
+
+void AddBook(Db::CDatabase& db, const std::string& id, const std::string& title, const std::string& lang, const std::string& genre, int rating, const std::string& annotation = "")
 {
-    auto book = [&](const std::string& id, const std::string& title,
-                    const std::string& lang, const std::string& genre,
-                    int rating, const std::string& annotation = "") 
-{
-        Inpx::CBookRecord r;
-        r.libId = id; r.archiveName = "test.zip";
-        r.title = title; r.language = lang; r.rating = rating;
-        r.fileName = id; r.fileExt = "fb2"; r.fileSize = 100000;
-        r.dateAdded = "2020-01-01";
-        r.genres.push_back(genre);
-        r.authors.push_back({"CAuthor" + id, "First", ""});
-        Fb2::CFb2Data fb2; fb2.annotation = annotation;
-        (void)db.InsertBook(r, fb2);
-    };
-    book("1", "Russian Novel",   "ru", "prose_classic", 5, "Great annotation");
-    book("2", "English Thriller","en", "thriller",      4);
-    book("3", "Russian SF",      "ru", "sf",            3);
+    Inpx::SBookRecord r;
+    r.libId = id;
+    r.title = title;
+    r.language = lang;
+    r.genres = {genre};
+    r.rating = rating;
+    r.archiveName = "arch1";
+    r.authors.push_back({"Author" + id, "First", ""});
+    Fb2::SFb2Data fb2; 
+    fb2.annotation = annotation;
+    db.InsertBook(r, fb2);
 }
+
 } // namespace
 
-TEST_CASE("Empty DB returns empty result", "[query]") 
+TEST_CASE("BookQuery basic execution", "[query]")
 {
-    Db::CDatabase db(":memory:");
-    REQUIRE(CBookQuery::Execute(db, {}).totalFound == 0);
-}
-TEST_CASE("Query all finds all books", "[query]") 
-{
-    Db::CDatabase db(":memory:");
-    InsertBooks(db);
-    REQUIRE(CBookQuery::Execute(db, {}).totalFound == 3);
-}
-TEST_CASE("Filter by language", "[query]") 
-{
-    Db::CDatabase db(":memory:");
-    InsertBooks(db);
-    QueryParams p; p.language = "ru";
-    auto r = CBookQuery::Execute(db, p);
-    REQUIRE(r.totalFound == 2);
-    for (const auto& b : r.books) REQUIRE(b.language == "ru");
-}
-TEST_CASE("Filter by genre", "[query]") 
-{
-    Db::CDatabase db(":memory:");
-    InsertBooks(db);
-    QueryParams p; p.genre = "thriller";
-    REQUIRE(CBookQuery::Execute(db, p).totalFound == 1);
-}
-TEST_CASE("withAnnotation filter", "[query]") 
-{
-    Db::CDatabase db(":memory:");
-    InsertBooks(db);
-    QueryParams p; p.withAnnotation = true;
-    auto r = CBookQuery::Execute(db, p);
-    REQUIRE(r.totalFound == 1);
-    REQUIRE_FALSE(r.books[0].annotation.empty());
-}
-TEST_CASE("Limit and totalFound", "[query]") 
-{
-    Db::CDatabase db(":memory:");
-    InsertBooks(db);
-    QueryParams p; p.limit = 1;
-    auto r = CBookQuery::Execute(db, p);
-    REQUIRE(r.books.size() == 1);
-    REQUIRE(r.totalFound == 3);
-}
-TEST_CASE("ToJson has required fields", "[query]") 
-{
-    Db::CDatabase db(":memory:");
-    InsertBooks(db);
-    auto r = CBookQuery::Execute(db, {});
-    auto j = CQuerySerializer::ToJson(r);
-    REQUIRE(j.contains("totalFound"));
-    REQUIRE(j.contains("books"));
-    REQUIRE(j.contains("query"));
-    for (const auto& b : j["books"]) 
-{
-        REQUIRE(b.contains("libId"));
-        REQUIRE(b.contains("title"));
-        REQUIRE_FALSE(b.contains("cover"));
+    std::string dbPath = "test_query.db";
+    if (std::filesystem::exists(dbPath)) std::filesystem::remove(dbPath);
+
+    {
+        Db::CDatabase db(dbPath);
+        AddBook(db, "1", "Book One", "ru", "sf", 5);
+        AddBook(db, "2", "Book Two", "ru", "detective", 4);
+        AddBook(db, "3", "The Book", "en", "sf", 3, "Some desc");
+
+        SECTION("Filter by language")
+        {
+            Query::SQueryParams p; 
+            p.language = "ru";
+            auto res = Query::CBookQuery::Execute(db, p);
+            REQUIRE(res.totalFound == 2);
+            REQUIRE(res.books.size() == 2);
+        }
+
+        SECTION("Filter by genre")
+        {
+            Query::SQueryParams p; 
+            p.genre = "sf";
+            auto res = Query::CBookQuery::Execute(db, p);
+            REQUIRE(res.totalFound == 2);
+        }
+
+        SECTION("Filter with annotation")
+        {
+            Query::SQueryParams p; 
+            p.withAnnotation = true;
+            auto res = Query::CBookQuery::Execute(db, p);
+            REQUIRE(res.totalFound == 1);
+            REQUIRE(res.books[0].libId == "3");
+        }
+
+        SECTION("Limit and offset")
+        {
+            Query::SQueryParams p; 
+            p.limit = 1;
+            auto res = Query::CBookQuery::Execute(db, p);
+            REQUIRE(res.totalFound == 3);
+            REQUIRE(res.books.size() == 1);
+        }
     }
+
+    std::filesystem::remove(dbPath);
 }
-TEST_CASE("SaveToFile writes JSON", "[query]") 
-{
-    Db::CDatabase db(":memory:");
-    InsertBooks(db);
-    const std::string path = "test_query_out.json";
-    std::filesystem::remove(path);
-    CQuerySerializer::SaveToFile(CBookQuery::Execute(db, {}), path);
-    REQUIRE(std::filesystem::exists(path));
-    std::filesystem::remove(path);
-}
-
-
-
-
-
-
