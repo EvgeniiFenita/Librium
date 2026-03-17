@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -13,6 +14,12 @@ struct sqlite3;
 struct sqlite3_stmt;
 
 namespace Librium::Db {
+
+struct SBookPath
+{
+    std::string archiveName;
+    std::string fileName;
+};
 
 class CDbError : public std::runtime_error
 {
@@ -71,6 +78,8 @@ public:
     void MarkArchiveIndexed(const std::string& archiveName);
     [[nodiscard]] bool ArchiveExists(const std::string& archiveName);
 
+    [[nodiscard]] std::optional<SBookPath> GetBookPath(int64_t bookId);
+
     [[nodiscard]] int64_t CountBooks() const;
     [[nodiscard]] int64_t CountAuthors() const;
 
@@ -93,6 +102,7 @@ private:
     sqlite3_stmt* m_stmtInsertBookGenre{nullptr};
     sqlite3_stmt* m_stmtBookExists{nullptr};
     sqlite3_stmt* m_stmtUpdateFb2{nullptr};
+    sqlite3_stmt* m_stmtGetBookPath{nullptr};
 
     void CreateSchema();
     void PrepareStatements();

@@ -111,7 +111,7 @@ The `Librium` unified CLI tool provides all functionality through subcommands.
 
 ### Querying the Database
 
-The `query` subcommand searches the database and outputs results in a structured JSON format.
+The `query` subcommand searches the database and outputs results in a structured JSON format. Each book in the results includes a unique **database ID**, which is used for exporting.
 
 1.  **Search by author and language**:
     ```powershell
@@ -131,6 +131,20 @@ The `query` subcommand searches the database and outputs results in a structured
 4.  **Pagination and Limit**:
     ```powershell
     .\Librium.exe query --db library.db --output page2.json --limit 20 --offset 20
+    ```
+
+### Exporting Books
+
+The `export` subcommand extracts a book from its archive and saves it to a specified directory. You must provide the book's database ID (found via the `query` command).
+
+1.  **Export a book by database ID**:
+    ```powershell
+    .\Librium.exe export --db library.db --archives C:/Books/Archives --id 123 --out ./Exported/
+    ```
+
+2.  **Export using a configuration file**:
+    ```powershell
+    .\Librium.exe export --config AppConfig.json --id 123 --out ./MyBooks/
     ```
 
 ---

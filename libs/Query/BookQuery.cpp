@@ -143,7 +143,7 @@ SQueryResult CBookQuery::Execute(Db::CDatabase& db, const SQueryParams& params)
         while (sqlite3_step(stmt) == SQLITE_ROW)
         {
             SBookResult br;
-            int64_t id = sqlite3_column_int64(stmt, 0);
+            br.id = sqlite3_column_int64(stmt, 0);
             const auto* lid = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
             const auto* tit = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
             
@@ -161,8 +161,8 @@ SQueryResult CBookQuery::Execute(Db::CDatabase& db, const SQueryParams& params)
             if (ann) br.annotation = ann;
             if (arch) br.archiveName = arch;
 
-            br.authors = FetchAuthors(raw, id);
-            br.genres = FetchGenres(raw, id);
+            br.authors = FetchAuthors(raw, br.id);
+            br.genres = FetchGenres(raw, br.id);
 
             result.books.push_back(std::move(br));
         }

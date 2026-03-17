@@ -181,6 +181,13 @@ void CDatabase::PrepareStatements()
             publish_date=?, cover_data=?, cover_mime=?
         WHERE id=?
     )", &m_stmtUpdateFb2);
+
+    prep(R"(
+        SELECT arch.name, b.file_name || '.' || b.file_ext
+        FROM books b
+        JOIN archives arch ON b.archive_id = arch.id
+        WHERE b.id = ?
+    )", &m_stmtGetBookPath);
 }
 
 void CDatabase::FinalizeStatements()
@@ -196,6 +203,7 @@ void CDatabase::FinalizeStatements()
     sqlite3_finalize(m_stmtInsertBookGenre);
     sqlite3_finalize(m_stmtBookExists);
     sqlite3_finalize(m_stmtUpdateFb2);
+    sqlite3_finalize(m_stmtGetBookPath);
 }
 
 int64_t CDatabase::GetOrCreateAuthor(const Inpx::SAuthor& author)
@@ -359,6 +367,21 @@ void CDatabase::Check(int rc, const char* context)
 {
     if (rc != SQLITE_OK && rc != SQLITE_DONE && rc != SQLITE_ROW)
         throw CDbError(std::string(context) + ": " + std::to_string(rc));
+}
+
+std::optional<SBookPath> CDatabase::GetBookPath(int64_t bookId)
+{
+    sqlite3_reset(m_stmtGetBookPath);
+    sqlite3_bind_int64(m_stmtGetBookPath, 1, bookId);
+    
+    if (sqlite3_step(m_stmtGetBookPath) == SQLITE_ROW)
+    {
+        SBookPath bp;
+        bp.archiveName = reinterpret_cast<const char*>(sqlite3_column_text(m_stmtGetBookPath, 0));
+        bp.fileName = reinterpret_cast<const char*>(sqlite3_column_text(m_stmtGetBookPath, 1));
+        return bp;
+    }
+    return std::nullopt;
 }
 
 } // namespace Librium::Db

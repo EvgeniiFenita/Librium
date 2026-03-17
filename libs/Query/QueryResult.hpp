@@ -17,6 +17,7 @@ struct SAuthorInfo
 
 struct SBookResult
 {
+    int64_t                   id{0};
     std::string               libId;
     std::string               title;
     std::vector<SAuthorInfo>  authors;

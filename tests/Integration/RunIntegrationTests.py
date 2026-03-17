@@ -150,6 +150,7 @@ class IntegrationTester:
             self.test_full_import()
             self.test_upgrade_import()
             self.test_queries()
+            self.test_export()
         except Exception as e:
             print(f"\n[FATAL ERROR] {e}")
             import traceback
@@ -267,6 +268,38 @@ class IntegrationTester:
         # Date range
         q_date = self.run_query("q_date.json", ["--date-from", "2023-01-01", "--limit", "0"])
         self.assert_equal(q_date["totalFound"], 3, "Added since 2023: 3 books")
+
+    def test_export(self):
+        print("\n--- Test: Export ---")
+        
+        # 1. Find a book ID (e.g., "Война и мир")
+        data = self.run_query("export_search.json", ["--title", "Война и мир"])
+        self.assert_equal(len(data["books"]), 1, "Found 'Война и мир' for export")
+        book = data["books"][0]
+        book_id = book["id"]
+        
+        # 2. Export it
+        export_dir = self.data_dir / "export_test"
+        if export_dir.exists(): shutil.rmtree(export_dir)
+        
+        res = self.run_librium([
+            "export", 
+            "--db", str(self.db_path), 
+            "--archives", str(self.data_dir / "v2" / "archives"),
+            "--id", str(book_id),
+            "--out", str(export_dir)
+        ])
+        
+        self.assert_equal(res.returncode, 0, "Export command exits with 0")
+        
+        # 3. Verify file exists and has content
+        expected_file = export_dir / "200001.fb2"
+        self.assert_equal(expected_file.exists(), True, f"Exported file {expected_file} exists")
+        
+        if expected_file.exists():
+            with open(expected_file, "r", encoding="utf-8") as f:
+                content = f.read()
+                self.assert_equal("<book-title>Война и мир</book-title>" in content, True, "Exported file content is correct")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

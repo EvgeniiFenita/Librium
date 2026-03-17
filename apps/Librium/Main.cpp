@@ -2,6 +2,7 @@
 #include "Utils.hpp"
 #include "Commands/CIndexCommand.hpp"
 #include "Commands/CQueryCommand.hpp"
+#include "Commands/CExportCommand.hpp"
 #include "Commands/CHelperCommands.hpp"
 
 #include <CLI/CLI.hpp>
@@ -31,6 +32,7 @@ int main(int argc, char* argv[])
     commands.push_back(std::make_unique<CImportCommand>());
     commands.push_back(std::make_unique<CUpgradeCommand>());
     commands.push_back(std::make_unique<CQueryCommand>());
+    commands.push_back(std::make_unique<CExportCommand>());
     commands.push_back(std::make_unique<CStatsCommand>());
     commands.push_back(std::make_unique<CInitConfigCommand>());
 
@@ -54,8 +56,9 @@ int main(int argc, char* argv[])
     if (app.get_subcommand("import")->parsed()) return commands[0]->Execute();
     if (app.get_subcommand("upgrade")->parsed()) return commands[1]->Execute();
     if (app.get_subcommand("query")->parsed()) return commands[2]->Execute();
-    if (app.get_subcommand("stats")->parsed()) return commands[3]->Execute();
-    if (app.get_subcommand("init-config")->parsed()) return commands[4]->Execute();
+    if (app.get_subcommand("export")->parsed()) return commands[3]->Execute();
+    if (app.get_subcommand("stats")->parsed()) return commands[4]->Execute();
+    if (app.get_subcommand("init-config")->parsed()) return commands[5]->Execute();
 
     return 0;
 }

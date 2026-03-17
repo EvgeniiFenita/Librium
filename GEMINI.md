@@ -48,3 +48,5 @@
 - **English Only**: ALL comments, documentation, and messages MUST be in English.
 - **No Transliteration**: Transliteration (writing localized words in Latin) is strictly forbidden.
 - **Sync**: Keep `docs/Project_Documentation.md` and `docs/Code_Style_Guidelines.md` updated with ANY structural or naming changes.
+- **Maintenance**: ALWAYS check existing documentation in the `docs/` directory during research. If your changes affect documented behavior or architecture, update the relevant files immediately.
+- **Commands**: Refer to `docs/Adding_New_Commands.md` when extending the CLI.

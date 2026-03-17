@@ -14,6 +14,7 @@ nlohmann::json CQuerySerializer::ToJson(const SQueryResult& result)
     for (const auto& b : result.books)
     {
         nlohmann::json jb;
+        jb["id"] = b.id;
         jb["libId"] = b.libId;
         jb["title"] = b.title;
         jb["series"] = b.series;

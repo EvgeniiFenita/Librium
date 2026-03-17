@@ -3,6 +3,7 @@ add_executable(Librium
     Indexer/Indexer.cpp
     Commands/CIndexCommand.cpp
     Commands/CQueryCommand.cpp
+    Commands/CExportCommand.cpp
     Commands/CHelperCommands.cpp
 )
 
