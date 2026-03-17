@@ -8,5 +8,6 @@ target_include_directories(Fb2 PUBLIC
 
 target_link_libraries(Fb2 PUBLIC
     pugixml::pugixml
+    Log
 )
 

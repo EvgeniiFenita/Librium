@@ -12,7 +12,7 @@ The project is organized into independent, reusable static libraries and a singl
 
 | Module | Responsibility | Dependencies |
 | :--- | :--- | :--- |
-| **Log** | Thread-safe singleton logger with `std::format` support. | None |
+| **Log** | Thread-safe singleton logger with multiple outputs (console/file), thread IDs, and source location tracking. | None |
 | **Zip** | RAII wrapper around `libzip` for memory-efficient extraction. | `libzip`, `zlib` |
 | **Fb2** | XML parser for FictionBook 2.0 metadata (annotations, covers, genres). | `pugixml` |
 | **Inpx** | High-speed parser for `.inpx` and `.inp` collection indices. | **Zip** |

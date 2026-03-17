@@ -3,8 +3,43 @@
 #include <chrono>
 #include <ctime>
 #include <iostream>
+#include <filesystem>
+#include <thread>
+#include <sstream>
+#include <iomanip>
 
 namespace Librium::Log {
+
+class CFileOutput : public ILogOutput
+{
+public:
+    explicit CFileOutput(const std::string& path)
+    {
+        m_file.open(path, std::ios::app);
+    }
+
+    void Write(const std::string& message) override
+    {
+        if (m_file.is_open())
+        {
+            m_file << message;
+            m_file.flush();
+        }
+    }
+
+private:
+    std::ofstream m_file;
+};
+
+class CConsoleOutput : public ILogOutput
+{
+public:
+    void Write(const std::string& message) override
+    {
+        std::cout << message;
+        std::cout.flush();
+    }
+};
 
 CLogger& CLogger::Instance() 
 {
@@ -18,60 +53,74 @@ void CLogger::SetLevel(ELogLevel level)
     m_level = level;
 }
 
-void CLogger::SetFile(const std::string& path) 
+void CLogger::AddFileOutput(const std::string& path)
 {
     std::lock_guard lock(m_mutex);
-    if (m_file.is_open())
-        m_file.close();
-    if (!path.empty())
-        m_file.open(path, std::ios::app);
+    m_outputs.push_back(std::make_unique<CFileOutput>(path));
 }
 
-void CLogger::Log(ELogLevel level, const std::string& message) 
+void CLogger::AddConsoleOutput()
+{
+    std::lock_guard lock(m_mutex);
+    m_outputs.push_back(std::make_unique<CConsoleOutput>());
+}
+
+void CLogger::ClearOutputs()
+{
+    std::lock_guard lock(m_mutex);
+    m_outputs.clear();
+}
+
+void CLogger::Log(ELogLevel level, const std::string& message, std::source_location loc) 
 {
     if (level < m_level)
         return;
 
-    // Build timestamp
     auto now = std::chrono::system_clock::now();
     auto t   = std::chrono::system_clock::to_time_t(now);
+    auto ms  = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+
     std::tm tm{};
 #ifdef _WIN32
     localtime_s(&tm, &t);
 #else
     localtime_r(&t, &tm);
 #endif
-    char ts[16];
-    std::strftime(ts, sizeof(ts), "%H:%M:%S", &tm);
 
-    const char* levelStr = "INFO";
+    char ts[32];
+    std::strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &tm);
+
+    const char* levelStr = "INFO ";
     switch (level) 
-{
+    {
         case ELogLevel::Debug: levelStr = "DEBUG"; break;
-        case ELogLevel::Info:  levelStr = "INFO";  break;
-        case ELogLevel::Warn:  levelStr = "WARN";  break;
+        case ELogLevel::Info:  levelStr = "INFO "; break;
+        case ELogLevel::Warn:  levelStr = "WARN "; break;
         case ELogLevel::Error: levelStr = "ERROR"; break;
     }
 
-    const std::string line = std::string("[") + ts + "] [" + levelStr + "] " + message + "\n";
+    std::string fileName = std::filesystem::path(loc.file_name()).filename().string();
+    
+    std::stringstream ss;
+    ss << "[" << ts << "." << std::setfill('0') << std::setw(3) << ms.count() << "] "
+       << "[" << std::this_thread::get_id() << "] "
+       << "[" << levelStr << "] "
+       << "[" << fileName << ":" << loc.line() << "] "
+       << message << "\n";
+
+    const std::string line = ss.str();
 
     std::lock_guard lock(m_mutex);
-    if (m_file.is_open()) 
-{
-        m_file << line;
-        m_file.flush();
-    }
-    else
+    if (m_outputs.empty())
     {
         std::cout << line;
         std::cout.flush();
     }
+    else
+    {
+        for (auto& out : m_outputs)
+            out->Write(line);
+    }
 }
 
 } // namespace Librium::Log
-
-
-
-
-
-

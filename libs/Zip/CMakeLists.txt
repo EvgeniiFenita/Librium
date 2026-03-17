@@ -9,5 +9,6 @@ target_include_directories(Zip PUBLIC
 target_link_libraries(Zip PUBLIC
     libzip::zip
     ${ZLIB_LIBRARIES}
+    Log
 )
 

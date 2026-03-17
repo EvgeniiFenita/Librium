@@ -15,9 +15,12 @@ namespace Librium::Apps {
 
 inline void SetupLogging(const Log::ELogLevel level, const std::string& file = "") 
 {
-    Log::CLogger::Instance().SetLevel(level);
+    auto& logger = Log::CLogger::Instance();
+    logger.ClearOutputs();
+    logger.SetLevel(level);
+    logger.AddConsoleOutput();
     if (!file.empty())
-        Log::CLogger::Instance().SetFile(file);
+        logger.AddFileOutput(file);
 }
 
 inline Log::ELogLevel ParseLogLevel(const std::string& lvl, Log::ELogLevel def = Log::ELogLevel::Info) 

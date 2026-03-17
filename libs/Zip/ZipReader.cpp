@@ -1,4 +1,5 @@
 #include "ZipReader.hpp"
+#include "Log/Logger.hpp"
 
 #include <zip.h>
 
@@ -11,6 +12,7 @@ struct SZipArchive
     zip_t* za = nullptr;
     explicit SZipArchive(const std::string& path)
     {
+        LOG_DEBUG("Opening zip archive: {}", path);
         int err = 0;
         za = zip_open(path.c_str(), ZIP_RDONLY, &err);
         if (!za)
@@ -54,6 +56,7 @@ std::vector<SZipEntry> CZipReader::ListEntries(const std::string& zipPath)
 
 std::vector<uint8_t> CZipReader::ReadEntry(const std::string& zipPath, const std::string& entryName)
 {
+    LOG_DEBUG("Reading entry '{}' from {}", entryName, zipPath);
     SZipArchive arch(zipPath);
     zip_file_t* zf = zip_fopen(arch.za, entryName.c_str(), 0);
     if (!zf)

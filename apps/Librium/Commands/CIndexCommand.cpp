@@ -57,8 +57,7 @@ int CImportCommand::Execute()
 
     std::signal(SIGINT, OnSignal);
 
-    Log::CLogger::Instance().Info(
-        "Librium v{} — mode: {}", VersionString, cfg.import.mode);
+    LOG_INFO("Librium v{} — mode: {}", VersionString, cfg.import.mode);
 
     try
     {
@@ -69,7 +68,7 @@ int CImportCommand::Execute()
     }
     catch (const std::exception& e) 
     {
-        Log::CLogger::Instance().Error("Fatal: {}", e.what());
+        LOG_ERROR("Fatal: {}", e.what());
         return 1;
     }
     return 0;

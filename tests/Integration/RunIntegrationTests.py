@@ -207,7 +207,8 @@ class IntegrationTester:
                 "parseFb2": True
             },
             "logging": {
-                "level": "info"
+                "level": "info",
+                "file": str(self.data_dir / "integration.log")
             }
         }
         cfg_path = self.data_dir / f"{name}_config.json"

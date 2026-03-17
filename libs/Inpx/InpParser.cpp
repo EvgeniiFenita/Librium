@@ -1,6 +1,7 @@
 #include "InpParser.hpp"
 
 #include "Zip/ZipReader.hpp"
+#include "Log/Logger.hpp"
 
 #include <filesystem>
 #include <sstream>
@@ -191,12 +192,15 @@ std::vector<SBookRecord> CInpParser::Parse(const std::string& inpxPath)
     std::vector<SBookRecord> all;
     m_stats = {};
 
+    LOG_INFO("Parsing INPX file: {}", inpxPath);
+
     Zip::CZipReader::IterateEntries(inpxPath, [&](const std::string& name, std::vector<uint8_t> data)
     {
         if (name.size() >= 4 && name.substr(name.size() - 4) == ".inp")
         {
             std::filesystem::path p(name);
             auto archive = p.stem().string();
+            LOG_DEBUG("Parsing archive: {}", archive);
             auto books = ParseInpData(data, archive, m_stats);
             all.insert(all.end(),
                 std::make_move_iterator(books.begin()),
@@ -205,6 +209,10 @@ std::vector<SBookRecord> CInpParser::Parse(const std::string& inpxPath)
         return true;
     });
 
+    LOG_INFO("Parsing complete. Total lines: {}, parsed OK: {}, skipped: {} (deleted: {}, invalid: {})",
+        m_stats.totalLines, m_stats.parsedOk, m_stats.skippedDeleted + m_stats.skippedInvalid,
+        m_stats.skippedDeleted, m_stats.skippedInvalid);
+
     return all;
 }
 
@@ -212,6 +220,8 @@ SInpParseStats CInpParser::ParseStreaming(const std::string& inpxPath, const std
 {
     m_stats = {};
     bool stop = false;
+
+    LOG_INFO("Streaming INPX file: {}", inpxPath);
 
     Zip::CZipReader::IterateEntries(inpxPath, [&](const std::string& name, std::vector<uint8_t> data)
     {
@@ -226,6 +236,7 @@ SInpParseStats CInpParser::ParseStreaming(const std::string& inpxPath, const std
 
         std::filesystem::path p(name);
         auto archive = p.stem().string();
+        LOG_DEBUG("Parsing archive: {}", archive);
 
         std::string text(reinterpret_cast<const char*>(data.data()), data.size());
         std::istringstream ss(text);
@@ -269,6 +280,10 @@ SInpParseStats CInpParser::ParseStreaming(const std::string& inpxPath, const std
         }
         return !stop;
     });
+
+    LOG_INFO("Streaming complete. Total lines: {}, parsed OK: {}, skipped: {} (deleted: {}, invalid: {})",
+        m_stats.totalLines, m_stats.parsedOk, m_stats.skippedDeleted + m_stats.skippedInvalid,
+        m_stats.skippedDeleted, m_stats.skippedInvalid);
 
     return m_stats;
 }

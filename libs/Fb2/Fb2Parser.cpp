@@ -1,4 +1,5 @@
 #include "Fb2Parser.hpp"
+#include "Log/Logger.hpp"
 
 #include <pugixml.hpp>
 
@@ -28,6 +29,7 @@ SFb2Data CFb2Parser::Parse(const std::string& xmlText)
     auto result = doc.load_string(xmlText.c_str());
     if (!result)
     {
+        LOG_DEBUG("FB2 XML parse error: {}", result.description());
         res.parseError = result.description();
         return res;
     }

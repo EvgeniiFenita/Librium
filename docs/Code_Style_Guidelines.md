@@ -242,7 +242,23 @@ Avoid unnecessary includes.
 
 ---
 
-# 15. File Naming
+# 15. Logging
+
+Always use the logging macros from `Log/Logger.hpp` instead of calling `CLogger` methods directly. This ensures that source location (file and line) is correctly captured.
+
+Available macros:
+- `LOG_DEBUG(fmt, ...)` - For detailed diagnostic information.
+- `LOG_INFO(fmt, ...)` - For general application progress.
+- `LOG_WARN(fmt, ...)` - For non-fatal issues or unexpected states.
+- `LOG_ERROR(fmt, ...)` - For fatal errors or exceptions.
+
+Use the `_S` variants for simple strings without formatting (e.g., `LOG_INFO_S("Operation started")`).
+
+Formatting uses `std::format` syntax. Thread IDs and timestamps are added automatically.
+
+---
+
+# 16. File Naming
 
 All project-specific files must use **PascalCase** (`ThisIsFile.cpp`). Standard build system files (`CMakeLists.txt`, `vcpkg.json`, `CMakePresets.json`) and version control files (`.gitignore`) remain unchanged.
 

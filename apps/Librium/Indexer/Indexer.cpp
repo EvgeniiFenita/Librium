@@ -38,7 +38,7 @@ std::vector<std::string> CIndexer::GetNewArchives(Db::CDatabase& db, const std::
         if (!indexedSet.count(a))
             newArchives.push_back(a);
 
-    Log::CLogger::Instance().Info(
+    LOG_INFO(
         "Archives in INPX: {}, already indexed: {}, new: {}",
         allArchives.size(), indexed.size(), newArchives.size());
 
@@ -68,7 +68,7 @@ void CIndexer::ProducerThread(const std::string& inpxPath, const Config::CBookFi
     }
     catch (const std::exception& e) 
     {
-        Log::CLogger::Instance().Error("Producer error: {}", e.what());
+        LOG_ERROR("Producer error: {}", e.what());
     }
     m_workQueue.Close();
 }
@@ -116,7 +116,7 @@ void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2)
                 }
                 catch (const std::exception& e) 
                 {
-                    Log::CLogger::Instance().Debug(
+                    LOG_DEBUG(
                         "FB2 read error [{}]: {}", result.record.FilePath(), e.what());
                     ++m_errorCount;
                 }
@@ -126,7 +126,7 @@ void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2)
         ++m_parsedCount;
         size_t cnt = m_parsedCount.load();
         if (cnt % m_cfg.logging.progressInterval == 0)
-            Log::CLogger::Instance().Info(
+            LOG_INFO(
                 "Processed {} books ({} filtered, {} errors)",
                 cnt, m_filteredCount.load(), m_errorCount.load());
 
@@ -164,7 +164,7 @@ Db::SImportStats CIndexer::WriterThread(Db::CDatabase& db, size_t batchSize)
             }
             catch (const std::exception& e) 
             {
-                Log::CLogger::Instance().Error("DB insert error: {}", e.what());
+                LOG_ERROR("DB insert error: {}", e.what());
                 ++stats.fb2Errors;
             }
         }
@@ -188,7 +188,7 @@ Db::SImportStats CIndexer::WriterThread(Db::CDatabase& db, size_t batchSize)
 
 Db::SImportStats CIndexer::Run() 
 {
-    Log::CLogger::Instance().Info("Opening database: {}", m_cfg.database.path);
+    LOG_INFO("Opening database: {}", m_cfg.database.path);
     Db::CDatabase db(m_cfg.database.path);
 
     Config::CBookFilter filter(m_cfg.filters);
@@ -200,7 +200,7 @@ Db::SImportStats CIndexer::Run()
         auto newArchives = GetNewArchives(db, m_cfg.library.inpxPath);
         if (newArchives.empty()) 
         {
-            Log::CLogger::Instance().Info("Database is up to date.");
+            LOG_INFO("Database is up to date.");
             return {};
         }
         // Skip archives that are ALREADY indexed
@@ -208,7 +208,7 @@ Db::SImportStats CIndexer::Run()
             m_skipArchives.insert(a);
     }
 
-    Log::CLogger::Instance().Info(
+    LOG_INFO(
         "Starting import: {} worker threads, mode={}",
         numWorkers, m_cfg.import.mode);
 

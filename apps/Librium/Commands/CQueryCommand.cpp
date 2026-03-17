@@ -45,12 +45,12 @@ int CQueryCommand::Execute()
         Db::CDatabase db(m_dbPath);
         const auto result = Query::CBookQuery::Execute(db, m_params);
 
-        Log::CLogger::Instance().Info(
+        LOG_INFO(
             "Found {} books (total matching: {})",
             result.books.size(), result.totalFound);
 
         Query::CQuerySerializer::SaveToFile(result, m_outputPath);
-        Log::CLogger::Instance().Info("Saved to {}", m_outputPath);
+        LOG_INFO("Saved to {}", m_outputPath);
     }
     catch (const std::exception& e) 
     {

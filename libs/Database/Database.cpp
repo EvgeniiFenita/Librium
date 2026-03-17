@@ -10,6 +10,7 @@ namespace Librium::Db {
 
 CDatabase::CDatabase(const std::string& path)
 {
+    LOG_INFO("Opening database: {}", path);
     if (sqlite3_open(path.c_str(), &m_db) != SQLITE_OK)
         throw CDbError("Cannot open database: " + path);
 
@@ -40,11 +41,13 @@ void CDatabase::Rollback()
 
 void CDatabase::Exec(const char* sql)
 {
+    LOG_DEBUG("Executing SQL: {}", sql);
     char* err = nullptr;
     if (sqlite3_exec(m_db, sql, nullptr, nullptr, &err) != SQLITE_OK)
     {
         std::string msg = err;
         sqlite3_free(err);
+        LOG_ERROR("SQL error: {} | Query: {}", msg, sql);
         throw CDbError("SQL error: " + msg);
     }
 }

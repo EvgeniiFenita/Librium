@@ -10,5 +10,6 @@ target_link_libraries(Database PUBLIC
     Fb2
     Inpx
     sqlite3_lib
+    Log
 )
 

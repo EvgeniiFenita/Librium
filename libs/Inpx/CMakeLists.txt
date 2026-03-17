@@ -8,5 +8,6 @@ target_include_directories(Inpx PUBLIC
 
 target_link_libraries(Inpx PUBLIC
     Zip
+    Log
 )
 
