@@ -244,7 +244,9 @@ Avoid unnecessary includes.
 
 # 15. Logging
 
-Always use the logging macros from `Log/Logger.hpp` instead of calling `CLogger` methods directly. This ensures that source location (file and line) is correctly captured.
+Always use the logging macros from `Log/Logger.hpp` instead of calling `CLogger` methods directly. 
+
+**Behavioral Note**: The logger is **silent by default**. It will not output to the console unless `logger.AddConsoleOutput()` is explicitly called (e.g., in a CLI tool's setup or a specific test case).
 
 Available macros:
 - `LOG_DEBUG(fmt, ...)` - For detailed diagnostic information.
@@ -252,13 +254,21 @@ Available macros:
 - `LOG_WARN(fmt, ...)` - For non-fatal issues or unexpected states.
 - `LOG_ERROR(fmt, ...)` - For fatal errors or exceptions.
 
-Use the `_S` variants for simple strings without formatting (e.g., `LOG_INFO_S("Operation started")`).
-
-Formatting uses `std::format` syntax. Thread IDs and timestamps are added automatically.
+Use the `_S` variants for simple strings without formatting.
 
 ---
 
-# 16. File Naming
+# 16. Unicode & Path Handling (Windows Compatibility)
+
+Windows uses UTF-16 for system paths, while our application uses UTF-8 strings. Improper conversion causes the "No mapping for Unicode character" error.
+
+1.  **Creation**: Always create `std::filesystem::path` from UTF-8 strings using `Librium::Config::Utf8ToPath(str)`.
+2.  **Conversion**: **NEVER** use `path.string()` if the path might contain Unicode. Use `path.u8string()` and cast if needed, but prefer keeping it as a `path` object.
+3.  **APIs**: Application-level functions and library interfaces should prefer `std::filesystem::path` over `std::string` for all file-related arguments.
+
+---
+
+# 17. File Naming
 
 All project-specific files must use **PascalCase** (`ThisIsFile.cpp`). Standard build system files (`CMakeLists.txt`, `vcpkg.json`, `CMakePresets.json`) and version control files (`.gitignore`) remain unchanged.
 

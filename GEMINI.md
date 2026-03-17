@@ -2,51 +2,46 @@
 
 ## Project Identity
 - **Project Name**: Librium (C++20 Indexing Library)
-- **Architecture**: Modular. No `libs/core` layer. Each directory in `libs/` is a standalone static library.
+- **Architecture**: Modular. Standalone static libraries in `libs/`.
 
 ## Critical Naming Rules
-- **File Naming**: ALWAYS use **PascalCase** for all project-specific files (`ThisIsFile.cpp`, `RunTests.py`). Standard build files (`CMakeLists.txt`, `vcpkg.json`) are exceptions.
-- **CMake Targets**: ALWAYS use **PascalCase** for library and binary targets (`Database`, `Librium`).
-- **Classes**: Always prefix with `C` (`CDatabase`).
-- **Interfaces**: Always prefix with `I` (`IDatabase`).
-- **Structs**: Always prefix with `S` (`SBookRecord`).
-- **Enums**: Always prefix with `E` (`ELogLevel`).
-- **Member Variables**: Always prefix with `m_` (`m_dbPath`).
+- **File Naming**: ALWAYS use **PascalCase** for all project-specific files (`ThisIsFile.cpp`, `run.py`). 
+- **CMake Targets**: ALWAYS use **PascalCase** for targets (`Database`, `Librium`).
+- **Classes**: Prefix with `C` (`CDatabase`).
+- **Interfaces**: Prefix with `I` (`IDatabase`).
+- **Structs**: Prefix with `S` (`SBookRecord`).
+- **Enums**: Prefix with `E` (`ELogLevel`).
+- **Member Variables**: Prefix with `m_` (`m_dbPath`).
 
 ## Coding & Formatting Style
-- **Braces**: ALWAYS use **Allman style** (opening brace on a NEW line) for functions, classes, structs, and control blocks.
-- **Parameters**: Keep function parameters on a single line unless they are too numerous or exceed line length limits.
+- **Braces**: ALWAYS use **Allman style** (opening brace on a NEW line).
 - **Namespaces**: Use C++20 nested namespace syntax (`namespace Librium::Db { ... }`).
+- **Unicode**: ALWAYS use `Librium::Config::Utf8ToPath()` when creating paths from strings. NEVER use `path.string()` on Windows; use `path.u8string()` if conversion is needed.
+- **Thread Safety**: ALWAYS wrap thread entry functions in `try-catch` blocks to prevent `std::terminate` on exceptions.
 
 ## Build & Environment
-- **Generator**: Visual Studio 18 2026.
-- **Preset**: `x64-debug`.
-- **Build Command**: `.\Build.ps1 -Preset x64-debug`.
-- **Dependencies**: Managed via `vcpkg` in manifest mode.
+- **Generator**: Ninja (preferred) or Visual Studio 18 2026.
+- **Master Pipeline**: `python scripts/run.py --preset <preset> [--real-library <path>]`.
+- **Presets**: `x64-debug`, `x64-release`, `linux-debug`, `linux-release`.
+- **Dependencies**: `vcpkg` in manifest mode. Requires `VCPKG_ROOT` env var.
 
 ## Testing Standards
-- **Master Script**: ALWAYS verify changes using `.\RunAllTests.ps1 -Preset x64-debug`.
-- **Unit Tests**: Catch2, located in `tests/Unit`.
-- **Integration Tests**: Python 3, located in `tests/Integration`.
+- **Unified Runner**: ALWAYS verify changes using `python scripts/run.py`.
+- **Stages**: 1. Unit (Catch2), 2. Integration (Python), 3. Real Library (Heavy indexing).
+- **Artifacts**: All temporary data must stay in `out/build/<preset>/`. NEVER create files in `libs/`, `apps/`, or `tests/`.
 
-## Refactoring Guidelines
-- **No Monoliths**: Avoid creating large, all-encompassing libraries.
-- **Modularity**: New features should go into new modules in `libs/` with their own `CMakeLists.txt`.
-- **Includes**: Every library must add `libs/` to its include paths. Headers must be included as `#include "ModuleName/Header.hpp"`.
+## Reference Documentation
+- **[Project Overview](docs/Project_Documentation.md)**: Architecture, directory layout, and CLI usage.
+- **[Code Style & Unicode](docs/Code_Style_Guidelines.md)**: Strict naming, formatting, and Unicode path handling rules.
+- **[Code Review Checklist](docs/CodeReviewInstructions.md)**: List of common pitfalls and quality standards.
+- **[CLI Extensibility](docs/Adding_New_Commands.md)**: Guide for adding new subcommands to the application.
 
 ## Safety & Precision Rules
-- **Dependency Protection**: NEVER modify files in `vcpkg_installed/`, `out/`, `.git/`, or `.vs/`. All mass-refactoring (regex) MUST be restricted to a whitelist: `libs/`, `apps/`, `tests/`.
-- **Accurate Refactoring**: 
-    - Use word boundaries (`\b`) in regex to avoid partial matches.
-    - Double-check that renaming internal symbols doesn't break CLI arguments or string literals (e.g., `--author` should not become `--CAuthor`).
-    - When adding prefixes, ensure `#include` directives stay prefix-free if the file name hasn't changed.
-- **Verification Workflow**: After any structural change or mass-rename, ALWAYS run:
-    1. `.\Build.ps1 -Preset x64-debug`
-    2. `.\RunAllTests.ps1 -Preset x64-debug`
+- **Clean Console**: Libraries (`libs/`) must NEVER use `std::cout`/`std::cerr`. Use `LOG_*` macros instead.
+- **Mass-refactoring Whitelist**: `libs/`, `apps/`, `tests/`. NEVER touch `vcpkg_installed/` or `out/`.
+- **Verification Workflow**: After any structural change, run `python scripts/run.py --preset x64-debug`.
 
-## Documentation & Communication
-- **English Only**: ALL comments, documentation, and messages MUST be in English.
-- **No Transliteration**: Transliteration (writing localized words in Latin) is strictly forbidden.
-- **Sync**: Keep `docs/Project_Documentation.md` and `docs/Code_Style_Guidelines.md` updated with ANY structural or naming changes.
-- **Maintenance**: ALWAYS check existing documentation in the `docs/` directory during research. If your changes affect documented behavior or architecture, update the relevant files immediately.
-- **Commands**: Refer to `docs/Adding_New_Commands.md` when extending the CLI.
+## Communication
+- **English Only**: ALL comments, docs, and messages must be in English.
+- **No Transliteration**: Strictly forbidden.
+- **Maintenance**: Check documentation in `docs/` during research. Update relevant files if architecture or rules change.

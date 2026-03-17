@@ -20,7 +20,7 @@ void AddBook(Db::CDatabase& db, const std::string& id, const std::string& title,
     r.authors.push_back({"Author" + id, "First", ""});
     Fb2::SFb2Data fb2; 
     fb2.annotation = annotation;
-    db.InsertBook(r, fb2);
+    (void)db.InsertBook(r, fb2);
 }
 
 } // namespace

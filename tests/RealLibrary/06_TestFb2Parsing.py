@@ -13,10 +13,14 @@ import os
 import sys
 import json
 
-LIBRIUM_EXE = r"out\build\x64-debug\apps\Librium\Debug\Librium.exe"
-CONFIG_PATH = r"tests\RealLibrary\fb2_library_config.json"
-DB_PATH = r"tests\RealLibrary\Fb2Parsed.db"
-QUERY_OUT = r"tests\RealLibrary\fb2_query.json"
+LIBRIUM_EXE = os.environ.get("LIBRIUM_EXE", os.path.join("out", "build", "x64-debug", "apps", "Librium", "Debug", "Librium.exe"))
+artifact_dir = os.environ.get("LIBRIUM_ARTIFACT_DIR", os.path.join("tests", "RealLibrary"))
+config_name = "fb2_library_config.json"
+CONFIG_PATH = os.path.join(artifact_dir, config_name)
+if not os.path.exists(CONFIG_PATH):
+    CONFIG_PATH = os.path.join("tests", "RealLibrary", config_name)
+DB_PATH = os.path.join(artifact_dir, "Fb2Parsed.db")
+QUERY_OUT = os.path.join(artifact_dir, "fb2_query.json")
 
 def test_fb2_parsing():
     print("--- Starting FB2 Deep Parsing Test (Language: 'ru', Genre: 'sf_history') ---")

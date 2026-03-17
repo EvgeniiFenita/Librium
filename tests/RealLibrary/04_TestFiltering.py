@@ -11,9 +11,13 @@ import subprocess
 import os
 import sys
 
-LIBRIUM_EXE = r"out\build\x64-debug\apps\Librium\Debug\Librium.exe"
-CONFIG_PATH = r"tests\RealLibrary\filter_library_config.json"
-DB_PATH = r"tests\RealLibrary\Filtered.db"
+LIBRIUM_EXE = os.environ.get("LIBRIUM_EXE", os.path.join("out", "build", "x64-debug", "apps", "Librium", "Debug", "Librium.exe"))
+artifact_dir = os.environ.get("LIBRIUM_ARTIFACT_DIR", os.path.join("tests", "RealLibrary"))
+config_name = "filter_library_config.json"
+CONFIG_PATH = os.path.join(artifact_dir, config_name)
+if not os.path.exists(CONFIG_PATH):
+    CONFIG_PATH = os.path.join("tests", "RealLibrary", config_name)
+DB_PATH = os.path.join(artifact_dir, "Filtered.db")
 
 def test_filtering():
     print("--- Starting Filtering Import Test (Language: 'en' only) ---")

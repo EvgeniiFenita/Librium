@@ -9,7 +9,8 @@ Success Criteria:
 import os
 import sys
 
-LOG_PATH = r"tests\RealLibrary\RealLibrary.log"
+artifact_dir = os.environ.get("LIBRIUM_ARTIFACT_DIR", os.path.join("tests", "RealLibrary"))
+LOG_PATH = os.path.join(artifact_dir, "RealLibrary.log")
 
 def check_logs():
     print(f"--- Checking Logs: {LOG_PATH} ---")

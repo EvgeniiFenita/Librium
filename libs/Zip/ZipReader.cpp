@@ -2,6 +2,12 @@
 #include "Log/Logger.hpp"
 
 #include <zip.h>
+#include <cstring>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 
 namespace Librium::Zip {
 
@@ -10,9 +16,31 @@ namespace {
 struct SZipArchive
 {
     zip_t* za = nullptr;
-    explicit SZipArchive(const std::string& path)
+    explicit SZipArchive(const std::filesystem::path& path)
     {
-        LOG_DEBUG("Opening zip archive: {}", path);
+        auto u8path = path.u8string();
+        auto pathStr = (const char*)u8path.c_str();
+        LOG_DEBUG("Opening zip archive: {}", pathStr);
+#ifdef _WIN32
+        zip_error_t zerr;
+        zip_error_init(&zerr);
+        zip_source_t* src = zip_source_win32w_create(path.c_str(), 0, -1, &zerr);
+        if (!src)
+        {
+            std::string msg = zip_error_strerror(&zerr);
+            zip_error_fini(&zerr);
+            throw CZipError("Cannot create zip source for '" + std::string(pathStr) + "': " + msg);
+        }
+        za = zip_open_from_source(src, ZIP_RDONLY, &zerr);
+        if (!za)
+        {
+            zip_source_free(src);
+            std::string msg = zip_error_strerror(&zerr);
+            zip_error_fini(&zerr);
+            throw CZipError("Cannot open zip from source '" + std::string(pathStr) + "': " + msg);
+        }
+        zip_error_fini(&zerr);
+#else
         int err = 0;
         za = zip_open(path.c_str(), ZIP_RDONLY, &err);
         if (!za)
@@ -21,8 +49,9 @@ struct SZipArchive
             zip_error_init_with_code(&zerr, err);
             std::string msg = zip_error_strerror(&zerr);
             zip_error_fini(&zerr);
-            throw CZipError("Cannot open zip '" + path + "': " + msg);
+            throw CZipError("Cannot open zip '" + std::string(pathStr) + "': " + msg);
         }
+#endif
     }
     ~SZipArchive()
     {
@@ -32,7 +61,7 @@ struct SZipArchive
 
 } // namespace
 
-std::vector<SZipEntry> CZipReader::ListEntries(const std::string& zipPath)
+std::vector<SZipEntry> CZipReader::ListEntries(const std::filesystem::path& zipPath)
 {
     std::vector<SZipEntry> result;
     SZipArchive arch(zipPath);
@@ -54,14 +83,15 @@ std::vector<SZipEntry> CZipReader::ListEntries(const std::string& zipPath)
     return result;
 }
 
-std::vector<uint8_t> CZipReader::ReadEntry(const std::string& zipPath, const std::string& entryName)
+std::vector<uint8_t> CZipReader::ReadEntry(const std::filesystem::path& zipPath, const std::string& entryName)
 {
-    LOG_DEBUG("Reading entry '{}' from {}", entryName, zipPath);
+    auto pathStr = (const char*)zipPath.u8string().c_str();
+    LOG_DEBUG("Reading entry '{}' from {}", entryName, pathStr);
     SZipArchive arch(zipPath);
     zip_file_t* zf = zip_fopen(arch.za, entryName.c_str(), 0);
     if (!zf)
     {
-        throw CZipError("Cannot open entry '" + entryName + "' in " + zipPath);
+        throw CZipError("Cannot open entry '" + entryName + "' in " + std::string(pathStr));
     }
 
     struct zip_stat st;
@@ -74,7 +104,7 @@ std::vector<uint8_t> CZipReader::ReadEntry(const std::string& zipPath, const std
     return buffer;
 }
 
-void CZipReader::IterateEntries(const std::string& zipPath, const std::function<bool(const std::string&, std::vector<uint8_t>)>& callback)
+void CZipReader::IterateEntries(const std::filesystem::path& zipPath, const std::function<bool(const std::string&, std::vector<uint8_t>)>& callback)
 {
     SZipArchive arch(zipPath);
     zip_int64_t num = zip_get_num_entries(arch.za, 0);
@@ -103,7 +133,7 @@ void CZipReader::IterateEntries(const std::string& zipPath, const std::function<
     }
 }
 
-void CZipReader::IterateEntryNames(const std::string& zipPath, const std::function<bool(const SZipEntry&)>& callback)
+void CZipReader::IterateEntryNames(const std::filesystem::path& zipPath, const std::function<bool(const SZipEntry&)>& callback)
 {
     SZipArchive arch(zipPath);
     zip_int64_t num = zip_get_num_entries(arch.za, 0);

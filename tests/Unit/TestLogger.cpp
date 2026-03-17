@@ -47,12 +47,14 @@ TEST_CASE("Debug suppressed below Info level", "[logger]")
     std::filesystem::remove(tmp);
 }
 
-TEST_CASE("Format overload works", "[logger]")
+TEST_CASE("Level filtering works", "[logger]")
 {
-    const std::string tmp = "tlog3.log";
+    const std::string tmp = "tlog2.log";
     std::filesystem::remove(tmp);
     CLogger::Instance().ClearOutputs();
+    CLogger::Instance().SetLevel(ELogLevel::Info);
     CLogger::Instance().AddFileOutput(tmp);
+
     LOG_INFO("x={}", 99);
     CLogger::Instance().ClearOutputs();
     REQUIRE(ReadFileContent(tmp).find("x=99") != std::string::npos);

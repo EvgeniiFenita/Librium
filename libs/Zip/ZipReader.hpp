@@ -1,10 +1,10 @@
 #pragma once
 
-#include <cstdint>
-#include <functional>
-#include <stdexcept>
 #include <string>
 #include <vector>
+#include <functional>
+#include <cstdint>
+#include <filesystem>
 
 namespace Librium::Zip {
 
@@ -19,27 +19,22 @@ struct SZipEntry
 class CZipError : public std::runtime_error
 {
 public:
-    explicit CZipError(const std::string& msg) : std::runtime_error(msg) 
-    {}
+    explicit CZipError(const std::string& msg) : std::runtime_error(msg) {}
 };
 
 class CZipReader
 {
 public:
-    [[nodiscard]] static std::vector<SZipEntry> ListEntries(const std::string& zipPath);
-
-    [[nodiscard]] static std::vector<uint8_t> ReadEntry(
-        const std::string& zipPath,
-        const std::string& entryName);
+    [[nodiscard]] static std::vector<SZipEntry> ListEntries(const std::filesystem::path& zipPath);
+    [[nodiscard]] static std::vector<uint8_t>   ReadEntry(const std::filesystem::path& zipPath, const std::string& entryName);
 
     static void IterateEntries(
-        const std::string& zipPath,
-        const std::function<bool(const std::string& name,
-                                 std::vector<uint8_t> data)>& callback);
+        const std::filesystem::path& zipPath,
+        const std::function<bool(const std::string&, std::vector<uint8_t>)>& callback);
 
     static void IterateEntryNames(
-        const std::string& zipPath,
-        const std::function<bool(const SZipEntry& entry)>& callback);
+        const std::filesystem::path& zipPath,
+        const std::function<bool(const SZipEntry&)>& callback);
 };
 
 } // namespace Librium::Zip

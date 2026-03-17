@@ -3,10 +3,12 @@
 #include "Inpx/InpParser.hpp"
 #include "Log/Logger.hpp"
 #include "Zip/ZipReader.hpp"
+#include "Utils.hpp"
 
 #include <filesystem>
 #include <unordered_map>
 
+using namespace Librium::Apps;
 namespace fs = std::filesystem;
 
 namespace Librium::Indexer {
@@ -22,7 +24,7 @@ std::vector<std::string> CIndexer::GetNewArchives(Db::CDatabase& db, const std::
     std::unordered_set<std::string> indexedSet(indexed.begin(), indexed.end());
 
     std::vector<std::string> allArchives;
-    Zip::CZipReader::IterateEntryNames(inpxPath, [&](const Zip::SZipEntry& entry) 
+    Zip::CZipReader::IterateEntryNames(Utf8ToPath(inpxPath), [&](const Zip::SZipEntry& entry) 
     {
         if (entry.name.size() >= 4 &&
             entry.name.substr(entry.name.size()-4) == ".inp") 
@@ -75,62 +77,75 @@ void CIndexer::ProducerThread(const std::string& inpxPath, const Config::CBookFi
 
 void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2) 
 {
-    std::unordered_map<std::string, std::string> archivePathCache;
+    std::unordered_map<std::string, fs::path> archivePathCache;
     Fb2::CFb2Parser fb2Parser;
 
     while (!m_stopRequested) 
     {
-        auto item = m_workQueue.Pop();
-        if (!item) break;
-
-        SResultItem result;
-        result.record = std::move(item->record);
-
-        if (parseFb2) 
+        try
         {
-            std::string archivePath;
-            auto it = archivePathCache.find(result.record.archiveName);
-            if (it != archivePathCache.end()) 
+            auto item = m_workQueue.Pop();
+            if (!item) break;
+
+            SResultItem result;
+            result.record = std::move(item->record);
+
+            if (parseFb2) 
             {
-                archivePath = it->second;
-            }
-            else
-            {
-                // Try archiveName + .zip, then archiveName as-is
-                for (const auto& suffix : {std::string(".zip"), std::string("")}) 
+                fs::path archivePath;
+                auto it = archivePathCache.find(result.record.archiveName);
+                if (it != archivePathCache.end()) 
                 {
-                    fs::path p = fs::path(archivesDir) / (result.record.archiveName + suffix);
-                    if (fs::exists(p)) 
-                    { archivePath = p.string(); break; }
+                    archivePath = it->second;
                 }
-                archivePathCache[result.record.archiveName] = archivePath;
+                else
+                {
+                    // Try archiveName + .zip, then archiveName as-is
+                    for (const auto& suffix : {std::string(".zip"), std::string("")}) 
+                    {
+                        fs::path p = Utf8ToPath(archivesDir) / Utf8ToPath(result.record.archiveName + suffix);
+                        if (fs::exists(p)) 
+                        { archivePath = p; break; }
+                    }
+                    archivePathCache[result.record.archiveName] = archivePath;
+                }
+
+                if (!archivePath.empty()) 
+                {
+                    try
+                    {
+                        auto data = Zip::CZipReader::ReadEntry(
+                            archivePath, result.record.FilePath());
+                        result.fb2 = fb2Parser.Parse(data);
+                    }
+                    catch (const std::exception& e) 
+                    {
+                        LOG_DEBUG(
+                            "FB2 read error [{}]: {}", result.record.FilePath(), e.what());
+                        ++m_errorCount;
+                    }
+                }
             }
 
-            if (!archivePath.empty()) 
-            {
-                try
-                {
-                    auto data = Zip::CZipReader::ReadEntry(
-                        archivePath, result.record.FilePath());
-                    result.fb2 = fb2Parser.Parse(data);
-                }
-                catch (const std::exception& e) 
-                {
-                    LOG_DEBUG(
-                        "FB2 read error [{}]: {}", result.record.FilePath(), e.what());
-                    ++m_errorCount;
-                }
-            }
+            ++m_parsedCount;
+            size_t cnt = m_parsedCount.load();
+            if (cnt % m_cfg.logging.progressInterval == 0)
+                LOG_INFO(
+                    "Processed {} books ({} filtered, {} errors)",
+                    cnt, m_filteredCount.load(), m_errorCount.load());
+
+            m_resultQueue.Push(std::move(result));
         }
-
-        ++m_parsedCount;
-        size_t cnt = m_parsedCount.load();
-        if (cnt % m_cfg.logging.progressInterval == 0)
-            LOG_INFO(
-                "Processed {} books ({} filtered, {} errors)",
-                cnt, m_filteredCount.load(), m_errorCount.load());
-
-        m_resultQueue.Push(std::move(result));
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("Worker thread error: {}", e.what());
+            ++m_errorCount;
+        }
+        catch (...)
+        {
+            LOG_ERROR("Unknown worker thread error");
+            ++m_errorCount;
+        }
     }
 }
 
@@ -194,6 +209,8 @@ Db::SImportStats CIndexer::Run()
     Config::CBookFilter filter(m_cfg.filters);
     int numWorkers = std::max(1, m_cfg.import.threadCount);
 
+    std::unordered_set<std::string> archivesInInpx;
+
     // Upgrade mode: populate skip set
     if (m_cfg.import.mode == "upgrade") 
     {
@@ -212,9 +229,34 @@ Db::SImportStats CIndexer::Run()
         "Starting import: {} worker threads, mode={}",
         numWorkers, m_cfg.import.mode);
 
-    std::thread producer([this, &filter]() 
+    std::thread producer([this, &filter, &archivesInInpx]() 
     {
-        ProducerThread(m_cfg.library.inpxPath, filter);
+        try
+        {
+            Inpx::CInpParser parser;
+            parser.ParseStreaming(m_cfg.library.inpxPath, [&](Inpx::SBookRecord&& rec) 
+            {
+                if (m_stopRequested) return false;
+
+                archivesInInpx.insert(rec.archiveName);
+
+                if (!m_skipArchives.empty() && m_skipArchives.count(rec.archiveName))
+                    return true;
+
+                if (!filter.ShouldInclude(rec)) 
+                {
+                    ++m_filteredCount;
+                    return true;
+                }
+                m_workQueue.Push(SWorkItem{std::move(rec)});
+                return true;
+            });
+        }
+        catch (const std::exception& e) 
+        {
+            LOG_ERROR("Producer error: {}", e.what());
+        }
+        m_workQueue.Close();
     });
 
     std::vector<std::thread> workers;
@@ -236,8 +278,10 @@ Db::SImportStats CIndexer::Run()
     producer.join();
     closer.join();
 
+    stats.archivesProcessed = archivesInInpx.size();
+
     // Mark all archives as indexed
-    for (const auto& archive : db.GetIndexedArchives())
+    for (const auto& archive : archivesInInpx)
         db.MarkArchiveIndexed(archive);
 
     stats.archivesProcessed = db.GetIndexedArchives().size();

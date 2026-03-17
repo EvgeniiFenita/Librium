@@ -1,6 +1,6 @@
 # Librium — Project Documentation
 
-**Librium** (formerly libindexer) is a high-performance C++20 toolset designed to parse, index, and query large home library collections distributed in INPX format (e.g., Librusec or Flibusta archives).
+**Librium** is a high-performance C++20 toolset designed to parse, index, and query large home library collections distributed in INPX format (e.g., Librusec or Flibusta archives).
 
 ---
 
@@ -12,12 +12,12 @@ The project is organized into independent, reusable static libraries and a singl
 
 | Module | Responsibility | Dependencies |
 | :--- | :--- | :--- |
-| **Log** | Thread-safe singleton logger with multiple outputs (console/file), thread IDs, and source location tracking. | None |
-| **Zip** | RAII wrapper around `libzip` for memory-efficient extraction. | `libzip`, `zlib` |
-| **Fb2** | XML parser for FictionBook 2.0 metadata (annotations, covers, genres). | `pugixml` |
-| **Inpx** | High-speed parser for `.inpx` and `.inp` collection indices. | **Zip** |
-| **Config** | JSON-based application configuration management. | **Inpx**, `nlohmann_json` |
-| **Database** | Thread-safe SQLite wrapper with optimized batch insertion logic. | **Fb2**, **Inpx**, `sqlite3` |
+| **Log** | Thread-safe singleton logger. Silent by default, supports file and console outputs. | None |
+| **Zip** | Unicode-aware RAII wrapper around `libzip`. Supports long paths and кириллица. | `libzip`, `zlib` |
+| **Fb2** | XML parser for FictionBook 2.0 metadata using `pugixml`. | `pugixml` |
+| **Inpx** | High-speed parser for `.inpx` and `.inp` collection indices. | **Zip**, **Config** |
+| **Config** | JSON-based configuration and cross-platform path helpers (`Utf8ToPath`). | **Inpx**, `nlohmann_json` |
+| **Database** | Thread-safe SQLite wrapper with optimized batch insertion. | **Fb2**, **Inpx**, `sqlite3` |
 | **QueryLib** | Search engine and JSON serialization for query results. | **Database**, `nlohmann_json` |
 
 ---
@@ -28,164 +28,84 @@ The project is organized into independent, reusable static libraries and a singl
 Librium/
 ├── apps/
 │   └── Librium/            ← Unified CLI application
-│       ├── Commands/       ← CLI command implementations
-│       ├── Indexer/        ← Multithreaded indexing pipeline
-│       └── Main.cpp        ← Application entry point
 ├── libs/
-│   ├── Config/             ← App settings & JSON loading
+│   ├── Config/             ← App settings & Unicode path helpers
 │   ├── Database/           ← SQLite schema & data persistence
 │   ├── Fb2/                ← Metadata extraction from books
 │   ├── Inpx/               ← Collection index parsing
 │   ├── Log/                ← Centralized logging
 │   ├── Query/              ← Search logic (CMake target: QueryLib)
-│   └── Zip/                ← Archive handling
+│   └── Zip/                ← Unicode-aware archive handling
+├── scripts/                ← Unified Python automation pipeline
+│   ├── run.py              ← Master entry point (orchestrator)
+│   ├── build.py            ← Build automation script
+│   └── test.py             ← Multi-stage test runner
 ├── tests/
 │   ├── Integration/        ← Python-based E2E scenarios
 │   ├── RealLibrary/        ← Tests for multi-million book collections
-│   └── Unit/               ← Catch2 test suite & test data generator
-├── docs/                   ← Project documentation & style guides
+│   └── Unit/               ← Catch2 test suite
+├── Dockerfile.linux        ← Linux build environment
 ├── CMakeLists.txt          ← Root build configuration
-└── RunAllTests.ps1         ← Master test runner script
+└── CMakePresets.json       ← Cross-platform build presets
 ```
 
 ---
 
-## 3. Build & Test
+## 3. Automation Pipeline (Python)
 
-### Requirements
-- **C++20** compatible compiler (MSVC 19.40+, GCC 13+, Clang 16+)
-- **CMake 3.25+**
-- **vcpkg** (Manifest Mode)
-- **Python 3** (for integration tests and data generation)
+The project uses a unified Python-based pipeline for all platforms. **All temporary artifacts (DBs, logs, configs) are stored in `out/build/<preset>/`**, keeping the source tree clean.
 
-### Build Instructions (Windows)
-The project uses CMake Presets. Use the root build script for convenience:
+### Master Entry Point: `scripts/run.py`
+This is the recommended way to work with the project. It automatically handles build and all test stages.
 
 ```powershell
-# Default build (x64-debug)
-.\Build.ps1
+# Build and run all tests (Unit + Integration) on Windows
+python scripts/run.py --preset x64-release
 
-# Build with clean (removes old cache)
-.\Build.ps1 -Clean
+# Full pipeline on Linux (via Docker) including Real Library tests
+python scripts/run.py --preset linux-release --real-library "C:/Path/To/Library"
 
-# Release build
-.\Build.ps1 -Preset x64-release
+# Clean build
+python scripts/run.py --preset x64-debug --clean
 ```
 
-### Running Tests
-The master script runs both Unit (C++) and Integration (Python) tests:
-```powershell
-# Default tests (x64-debug)
-.\RunAllTests.ps1
-
-# Release tests
-.\RunAllTests.ps1 -Preset x64-release
-```
+### Test Stages in `scripts/test.py`
+1.  **Stage 1: UNIT**: Fast Catch2 tests (silent by default).
+2.  **Stage 2: INTEGRATION**: End-to-end Python scenarios on small data.
+3.  **Stage 3: REAL**: Heavy indexing tests on actual collections (0.5M+ books).
 
 ---
 
-## 4. CLI Usage Examples
+## 4. Platform Support
 
-The `Librium` unified CLI tool provides all functionality through subcommands.
+### Windows (Native)
+- **Compiler**: MSVC 19.40+ (Visual Studio 2022)
+- **Environment**: Requires `VCPKG_ROOT` environment variable.
+- **Unicode**: Full support for Cyrillic paths in archives and configurations.
+
+### Linux (Docker / WSL)
+- **Compiler**: GCC 13+
+- **Runner**: Uses `Dockerfile.linux` (Ubuntu 24.04).
+- **Usage**: Use `linux-debug` or `linux-release` presets with `scripts/run.py`.
+
+---
+
+## 5. CLI Usage Examples
 
 ### Building the Database
+1.  **Initialize config**: `.\Librium.exe init-config --output AppConfig.json`
+2.  **Import**: `.\Librium.exe import --config AppConfig.json`
+3.  **Stats**: `.\Librium.exe stats --db library.db`
 
-1.  **Initialize a default configuration**:
-    ```powershell
-    .\Librium.exe init-config --output AppConfig.json
-    ```
-
-2.  **Run a full import**:
-    ```powershell
-    .\Librium.exe import --config AppConfig.json --threads 8
-    ```
-
-3.  **Upgrade an existing database** (only process new archives):
-    ```powershell
-    .\Librium.exe upgrade --config AppConfig.json
-    ```
-
-4.  **Show database statistics**:
-    ```powershell
-    .\Librium.exe stats --db library.db
-    ```
-
-### Querying the Database
-
-The `query` subcommand searches the database and outputs results in a structured JSON format. Each book in the results includes a unique **database ID**, which is used for exporting.
-
-1.  **Search by author and language**:
-    ```powershell
-    .\Librium.exe query --db library.db --output results.json --author "Толстой" --language "ru"
-    ```
-
-2.  **Filter by genre and rating**:
-    ```powershell
-    .\Librium.exe query --db library.db --output top_sf.json --genre "sf" --rating-min 5
-    ```
-
-3.  **Find a specific book by ID**:
-    ```powershell
-    .\Librium.exe query --db library.db --output book.json --lib-id "200007"
-    ```
-
-4.  **Pagination and Limit**:
-    ```powershell
-    .\Librium.exe query --db library.db --output page2.json --limit 20 --offset 20
-    ```
-
-### Exporting Books
-
-The `export` subcommand extracts a book from its archive and saves it to a specified directory. You must provide the book's database ID (found via the `query` command).
-
-1.  **Export a book by database ID**:
-    ```powershell
-    .\Librium.exe export --db library.db --archives C:/Books/Archives --id 123 --out ./Exported/
-    ```
-
-2.  **Export using a configuration file**:
-    ```powershell
-    .\Librium.exe export --config AppConfig.json --id 123 --out ./MyBooks/
-    ```
-
-### Testing on Real Libraries
-For large-scale validation (e.g., Librusec 0.4M+ books), a specialized test suite is available:
-```powershell
-# Run all real-world tests sequentially
-python tests/RealLibrary/RunAllRealTests.py
-```
-This suite verifies:
-- Indexing speed and stability.
-- Search precision for mixed RU/EN collections.
-- Correct FB2 extraction and deep parsing (annotations).
-- Automatic cleanup of large databases and logs upon success.
+### Querying and Exporting
+1.  **Search**: `.\Librium.exe query --db library.db --author "Толстой" --output out.json`
+2.  **Export**: `.\Librium.exe export --config AppConfig.json --id 123 --out ./Books/`
 
 ---
 
-## 5. Configuration (AppConfig.json)
+## 6. Unicode & Path Handling (Crucial)
 
-The configuration file defines paths and filters for the indexing process.
-
-```json
-{
-  "database":  { "path": "library.db" },
-  "library":   { "inpxPath": "lib.inpx", "archivesDir": "C:/Books/Archives" },
-  "import":    { "parseFb2": true, "threadCount": 4, "mode": "full" },
-  "filters": {
-    "includeLanguages": ["ru", "en"],
-    "excludeGenres": ["humor_anekdot"],
-    "minFileSize": 10240
-  },
-  "logging": { "level": "info", "file": "indexer.log" }
-}
-```
-
----
-
-## 6. Development Guidelines
-
-- **Naming**: Use **PascalCase** for all files and CMake targets.
-- **Namespaces**: Use the top-level namespace `Librium::` (e.g., `Librium::Database`).
-- **Classes**: All classes and major data structures must start with `C` (e.g., `CDatabase`, `CBookRecord`).
-- **Safety**: Prefer RAII and smart pointers. Avoid raw `sqlite3` calls outside the `Database` module.
-- **Includes**: Use the module-relative format: `#include "Database/Database.hpp"`. Always ensure includes do not contain `C/I/E` prefixes even if the classes do.
+To ensure Windows compatibility with non-ASCII paths:
+- **Never** use `std::filesystem::path::string()` for paths that might contain Unicode.
+- **Always** use `Librium::Config::Utf8ToPath(std::string)` when converting UTF-8 (from JSON/CLI) to a path object.
+- **Zip Archives**: The `ZipReader` is specialized to handle Unicode paths on Windows using Win32 wide-character APIs.

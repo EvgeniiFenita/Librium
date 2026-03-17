@@ -16,6 +16,7 @@ add_custom_command(
 add_custom_target(generate_unit_test_data DEPENDS "${UNIT_TEST_DATA_GENERATED}")
 
 add_executable(UnitTests
+    TestMain.cpp
     TestVersion.cpp
     TestZip.cpp
     TestInpx.cpp
@@ -36,7 +37,7 @@ target_link_libraries(UnitTests PRIVATE
     Log
     QueryLib
     CLI11::CLI11
-    Catch2::Catch2WithMain
+    Catch2::Catch2
 )
 
 target_compile_definitions(UnitTests PRIVATE

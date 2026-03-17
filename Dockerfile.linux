@@ -1,0 +1,31 @@
+# Base image with GCC 13
+FROM ubuntu:24.04
+
+# Avoid interactive prompts during apt install
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    ninja-build \
+    python3 \
+    python3-pip \
+    git \
+    curl \
+    zip \
+    unzip \
+    tar \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install vcpkg
+ENV VCPKG_ROOT=/opt/vcpkg
+RUN git clone https://github.com/microsoft/vcpkg.git $VCPKG_ROOT \
+    && $VCPKG_ROOT/bootstrap-vcpkg.sh
+
+# Set working directory
+WORKDIR /app
+
+# The project source will be mounted here
+CMD ["/bin/bash"]

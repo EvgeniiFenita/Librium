@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.25)
 project(Librium VERSION 0.1.0 LANGUAGES CXX C)
 
+# Ensure VCPKG_ROOT is set
+if(NOT DEFINED ENV{VCPKG_ROOT})
+    message(FATAL_ERROR "VCPKG_ROOT environment variable is not set. Please set it to your vcpkg installation directory.")
+endif()
+
 # Suppress warnings from third-party dependencies fetched via FetchContent
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
 set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS ON CACHE BOOL "" FORCE)

@@ -6,8 +6,15 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <filesystem>
 
 namespace Librium::Config {
+
+inline std::filesystem::path Utf8ToPath(const std::string& utf8Str)
+{
+    // C++20 way to create a path from a UTF-8 string
+    return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(utf8Str.data()), utf8Str.size()));
+}
 
 class ConfigError : public std::runtime_error
 {

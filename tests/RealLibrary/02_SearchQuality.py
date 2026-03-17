@@ -13,9 +13,14 @@ import os
 import sys
 import json
 
-LIBRIUM_EXE = r"out\build\x64-debug\apps\Librium\Debug\Librium.exe"
-DB_PATH = r"tests\RealLibrary\RealLibrary.db"
-OUTPUT_JSON = r"tests\RealLibrary\query_result.json"
+LIBRIUM_EXE = os.environ.get("LIBRIUM_EXE", os.path.join("out", "build", "x64-debug", "apps", "Librium", "Debug", "Librium.exe"))
+artifact_dir = os.environ.get("LIBRIUM_ARTIFACT_DIR", os.path.join("tests", "RealLibrary"))
+config_name = "real_library_config.json"
+CONFIG_PATH = os.path.join(artifact_dir, config_name)
+if not os.path.exists(CONFIG_PATH):
+    CONFIG_PATH = os.path.join("tests", "RealLibrary", config_name)
+DB_PATH = os.path.join(artifact_dir, "RealLibrary.db")
+OUTPUT_JSON = os.path.join(artifact_dir, "query_result.json")
 
 def run_query(args):
     if os.path.exists(OUTPUT_JSON):

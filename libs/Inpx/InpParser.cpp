@@ -2,6 +2,7 @@
 
 #include "Zip/ZipReader.hpp"
 #include "Log/Logger.hpp"
+#include "Config/AppConfig.hpp"
 
 #include <filesystem>
 #include <sstream>
@@ -194,7 +195,7 @@ std::vector<SBookRecord> CInpParser::Parse(const std::string& inpxPath)
 
     LOG_INFO("Parsing INPX file: {}", inpxPath);
 
-    Zip::CZipReader::IterateEntries(inpxPath, [&](const std::string& name, std::vector<uint8_t> data)
+    Zip::CZipReader::IterateEntries(Config::Utf8ToPath(inpxPath), [&](const std::string& name, std::vector<uint8_t> data)
     {
         if (name.size() >= 4 && name.substr(name.size() - 4) == ".inp")
         {
@@ -223,7 +224,7 @@ SInpParseStats CInpParser::ParseStreaming(const std::string& inpxPath, const std
 
     LOG_INFO("Streaming INPX file: {}", inpxPath);
 
-    Zip::CZipReader::IterateEntries(inpxPath, [&](const std::string& name, std::vector<uint8_t> data)
+    Zip::CZipReader::IterateEntries(Config::Utf8ToPath(inpxPath), [&](const std::string& name, std::vector<uint8_t> data)
     {
         if (stop)
         {
@@ -281,7 +282,7 @@ SInpParseStats CInpParser::ParseStreaming(const std::string& inpxPath, const std
         return !stop;
     });
 
-    LOG_INFO("Streaming complete. Total lines: {}, parsed OK: {}, skipped: {} (deleted: {}, invalid: {})",
+    LOG_INFO("Input file streaming finished. Total lines: {}, books queued for processing: {}, skipped: {} (deleted: {}, invalid: {})",
         m_stats.totalLines, m_stats.parsedOk, m_stats.skippedDeleted + m_stats.skippedInvalid,
         m_stats.skippedDeleted, m_stats.skippedInvalid);
 

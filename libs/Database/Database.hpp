@@ -2,9 +2,9 @@
 
 #include "Fb2/Fb2Parser.hpp"
 #include "Inpx/BookRecord.hpp"
+#include "Log/Logger.hpp"
 
 #include <cstdint>
-#include <iostream>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -40,15 +40,16 @@ struct SImportStats
 
     void PrintSummary() const
     {
-        std::cout << "\n=== Import Summary ===\n"
-                  << "  Archives processed : " << archivesProcessed << "\n"
-                  << "  Books inserted     : " << booksInserted     << "\n"
-                  << "  Books skipped      : " << booksSkipped      << "\n"
-                  << "  Books filtered     : " << booksFiltered     << "\n"
-                  << "  FB2 parsed         : " << fb2Parsed         << "\n"
-                  << "  FB2 errors         : " << fb2Errors         << "\n"
-                  << "======================\n";
+        LOG_INFO("=== Import Summary ===");
+        LOG_INFO("  Archives processed : {}", archivesProcessed);
+        LOG_INFO("  Books inserted     : {}", booksInserted);
+        LOG_INFO("  Books skipped      : {}", booksSkipped);
+        LOG_INFO("  Books filtered     : {}", booksFiltered);
+        LOG_INFO("  FB2 parsed         : {}", fb2Parsed);
+        LOG_INFO("  FB2 errors         : {}", fb2Errors);
+        LOG_INFO("======================");
     }
+
 };
 
 class CDatabase

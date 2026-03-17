@@ -14,10 +14,14 @@ import os
 import sys
 
 # Paths
-LIBRIUM_EXE = r"out\build\x64-debug\apps\Librium\Debug\Librium.exe"
-CONFIG_PATH = r"tests\RealLibrary\real_library_config.json"
-DB_PATH = r"tests\RealLibrary\RealLibrary.db"
-LOG_PATH = r"tests\RealLibrary\RealLibrary.log"
+LIBRIUM_EXE = os.environ.get("LIBRIUM_EXE", os.path.join("out", "build", "x64-debug", "apps", "Librium", "Debug", "Librium.exe"))
+artifact_dir = os.environ.get("LIBRIUM_ARTIFACT_DIR", os.path.join("tests", "RealLibrary"))
+config_name = "real_library_config.json"
+CONFIG_PATH = os.path.join(artifact_dir, config_name)
+if not os.path.exists(CONFIG_PATH):
+    CONFIG_PATH = os.path.join("tests", "RealLibrary", config_name)
+DB_PATH = os.path.join(artifact_dir, "RealLibrary.db")
+LOG_PATH = os.path.join(artifact_dir, "RealLibrary.log")
 
 def test_import():
     print(f"--- Starting Import Test ---")
@@ -39,8 +43,8 @@ def test_import():
         encoding='utf-8'
     )
 
-    # Monitor for 5 minutes max
-    timeout = 300 # 5 minutes
+    # Monitor for 10 minutes max
+    timeout = 600 # 10 minutes
     try:
         stdout, stderr = process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:

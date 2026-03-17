@@ -57,7 +57,7 @@ int CImportCommand::Execute()
 
     std::signal(SIGINT, OnSignal);
 
-    LOG_INFO("Librium v{} — mode: {}", VersionString, cfg.import.mode);
+    LOG_INFO("Librium v{} - mode: {}", VersionString, cfg.import.mode);
 
     try
     {

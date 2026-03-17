@@ -111,16 +111,8 @@ void CLogger::Log(ELogLevel level, const std::string& message, std::source_locat
     const std::string line = ss.str();
 
     std::lock_guard lock(m_mutex);
-    if (m_outputs.empty())
-    {
-        std::cout << line;
-        std::cout.flush();
-    }
-    else
-    {
-        for (auto& out : m_outputs)
-            out->Write(line);
-    }
+    for (auto& out : m_outputs)
+        out->Write(line);
 }
 
 } // namespace Librium::Log

@@ -76,7 +76,7 @@ int CExportCommand::Execute()
             zipName += ".zip";
         }
 
-        std::filesystem::path zipPath = std::filesystem::path(m_archivesDir) / zipName;
+        std::filesystem::path zipPath = Utf8ToPath(m_archivesDir) / Utf8ToPath(zipName);
         if (!std::filesystem::exists(zipPath))
         {
             LOG_ERROR("Archive not found: {}", zipPath.string());
@@ -85,15 +85,15 @@ int CExportCommand::Execute()
 
         LOG_INFO("Extracting {} from {}...", bookInfo->fileName, bookInfo->archiveName);
 
-        auto data = Zip::CZipReader::ReadEntry(zipPath.string(), bookInfo->fileName);
+        auto data = Zip::CZipReader::ReadEntry(zipPath, bookInfo->fileName);
         
-        std::filesystem::path outDir(m_outputPath);
+        std::filesystem::path outDir = Utf8ToPath(m_outputPath);
         if (!std::filesystem::exists(outDir))
         {
             std::filesystem::create_directories(outDir);
         }
 
-        std::filesystem::path outPath = outDir / bookInfo->fileName;
+        std::filesystem::path outPath = outDir / Utf8ToPath(bookInfo->fileName);
         std::ofstream ofs(outPath, std::ios::binary);
         if (!ofs)
         {
