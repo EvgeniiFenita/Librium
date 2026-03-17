@@ -82,7 +82,7 @@ For EVERY violation found, cite the file, line number, and the offending code sn
 ### 🔵 LOW — Build System & Tests
 - **CMake**: Missing warning flags or hardcoded absolute paths. Target names must be PascalCase.
 - **Test Gaps**: Modules with no negative tests (e.g., corrupted ZIP or malformed INPX).
-- **Integration Coverage**: Missing edge cases in `tests/Integration/`.
+- **Scenario Coverage**: Every new feature or fix should have a new `.json` scenario in `tests/Scenarios/`.
 
 ---
 

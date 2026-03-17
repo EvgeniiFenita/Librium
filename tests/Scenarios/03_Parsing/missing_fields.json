@@ -1,0 +1,14 @@
+{
+  "description": "Malformed INPX: handling records with empty title or author",
+  "library": [
+    { "title": "", "authors": ["Only Author"] },
+    { "title": "Only Title", "authors": [""] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { "args": ["query", "--limit", "10"] }
+  ],
+  "expected": {
+    "totalFound": 2
+  }
+}

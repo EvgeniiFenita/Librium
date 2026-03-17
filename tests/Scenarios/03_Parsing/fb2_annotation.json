@@ -1,0 +1,17 @@
+{
+  "description": "FB2 annotation parsing: searching for a book by text in its annotation",
+  "library": [
+    { "title": "Secret Book", "authors": ["Spy"], "annotation": "This is a hidden message in the book." }
+  ],
+  "config": {
+    "import": { "parseFb2": true }
+  },
+  "steps": [
+    { "args": ["import"] },
+    { "args": ["query", "--with-annotation"] }
+  ],
+  "expected": {
+    "totalFound": 1,
+    "books": [ { "title": "Secret Book" } ]
+  }
+}

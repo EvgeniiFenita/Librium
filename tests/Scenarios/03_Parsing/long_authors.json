@@ -1,0 +1,17 @@
+{
+  "description": "Long author list parsing: stability test with 15+ authors",
+  "library": [
+    { 
+      "title": "Many Authors Book", 
+      "authors": ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15"]
+    }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { "args": ["query", "--author", "A15"] }
+  ],
+  "expected": {
+    "totalFound": 1,
+    "books": [ { "title": "Many Authors Book" } ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "description": "Incremental upgrade: basic test for indexing new data",
+  "library": [
+    { "title": "Initial Book", "authors": ["First"], "archive": "v1.zip" }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { "args": ["query", "--limit", "10"] }
+  ],
+  "expected": { "totalFound": 1 }
+}

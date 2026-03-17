@@ -1,0 +1,18 @@
+{
+  "description": "Deleted filter: ensuring books with 'deleted' flag in INPX are ignored",
+  "library": [
+    { "title": "Visible Book", "authors": ["Author1"], "deleted": false },
+    { "title": "Hidden Book", "authors": ["Author2"], "deleted": true }
+  ],
+  "config": {
+    "import": { "mode": "full" }
+  },
+  "steps": [
+    { "args": ["import"] },
+    { "args": ["query", "--limit", "10"] }
+  ],
+  "expected": {
+    "totalFound": 1,
+    "books": [ { "title": "Visible Book" } ]
+  }
+}

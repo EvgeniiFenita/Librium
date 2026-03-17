@@ -1,0 +1,16 @@
+{
+  "description": "Pagination: verifying limit and offset in search results",
+  "library": [
+    { "title": "Book 1", "authors": ["A1"] },
+    { "title": "Book 2", "authors": ["A2"] },
+    { "title": "Book 3", "authors": ["A3"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { "args": ["query", "--limit", "1", "--offset", "1"] }
+  ],
+  "expected": {
+    "totalFound": 3,
+    "books": [ { "title": "Book 2" } ]
+  }
+}

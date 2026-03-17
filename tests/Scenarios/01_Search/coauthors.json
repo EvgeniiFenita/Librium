@@ -1,0 +1,20 @@
+{
+  "description": "Co-authors parsing: searching for a book by one of multiple authors",
+  "library": [
+    {
+      "title": "Идеальный мир для Лекаря. Кн. 29",
+      "authors": ["Ковтунов,Алексей,", "Сапфир,Олег,"],
+      "annotation": "Co-authors test"
+    }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { "args": ["query", "--author", "Сапфир"] }
+  ],
+  "expected": {
+    "totalFound": 1,
+    "books": [
+      { "title": "Идеальный мир для Лекаря. Кн. 29" }
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "Unicode Scripts: searching for authors in Greek and Georgian",
+  "library": [
+    { "title": "Plato's Republic", "authors": ["Πλάτων"], "lang": "el" },
+    { "title": "Georgian Knight", "authors": ["შოთა რუსთაველი"], "lang": "ka" }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { "args": ["query", "--author", "Πλάτων"] },
+    { "args": ["query", "--author", "შოთა"] }
+  ],
+  "expected": {
+    "totalFound": 1
+  }
+}

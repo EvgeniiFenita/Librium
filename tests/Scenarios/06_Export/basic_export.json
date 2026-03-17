@@ -1,0 +1,13 @@
+{
+  "description": "Basic Export: extracting a book from a ZIP archive by its database ID",
+  "library": [
+    { "title": "Export Test Book", "authors": ["Exporter"], "lib_id": "99999" }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { "args": ["export", "--id", "1"] }
+  ],
+  "expected_text": [
+    "Successfully exported"
+  ]
+}

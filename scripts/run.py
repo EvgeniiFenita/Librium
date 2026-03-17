@@ -4,6 +4,10 @@ import sys
 import os
 from pathlib import Path
 
+# Prevent creation of __pycache__ folders in source directories
+sys.dont_write_bytecode = True
+os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+
 REPO_ROOT = Path(__file__).parent.parent.resolve()
 
 def print_banner(title):

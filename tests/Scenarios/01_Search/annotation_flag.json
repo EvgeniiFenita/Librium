@@ -1,0 +1,20 @@
+{
+  "description": "Query Filter: testing --with-annotation flag in search",
+  "library": [
+    { "title": "Rich Book", "authors": ["A1"], "annotation": "This book has a description" },
+    { "title": "Slim Book", "authors": ["A2"], "annotation": "" }
+  ],
+  "config": {
+    "import": { "parseFb2": true }
+  },
+  "steps": [
+    { "args": ["import"] },
+    { 
+      "args": ["query", "--with-annotation"],
+      "expected": {
+        "totalFound": 1,
+        "books": [ { "title": "Rich Book" } ]
+      }
+    }
+  ]
+}

@@ -41,8 +41,7 @@ Librium/
 │   ├── build.py            ← Build automation script
 │   └── test.py             ← Multi-stage test runner
 ├── tests/
-│   ├── Integration/        ← Python-based E2E scenarios
-│   ├── RealLibrary/        ← Tests for multi-million book collections
+│   ├── Scenarios/          ← Data-driven E2E scenarios (.json)
 │   └── Unit/               ← Catch2 test suite
 ├── Dockerfile.linux        ← Linux build environment
 ├── CMakeLists.txt          ← Root build configuration
@@ -70,9 +69,11 @@ python scripts/run.py --preset x64-debug --clean
 ```
 
 ### Test Stages in `scripts/test.py`
-1.  **Stage 1: UNIT**: Fast Catch2 tests (silent by default).
-2.  **Stage 2: INTEGRATION**: End-to-end Python scenarios on small data.
-3.  **Stage 3: REAL**: Heavy indexing tests on actual collections (0.5M+ books).
+1.  **Stage 1: UNIT**: Fast C++ unit tests (Catch2).
+2.  **Stage 2: SCENARIO**: Behavioral tests. 
+    - Uses `LibGen.py` to create a "miniature" realistic library.
+    - Executes CLI commands via `ScenarioRunner.py` and validates JSON/text outputs.
+    - Includes **Smoke (Real)** test if `--real-library` path is provided.
 
 ---
 

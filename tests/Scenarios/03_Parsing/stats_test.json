@@ -1,0 +1,16 @@
+{
+  "description": "Stats command: verifying database summary output",
+  "library": [
+    { "title": "Book 1", "authors": ["Author 1"], "genres": ["sf"] },
+    { "title": "Book 2", "authors": ["Author 2"], "genres": ["det"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { "args": ["stats"] }
+  ],
+  "expected_text": [
+    "Books    : 2",
+    "Authors  : 2",
+    "Genres   : 2"
+  ]
+}

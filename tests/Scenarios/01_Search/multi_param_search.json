@@ -1,0 +1,19 @@
+{
+  "description": "Multi-parameter search: combining author, genre, and rating in a single query",
+  "library": [
+    { "title": "Target Book", "authors": ["Толстой"], "genres": ["prose"], "rating": 5 },
+    { "title": "Wrong Genre", "authors": ["Толстой"], "genres": ["sf"], "rating": 5 },
+    { "title": "Wrong Author", "authors": ["Пушкин"], "genres": ["prose"], "rating": 5 },
+    { "title": "Low Rating", "authors": ["Толстой"], "genres": ["prose"], "rating": 2 }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { 
+      "args": ["query", "--author", "Толстой", "--genre", "prose", "--rating-min", "4"],
+      "expected": {
+        "totalFound": 1,
+        "books": [ { "title": "Target Book" } ]
+      }
+    }
+  ]
+}

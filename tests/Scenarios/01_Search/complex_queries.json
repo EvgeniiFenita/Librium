@@ -1,0 +1,18 @@
+{
+  "description": "Complex Queries: testing multiple search parameters (genre, series, date, rating)",
+  "library": [
+    { "title": "Sci-Fi Book 1", "authors": ["Author 1"], "genres": ["sf_space"], "series": "Space Saga", "ser_no": 1, "date": "2024-01-01" },
+    { "title": "Sci-Fi Book 2", "authors": ["Author 1"], "genres": ["sf_space"], "series": "Space Saga", "ser_no": 2, "date": "2024-02-01" },
+    { "title": "Fantasy Book", "authors": ["Author 2"], "genres": ["fantasy"], "date": "2024-03-01" }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { "args": ["query", "--genre", "sf_space"] },
+    { "args": ["query", "--series", "Space Saga"] },
+    { "args": ["query", "--date-from", "2024-02-01"] }
+  ],
+  "expected": {
+    "totalFound": 1,
+    "books": [ { "title": "Sci-Fi Book 2" } ]
+  }
+}

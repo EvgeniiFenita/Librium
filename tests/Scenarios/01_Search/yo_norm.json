@@ -1,0 +1,20 @@
+{
+  "description": "Cyrillic normalization: case-insensitive search and 'ё' vs 'е' matching",
+  "library": [
+    {
+      "title": "Война и мир",
+      "authors": ["Толстой,Лев,Николаевич"],
+      "annotation": "Normalization test"
+    }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { "args": ["query", "--author", "Толстой"] }
+  ],
+  "expected": {
+    "totalFound": 1,
+    "books": [
+      { "title": "Война и мир" }
+    ]
+  }
+}

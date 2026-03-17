@@ -1,0 +1,22 @@
+{
+  "description": "File Size Filtering: indexing only books within 100KB - 500KB range",
+  "library": [
+    { "title": "Small Book", "authors": ["A1"], "size": 50000 },
+    { "title": "Medium Book", "authors": ["A2"], "size": 250000 },
+    { "title": "Large Book", "authors": ["A3"], "size": 1000000 }
+  ],
+  "config": {
+    "filters": {
+      "minFileSize": 100000,
+      "maxFileSize": 500000
+    }
+  },
+  "steps": [
+    { "args": ["import"] },
+    { "args": ["query", "--limit", "10"] }
+  ],
+  "expected": {
+    "totalFound": 1,
+    "books": [ { "title": "Medium Book" } ]
+  }
+}

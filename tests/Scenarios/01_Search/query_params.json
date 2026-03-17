@@ -1,0 +1,15 @@
+{
+  "description": "Query Parameters: testing each individual query argument (archive, lib-id, series, etc.)",
+  "library": [
+    { "title": "Specific Title", "authors": ["Unique Author"], "genres": ["sf"], "series": "Star Wars", "ser_no": 4, "lib_id": "777", "archive": "movies.zip" }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { "args": ["query", "--title", "Specific"], "expected": { "totalFound": 1 } },
+    { "args": ["query", "--author", "Unique"], "expected": { "totalFound": 1 } },
+    { "args": ["query", "--genre", "sf"], "expected": { "totalFound": 1 } },
+    { "args": ["query", "--series", "Star Wars"], "expected": { "totalFound": 1 } },
+    { "args": ["query", "--lib-id", "777"], "expected": { "totalFound": 1 } },
+    { "args": ["query", "--archive", "movies"], "expected": { "totalFound": 1 } }
+  ]
+}

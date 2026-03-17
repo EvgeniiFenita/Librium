@@ -1,0 +1,23 @@
+{
+  "description": "Robustness: handling special characters (quotes) and empty name fields in INPX",
+  "library": [
+    { "title": "\"Quotes\" in title", "authors": ["Author,,"] },
+    { "title": "Mixed «Quotes»", "authors": ["Ales,,"] },
+    { "title": "Multiple Genres", "authors": ["A1"], "genres": ["sf", "det", "humor", "prose", "history"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { 
+      "args": ["query", "--title", "Quotes"],
+      "expected": { "totalFound": 2 }
+    },
+    {
+      "args": ["query", "--author", "Ales"],
+      "expected": { "totalFound": 1 }
+    },
+    {
+      "args": ["query", "--genre", "humor"],
+      "expected": { "totalFound": 1 }
+    }
+  ]
+}

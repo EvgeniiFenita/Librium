@@ -27,7 +27,11 @@
 
 ## Testing Standards
 - **Unified Runner**: ALWAYS verify changes using `python scripts/run.py`.
-- **Stages**: 1. Unit (Catch2), 2. Integration (Python), 3. Real Library (Heavy indexing).
+- **Stages**: 
+  1. **Unit**: Fast C++ tests via Catch2.
+  2. **Scenarios**: Data-driven behavioral tests using `LibGen` (synthetic data) and `ScenarioRunner`.
+  3. **Smoke (Real)**: Optional full-scale import test on real `Lib.rus.ec` data (triggered by `--real-library`).
+- **New Features**: Every new CLI command or search parameter MUST have a corresponding `.json` scenario in `tests/Scenarios/`.
 - **Artifacts**: All temporary data must stay in `out/build/<preset>/`. NEVER create files in `libs/`, `apps/`, or `tests/`.
 
 ## Reference Documentation
