@@ -1,0 +1,22 @@
+{
+  "database": {
+    "path": "tests/RealLibrary/RealLibrary.db"
+  },
+  "library": {
+    "inpxPath": "C:/_LIBRU~1.EC-/librusec_local_fb2.inpx",
+    "archivesDir": "C:/_LIBRU~1.EC-/lib.rus.ec"
+  },
+  "import": {
+    "parseFb2": false,
+    "threadCount": 8,
+    "transactionBatchSize": 5000,
+    "mode": "full"
+  },
+  "filters": {
+    "includeLanguages": ["en", "ru"]
+  },
+  "logging": {
+    "level": "info",
+    "file": "tests/RealLibrary/RealLibrary.log"
+  }
+}

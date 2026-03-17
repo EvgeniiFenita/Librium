@@ -1,0 +1,23 @@
+{
+  "database": {
+    "path": "tests/RealLibrary/Fb2Parsed.db"
+  },
+  "library": {
+    "inpxPath": "C:/_LIBRU~1.EC-/librusec_local_fb2.inpx",
+    "archivesDir": "C:/_LIBRU~1.EC-/lib.rus.ec"
+  },
+  "import": {
+    "parseFb2": true,
+    "threadCount": 8,
+    "transactionBatchSize": 1000,
+    "mode": "full"
+  },
+  "filters": {
+    "includeLanguages": ["ru"],
+    "includeGenres": ["sf_history"]
+  },
+  "logging": {
+    "level": "info",
+    "file": "tests/RealLibrary/Fb2Parsed.log"
+  }
+}

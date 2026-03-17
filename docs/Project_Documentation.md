@@ -41,6 +41,7 @@ Librium/
 │   └── Zip/                ← Archive handling
 ├── tests/
 │   ├── Integration/        ← Python-based E2E scenarios
+│   ├── RealLibrary/        ← Tests for multi-million book collections
 │   └── Unit/               ← Catch2 test suite & test data generator
 ├── docs/                   ← Project documentation & style guides
 ├── CMakeLists.txt          ← Root build configuration
@@ -146,6 +147,18 @@ The `export` subcommand extracts a book from its archive and saves it to a speci
     ```powershell
     .\Librium.exe export --config AppConfig.json --id 123 --out ./MyBooks/
     ```
+
+### Testing on Real Libraries
+For large-scale validation (e.g., Librusec 0.4M+ books), a specialized test suite is available:
+```powershell
+# Run all real-world tests sequentially
+python tests/RealLibrary/RunAllRealTests.py
+```
+This suite verifies:
+- Indexing speed and stability.
+- Search precision for mixed RU/EN collections.
+- Correct FB2 extraction and deep parsing (annotations).
+- Automatic cleanup of large databases and logs upon success.
 
 ---
 

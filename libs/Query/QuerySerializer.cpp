@@ -66,7 +66,8 @@ nlohmann::json CQuerySerializer::ToJson(const SQueryResult& result)
 void CQuerySerializer::SaveToFile(const SQueryResult& result, const std::string& path)
 {
     std::ofstream f(path);
-    f << ToJson(result).dump(2) << "\n";
+    // Use replace for invalid UTF-8 characters to prevent crash
+    f << ToJson(result).dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
 }
 
 } // namespace Librium::Query
