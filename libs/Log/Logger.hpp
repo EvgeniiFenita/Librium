@@ -3,6 +3,7 @@
 #include <format>
 #include <fstream>
 #include <mutex>
+#include <atomic>
 #include <string>
 #include <vector>
 #include <memory>
@@ -46,7 +47,7 @@ private:
     CLogger() = default;
 
     std::mutex m_mutex;
-    ELogLevel  m_level{ELogLevel::Info};
+    std::atomic<ELogLevel> m_level{ELogLevel::Info};
     std::vector<std::unique_ptr<ILogOutput>> m_outputs;
 };
 

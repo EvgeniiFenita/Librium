@@ -19,7 +19,7 @@ struct SZipArchive
     explicit SZipArchive(const std::filesystem::path& path)
     {
         auto u8path = path.u8string();
-        auto pathStr = (const char*)u8path.c_str();
+        auto pathStr = reinterpret_cast<const char*>(u8path.c_str());
         LOG_DEBUG("Opening zip archive: {}", pathStr);
 #ifdef _WIN32
         zip_error_t zerr;
@@ -70,6 +70,7 @@ std::vector<SZipEntry> CZipReader::ListEntries(const std::filesystem::path& zipP
     for (zip_int64_t i = 0; i < num; ++i)
     {
         struct zip_stat st;
+        zip_stat_init(&st);
         if (zip_stat_index(arch.za, i, 0, &st) == 0)
         {
             SZipEntry e;
@@ -85,7 +86,8 @@ std::vector<SZipEntry> CZipReader::ListEntries(const std::filesystem::path& zipP
 
 std::vector<uint8_t> CZipReader::ReadEntry(const std::filesystem::path& zipPath, const std::string& entryName)
 {
-    auto pathStr = (const char*)zipPath.u8string().c_str();
+    auto u8path = zipPath.u8string();
+    auto pathStr = reinterpret_cast<const char*>(u8path.c_str());
     LOG_DEBUG("Reading entry '{}' from {}", entryName, pathStr);
     SZipArchive arch(zipPath);
     zip_file_t* zf = zip_fopen(arch.za, entryName.c_str(), 0);
@@ -95,10 +97,20 @@ std::vector<uint8_t> CZipReader::ReadEntry(const std::filesystem::path& zipPath,
     }
 
     struct zip_stat st;
-    zip_stat(arch.za, entryName.c_str(), 0, &st);
+    zip_stat_init(&st);
+    if (zip_stat(arch.za, entryName.c_str(), 0, &st) != 0)
+    {
+        zip_fclose(zf);
+        throw CZipError("Cannot stat entry '" + entryName + "' in " + std::string(pathStr));
+    }
 
     std::vector<uint8_t> buffer(st.size);
-    zip_fread(zf, buffer.data(), st.size);
+    auto bytesRead = zip_fread(zf, buffer.data(), st.size);
+    if (bytesRead < 0 || static_cast<zip_uint64_t>(bytesRead) != st.size)
+    {
+        zip_fclose(zf);
+        throw CZipError("Failed to read entire entry '" + entryName + "' in " + std::string(pathStr));
+    }
     zip_fclose(zf);
 
     return buffer;
@@ -111,6 +123,7 @@ void CZipReader::IterateEntries(const std::filesystem::path& zipPath, const std:
     for (zip_int64_t i = 0; i < num; ++i)
     {
         struct zip_stat st;
+        zip_stat_init(&st);
         if (zip_stat_index(arch.za, i, 0, &st) == 0)
         {
             if (st.name[strlen(st.name) - 1] == '/' || st.name[strlen(st.name) - 1] == '\\')
@@ -122,8 +135,12 @@ void CZipReader::IterateEntries(const std::filesystem::path& zipPath, const std:
             if (zf)
             {
                 std::vector<uint8_t> data(st.size);
-                zip_fread(zf, data.data(), st.size);
+                auto bytesRead = zip_fread(zf, data.data(), st.size);
                 zip_fclose(zf);
+                if (bytesRead < 0 || static_cast<zip_uint64_t>(bytesRead) != st.size)
+                {
+                    continue;
+                }
                 if (!callback(st.name, std::move(data)))
                 {
                     break;
@@ -140,6 +157,7 @@ void CZipReader::IterateEntryNames(const std::filesystem::path& zipPath, const s
     for (zip_int64_t i = 0; i < num; ++i)
     {
         struct zip_stat st;
+        zip_stat_init(&st);
         if (zip_stat_index(arch.za, i, 0, &st) == 0)
         {
             SZipEntry e;

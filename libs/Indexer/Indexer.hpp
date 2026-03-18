@@ -18,10 +18,10 @@ namespace Librium::Indexer {
 class CIndexer
 {
 public:
-    explicit CIndexer(Config::CAppConfig cfg);
+    explicit CIndexer(Config::SAppConfig cfg);
 
     [[nodiscard]] Db::SImportStats Run(IProgressReporter* reporter = nullptr);
-    void RequestStop() 
+    void RequestStop()
     {
         m_stopRequested = true;
     }
@@ -29,10 +29,9 @@ public:
     [[nodiscard]] std::vector<std::string> GetNewArchives(Db::CDatabase& db, const std::string& inpxPath);
 
 private:
-    Config::CAppConfig        m_cfg;
+    Config::SAppConfig        m_cfg;
     std::atomic<bool>         m_stopRequested{false};
-    std::unordered_set<std::string> m_skipArchives;
-    std::atomic<size_t>       m_parsedCount{0};
+    std::unordered_set<std::string> m_skipArchives;    std::atomic<size_t>       m_parsedCount{0};
     std::atomic<size_t>       m_filteredCount{0};
     std::atomic<size_t>       m_errorCount{0};
 

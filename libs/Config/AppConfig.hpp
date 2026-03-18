@@ -15,11 +15,21 @@ inline std::filesystem::path Utf8ToPath(const std::string& utf8Str)
     // C++20 way to create a path from a UTF-8 string
     return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(utf8Str.data()), utf8Str.size()));
 }
+struct SFilterResult
+{
+    bool        included{true};
+    std::string reason;
+
+    [[nodiscard]] explicit operator bool() const
+    {
+        return included;
+    }
+};
 
 class ConfigError : public std::runtime_error
 {
 public:
-    explicit ConfigError(const std::string& msg) : std::runtime_error(msg) 
+    explicit ConfigError(const std::string& msg) : std::runtime_error(msg)
     {}
 };
 
@@ -61,17 +71,16 @@ struct SLoggingConfig
     size_t      progressInterval{1000};
 };
 
-class CAppConfig
+struct SAppConfig
 {
-public:
     SDatabaseConfig database;
     SLibraryConfig  library;
     SImportConfig   import;
     SFiltersConfig  filters;
     SLoggingConfig  logging;
 
-    [[nodiscard]] static CAppConfig Defaults();
-    [[nodiscard]] static CAppConfig Load(const std::string& path);
+    [[nodiscard]] static SAppConfig Defaults();
+    [[nodiscard]] static SAppConfig Load(const std::string& path);
     void Save(const std::string& path) const;
 };
 
@@ -79,15 +88,9 @@ class CBookFilter
 {
 public:
     explicit CBookFilter(const SFiltersConfig& cfg);
-    [[nodiscard]] bool ShouldInclude(const Inpx::SBookRecord& record) const;
-    [[nodiscard]] const std::string& LastReason() const
-    { 
-        return m_lastReason; 
-    }
+    [[nodiscard]] SFilterResult ShouldInclude(const Inpx::SBookRecord& record) const;
 
 private:
     SFiltersConfig      m_cfg;
-    mutable std::string m_lastReason;
 };
-
 } // namespace Librium::Config

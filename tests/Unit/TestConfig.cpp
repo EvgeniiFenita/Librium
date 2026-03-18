@@ -20,7 +20,7 @@ Librium::Inpx::SBookRecord MakeRec(const std::string& lang = "ru", uint64_t size
 
 TEST_CASE("AppConfig defaults", "[config]")
 {
-    auto c = CAppConfig::Defaults();
+    auto c = SAppConfig::Defaults();
     REQUIRE(c.database.path == "library.db");
     REQUIRE(c.import.threadCount > 0);
 }
@@ -28,11 +28,11 @@ TEST_CASE("AppConfig defaults", "[config]")
 TEST_CASE("AppConfig save/load", "[config]")
 {
     std::string path = "test_config.json";
-    auto c1 = CAppConfig::Defaults();
+    auto c1 = SAppConfig::Defaults();
     c1.database.path = "custom.db";
     c1.Save(path);
 
-    auto c2 = CAppConfig::Load(path);
+    auto c2 = SAppConfig::Load(path);
     REQUIRE(c2.database.path == "custom.db");
 
     std::filesystem::remove(path);

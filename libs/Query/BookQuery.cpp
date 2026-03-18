@@ -62,6 +62,25 @@ std::vector<std::string> FetchGenres(sqlite3* db, int64_t bookId)
     return result;
 }
 
+void BindParams(sqlite3_stmt* stmt, const SQueryParams& params)
+{
+    int idx = 1;
+    if (!params.title.empty()) sqlite3_bind_text(stmt, idx++, (params.title + "%").c_str(), -1, SQLITE_TRANSIENT);
+    if (!params.author.empty()) 
+    {
+        sqlite3_bind_text(stmt, idx++, (params.author + "%").c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, idx++, (params.author + "%").c_str(), -1, SQLITE_TRANSIENT);
+    }
+    if (!params.genre.empty()) sqlite3_bind_text(stmt, idx++, params.genre.c_str(), -1, SQLITE_TRANSIENT);
+    if (!params.series.empty()) sqlite3_bind_text(stmt, idx++, (params.series + "%").c_str(), -1, SQLITE_TRANSIENT);
+    if (!params.language.empty()) sqlite3_bind_text(stmt, idx++, params.language.c_str(), -1, SQLITE_TRANSIENT);
+    if (!params.libId.empty()) sqlite3_bind_text(stmt, idx++, params.libId.c_str(), -1, SQLITE_TRANSIENT);
+    if (!params.archiveName.empty()) sqlite3_bind_text(stmt, idx++, params.archiveName.c_str(), -1, SQLITE_TRANSIENT);
+    if (!params.dateFrom.empty()) sqlite3_bind_text(stmt, idx++, params.dateFrom.c_str(), -1, SQLITE_TRANSIENT);
+    if (!params.dateTo.empty()) sqlite3_bind_text(stmt, idx++, params.dateTo.c_str(), -1, SQLITE_TRANSIENT);
+    if (params.ratingMin > 0) sqlite3_bind_int(stmt, idx++, params.ratingMin);
+}
+
 } // namespace
 
 SQueryResult CBookQuery::Execute(Db::CDatabase& db, const SQueryParams& params)
@@ -100,21 +119,7 @@ SQueryResult CBookQuery::Execute(Db::CDatabase& db, const SQueryParams& params)
     sqlite3_stmt* cstmt = nullptr;
     if (sqlite3_prepare_v2(raw, countSql.c_str(), -1, &cstmt, nullptr) == SQLITE_OK)
     {
-        int idx = 1;
-        if (!params.title.empty()) sqlite3_bind_text(cstmt, idx++, (params.title + "%").c_str(), -1, SQLITE_TRANSIENT);
-        if (!params.author.empty()) 
-        {
-            sqlite3_bind_text(cstmt, idx++, (params.author + "%").c_str(), -1, SQLITE_TRANSIENT);
-            sqlite3_bind_text(cstmt, idx++, (params.author + "%").c_str(), -1, SQLITE_TRANSIENT);
-        }
-        if (!params.genre.empty()) sqlite3_bind_text(cstmt, idx++, params.genre.c_str(), -1, SQLITE_TRANSIENT);
-        if (!params.series.empty()) sqlite3_bind_text(cstmt, idx++, (params.series + "%").c_str(), -1, SQLITE_TRANSIENT);
-        if (!params.language.empty()) sqlite3_bind_text(cstmt, idx++, params.language.c_str(), -1, SQLITE_TRANSIENT);
-        if (!params.libId.empty()) sqlite3_bind_text(cstmt, idx++, params.libId.c_str(), -1, SQLITE_TRANSIENT);
-        if (!params.archiveName.empty()) sqlite3_bind_text(cstmt, idx++, params.archiveName.c_str(), -1, SQLITE_TRANSIENT);
-        if (!params.dateFrom.empty()) sqlite3_bind_text(cstmt, idx++, params.dateFrom.c_str(), -1, SQLITE_TRANSIENT);
-        if (!params.dateTo.empty()) sqlite3_bind_text(cstmt, idx++, params.dateTo.c_str(), -1, SQLITE_TRANSIENT);
-        if (params.ratingMin > 0) sqlite3_bind_int(cstmt, idx++, params.ratingMin);
+        BindParams(cstmt, params);
 
         if (sqlite3_step(cstmt) == SQLITE_ROW)
             result.totalFound = sqlite3_column_int64(cstmt, 0);
@@ -128,21 +133,7 @@ SQueryResult CBookQuery::Execute(Db::CDatabase& db, const SQueryParams& params)
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(raw, sql.str().c_str(), -1, &stmt, nullptr) == SQLITE_OK)
     {
-        int idx = 1;
-        if (!params.title.empty()) sqlite3_bind_text(stmt, idx++, (params.title + "%").c_str(), -1, SQLITE_TRANSIENT);
-        if (!params.author.empty()) 
-        {
-            sqlite3_bind_text(stmt, idx++, (params.author + "%").c_str(), -1, SQLITE_TRANSIENT);
-            sqlite3_bind_text(stmt, idx++, (params.author + "%").c_str(), -1, SQLITE_TRANSIENT);
-        }
-        if (!params.genre.empty()) sqlite3_bind_text(stmt, idx++, params.genre.c_str(), -1, SQLITE_TRANSIENT);
-        if (!params.series.empty()) sqlite3_bind_text(stmt, idx++, (params.series + "%").c_str(), -1, SQLITE_TRANSIENT);
-        if (!params.language.empty()) sqlite3_bind_text(stmt, idx++, params.language.c_str(), -1, SQLITE_TRANSIENT);
-        if (!params.libId.empty()) sqlite3_bind_text(stmt, idx++, params.libId.c_str(), -1, SQLITE_TRANSIENT);
-        if (!params.archiveName.empty()) sqlite3_bind_text(stmt, idx++, params.archiveName.c_str(), -1, SQLITE_TRANSIENT);
-        if (!params.dateFrom.empty()) sqlite3_bind_text(stmt, idx++, params.dateFrom.c_str(), -1, SQLITE_TRANSIENT);
-        if (!params.dateTo.empty()) sqlite3_bind_text(stmt, idx++, params.dateTo.c_str(), -1, SQLITE_TRANSIENT);
-        if (params.ratingMin > 0) sqlite3_bind_int(stmt, idx++, params.ratingMin);
+        BindParams(stmt, params);
 
         while (sqlite3_step(stmt) == SQLITE_ROW)
         {

@@ -25,7 +25,7 @@ TEST_CASE("Indexer basic operations", "[indexer]")
         {"archive2.inp", "some data"}
     });
 
-    CAppConfig cfg;
+    SAppConfig cfg;
     cfg.database.path = dbPath;
     cfg.library.inpxPath = inpxPath;
     cfg.import.mode = "upgrade";

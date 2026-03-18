@@ -21,7 +21,7 @@
 
 ## Build & Environment
 - **Generator**: Ninja (preferred) or Visual Studio 18 2026.
-- **Master Pipeline**: `python scripts/run.py --preset <preset> [--real-library <path>]`.
+- **Master Pipeline**: `python scripts/run.py --preset <preset> [--real-library <path>]`. ALWAYS use this script for building and testing. DO NOT use `build.py` or `test.py` directly.
 - **Presets**: `x64-debug`, `x64-release`, `linux-debug`, `linux-release`.
 - **Dependencies**: `vcpkg` in manifest mode. Requires `VCPKG_ROOT` env var.
 

@@ -47,12 +47,10 @@ CLogger& CLogger::Instance()
     return instance;
 }
 
-void CLogger::SetLevel(ELogLevel level) 
+void CLogger::SetLevel(ELogLevel level)
 {
-    std::lock_guard lock(m_mutex);
-    m_level = level;
+    m_level.store(level, std::memory_order_relaxed);
 }
-
 void CLogger::AddFileOutput(const std::string& path)
 {
     std::lock_guard lock(m_mutex);
@@ -96,11 +94,10 @@ ELogLevel CLogger::ParseLevel(const std::string& levelStr, ELogLevel defaultLeve
     return defaultLevel;
 }
 
-void CLogger::Log(ELogLevel level, const std::string& message, std::source_location loc) 
+void CLogger::Log(ELogLevel level, const std::string& message, std::source_location loc)
 {
-    if (level < m_level)
+    if (level < m_level.load(std::memory_order_relaxed))
         return;
-
     auto now = std::chrono::system_clock::now();
     auto t   = std::chrono::system_clock::to_time_t(now);
     auto ms  = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;

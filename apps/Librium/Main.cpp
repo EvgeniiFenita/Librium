@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
 
     try
     {
-        auto cfg = Librium::Config::CAppConfig::Load(configPath);
+        auto cfg = Librium::Config::SAppConfig::Load(configPath);
         
         // Use log file from config if possible, or default
         CLogger::Setup(ELogLevel::Info, cfg.logging.file.empty() ? "Librium.log" : cfg.logging.file);

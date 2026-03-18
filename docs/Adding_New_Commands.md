@@ -43,7 +43,7 @@ nlohmann::json CMyNewAction::Execute(CAppService& service, const nlohmann::json&
 Add the action to the `CAppService` constructor in `libs/Service/AppService.cpp`.
 
 ```cpp
-CAppService::CAppService(Config::CAppConfig cfg) : m_config(std::move(cfg))
+CAppService::CAppService(Config::SAppConfig cfg) : m_config(std::move(cfg))
 {
     RegisterAction("import", std::make_unique<CImportAction>());
     // ...

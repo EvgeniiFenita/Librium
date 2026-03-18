@@ -10,15 +10,15 @@ using json = nlohmann::json;
 
 namespace Librium::Config {
 
-CAppConfig CAppConfig::Defaults() 
+SAppConfig SAppConfig::Defaults() 
 {
-    CAppConfig c;
+    SAppConfig c;
     c.import.threadCount = static_cast<int>(
         std::max(1u, std::thread::hardware_concurrency()));
     return c;
 }
 
-CAppConfig CAppConfig::Load(const std::string& path) 
+SAppConfig SAppConfig::Load(const std::string& path) 
 {
     std::ifstream f(path);
     if (!f.is_open())
@@ -34,7 +34,7 @@ CAppConfig CAppConfig::Load(const std::string& path)
         throw ConfigError(std::string("JSON parse error: ") + e.what()); 
     }
 
-    CAppConfig cfg = Defaults();
+    SAppConfig cfg = Defaults();
 
     auto get = [&](const json& obj, const char* key, auto& val) 
     {
@@ -79,7 +79,7 @@ CAppConfig CAppConfig::Load(const std::string& path)
     return cfg;
 }
 
-void CAppConfig::Save(const std::string& path) const
+void SAppConfig::Save(const std::string& path) const
 {
     json j = {
         {"database", {{"path", database.path}}},
@@ -104,10 +104,8 @@ void CAppConfig::Save(const std::string& path) const
 CBookFilter::CBookFilter(const SFiltersConfig& cfg) : m_cfg(cfg) 
 {}
 
-bool CBookFilter::ShouldInclude(const Inpx::SBookRecord& rec) const
+SFilterResult CBookFilter::ShouldInclude(const Inpx::SBookRecord& rec) const
 {
-    m_lastReason.clear();
-
     // include whitelist
     if (!m_cfg.includeLanguages.empty()) 
     {
@@ -116,49 +114,70 @@ bool CBookFilter::ShouldInclude(const Inpx::SBookRecord& rec) const
                                rec.language) != m_cfg.includeLanguages.end();
         if (!found) 
         { 
-            m_lastReason = "language not in include list: " + rec.language; return false; 
+            return { false, "language not in include list: " + rec.language }; 
         }
     }
     // exclude list
     for (const auto& ex : m_cfg.excludeLanguages)
+    {
         if (ex == rec.language) 
         { 
-            m_lastReason = "excluded language: " + rec.language; return false; 
+            return { false, "excluded language: " + rec.language }; 
         }
+    }
 
     // genres
     if (!m_cfg.includeGenres.empty()) 
     {
         bool any = false;
         for (const auto& g : rec.genres)
+        {
             if (std::find(m_cfg.includeGenres.begin(), m_cfg.includeGenres.end(), g)
                 != m_cfg.includeGenres.end()) 
             { 
                 any = true; break; 
             }
+        }
         if (!any) 
         { 
-            m_lastReason = "genre not in include list"; return false; 
+            return { false, "genre not in include list" }; 
         }
     }
     for (const auto& g : rec.genres)
+    {
         for (const auto& ex : m_cfg.excludeGenres)
+        {
             if (ex == g) 
             { 
-                m_lastReason = "excluded genre: " + g; return false; 
+                return { false, "excluded genre: " + g }; 
             }
+        }
+    }
+
+    // authors
+    for (const auto& a : rec.authors)
+    {
+        std::string aName = a.lastName + " " + a.firstName;
+        for (const auto& ex : m_cfg.excludeAuthors)
+        {
+            if (aName.find(ex) != std::string::npos) 
+            { 
+                return { false, "excluded author: " + ex }; 
+            }
+        }
+    }
 
     // size
     if (m_cfg.minFileSize > 0 && rec.fileSize < m_cfg.minFileSize) 
     { 
-        m_lastReason = "file too small"; return false; 
+        return { false, "file too small" }; 
     }
     if (m_cfg.maxFileSize > 0 && rec.fileSize > m_cfg.maxFileSize) 
     { 
-        m_lastReason = "file too large"; return false; 
+        return { false, "file too large" }; 
     }
 
-    return true;
+    return { true, "" };
 }
 
 } // namespace Librium::Config

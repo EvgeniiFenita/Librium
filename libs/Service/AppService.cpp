@@ -4,7 +4,7 @@
 
 namespace Librium::Service {
 
-CAppService::CAppService(Config::CAppConfig cfg)
+CAppService::CAppService(Config::SAppConfig cfg)
     : m_config(std::move(cfg))
 {
     RegisterAction("import",      std::make_unique<CImportAction>());
@@ -32,7 +32,7 @@ nlohmann::json CAppService::Dispatch(const nlohmann::json& command, Indexer::IPr
 
         std::string actionName = command["action"];
         auto it = m_actions.find(actionName);
-        
+
         if (it == m_actions.end())
         {
             return {{"status", "error"}, {"error", "Unknown action: " + actionName}};
@@ -56,9 +56,8 @@ Db::CDatabase& CAppService::GetDatabase()
     return *m_db;
 }
 
-const Config::CAppConfig& CAppService::GetConfig() const
+const Config::SAppConfig& CAppService::GetConfig() const
 {
     return m_config;
 }
-
 } // namespace Librium::Service

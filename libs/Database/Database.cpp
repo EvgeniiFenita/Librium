@@ -216,7 +216,11 @@ int64_t CDatabase::GetOrCreateAuthor(const Inpx::SAuthor& author)
     sqlite3_bind_text(m_stmtInsertAuthor, 1, author.lastName.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(m_stmtInsertAuthor, 2, author.firstName.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(m_stmtInsertAuthor, 3, author.middleName.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_step(m_stmtInsertAuthor);
+    if (sqlite3_step(m_stmtInsertAuthor) != SQLITE_DONE)
+    {
+        LOG_ERROR("Failed to insert author");
+        throw CDbError("Failed to insert author");
+    }
 
     sqlite3_reset(m_stmtGetAuthor);
     sqlite3_bind_text(m_stmtGetAuthor, 1, author.lastName.c_str(), -1, SQLITE_TRANSIENT);
@@ -231,7 +235,11 @@ int64_t CDatabase::GetOrCreateGenre(const std::string& genre)
 {
     sqlite3_reset(m_stmtInsertGenre);
     sqlite3_bind_text(m_stmtInsertGenre, 1, genre.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_step(m_stmtInsertGenre);
+    if (sqlite3_step(m_stmtInsertGenre) != SQLITE_DONE)
+    {
+        LOG_ERROR("Failed to insert genre: {}", genre);
+        throw CDbError("Failed to insert genre");
+    }
 
     sqlite3_reset(m_stmtGetGenre);
     sqlite3_bind_text(m_stmtGetGenre, 1, genre.c_str(), -1, SQLITE_TRANSIENT);
@@ -245,7 +253,11 @@ int64_t CDatabase::GetOrCreateSeries(const std::string& series)
     if (series.empty()) return 0;
     sqlite3_reset(m_stmtInsertSeries);
     sqlite3_bind_text(m_stmtInsertSeries, 1, series.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_step(m_stmtInsertSeries);
+    if (sqlite3_step(m_stmtInsertSeries) != SQLITE_DONE)
+    {
+        LOG_ERROR("Failed to insert series: {}", series);
+        throw CDbError("Failed to insert series");
+    }
 
     sqlite3_reset(m_stmtGetSeries);
     sqlite3_bind_text(m_stmtGetSeries, 1, series.c_str(), -1, SQLITE_TRANSIENT);
@@ -258,7 +270,11 @@ int64_t CDatabase::GetOrCreateArchive(const std::string& name)
 {
     sqlite3_reset(m_stmtInsertArchive);
     sqlite3_bind_text(m_stmtInsertArchive, 1, name.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_step(m_stmtInsertArchive);
+    if (sqlite3_step(m_stmtInsertArchive) != SQLITE_DONE)
+    {
+        LOG_ERROR("Failed to insert archive: {}", name);
+        throw CDbError("Failed to insert archive");
+    }
 
     sqlite3_reset(m_stmtGetArchive);
     sqlite3_bind_text(m_stmtGetArchive, 1, name.c_str(), -1, SQLITE_TRANSIENT);
@@ -317,7 +333,11 @@ int64_t CDatabase::InsertBook(const Inpx::SBookRecord& rec, const Fb2::SFb2Data&
         sqlite3_reset(m_stmtInsertBookAuthor);
         sqlite3_bind_int64(m_stmtInsertBookAuthor, 1, bookId);
         sqlite3_bind_int64(m_stmtInsertBookAuthor, 2, aid);
-        sqlite3_step(m_stmtInsertBookAuthor);
+        if (sqlite3_step(m_stmtInsertBookAuthor) != SQLITE_DONE)
+        {
+            LOG_ERROR("Failed to insert book_author link");
+            throw CDbError("Failed to insert book_author link");
+        }
     }
 
     for (const auto& genre : rec.genres)
@@ -326,7 +346,11 @@ int64_t CDatabase::InsertBook(const Inpx::SBookRecord& rec, const Fb2::SFb2Data&
         sqlite3_reset(m_stmtInsertBookGenre);
         sqlite3_bind_int64(m_stmtInsertBookGenre, 1, bookId);
         sqlite3_bind_int64(m_stmtInsertBookGenre, 2, gid);
-        sqlite3_step(m_stmtInsertBookGenre);
+        if (sqlite3_step(m_stmtInsertBookGenre) != SQLITE_DONE)
+        {
+            LOG_ERROR("Failed to insert book_genre link");
+            throw CDbError("Failed to insert book_genre link");
+        }
     }
 
     return bookId;
@@ -334,7 +358,12 @@ int64_t CDatabase::InsertBook(const Inpx::SBookRecord& rec, const Fb2::SFb2Data&
 
 bool CDatabase::BookExists(const std::string& libId, const std::string& archiveName)
 {
-    int64_t archId = GetOrCreateArchive(archiveName);
+    sqlite3_reset(m_stmtGetArchive);
+    sqlite3_bind_text(m_stmtGetArchive, 1, archiveName.c_str(), -1, SQLITE_TRANSIENT);
+    if (sqlite3_step(m_stmtGetArchive) != SQLITE_ROW)
+        return false;
+        
+    int64_t archId = sqlite3_column_int64(m_stmtGetArchive, 0);
     sqlite3_reset(m_stmtBookExists);
     sqlite3_bind_text(m_stmtBookExists, 1, libId.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_int64(m_stmtBookExists, 2, archId);

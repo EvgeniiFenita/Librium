@@ -13,11 +13,10 @@ namespace Librium::Indexer {
 
 using Config::Utf8ToPath;
 
-CIndexer::CIndexer(Config::CAppConfig cfg)
-    : m_cfg(std::move(cfg)) 
+CIndexer::CIndexer(Config::SAppConfig cfg)
+    : m_cfg(std::move(cfg))
 {
 }
-
 std::vector<std::string> CIndexer::GetNewArchives(Db::CDatabase& db, const std::string& inpxPath) 
 {
     auto indexed = db.GetIndexedArchives();
@@ -59,8 +58,10 @@ void CIndexer::ProducerThread(const std::string& inpxPath, const Config::CBookFi
             if (!m_skipArchives.empty() && m_skipArchives.count(rec.archiveName))
                 return true;
 
-            if (!filter.ShouldInclude(rec)) 
+            auto filterRes = filter.ShouldInclude(rec);
+            if (!filterRes) 
             {
+                LOG_DEBUG("Book '{}' filtered out: {}", rec.title, filterRes.reason);
                 ++m_filteredCount;
                 return true;
             }
@@ -265,8 +266,10 @@ Db::SImportStats CIndexer::Run(IProgressReporter* reporter)
                 if (!m_skipArchives.empty() && m_skipArchives.count(rec.archiveName))
                     return true;
 
-                if (!filter.ShouldInclude(rec)) 
+                auto filterRes = filter.ShouldInclude(rec);
+                if (!filterRes) 
                 {
+                    LOG_DEBUG("Book '{}' filtered out: {}", rec.title, filterRes.reason);
                     ++m_filteredCount;
                     return true;
                 }

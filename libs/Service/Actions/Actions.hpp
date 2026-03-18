@@ -5,27 +5,32 @@
 
 namespace Librium::Service {
 
-class CImportAction : public IServiceAction {
+class CImportAction : public IServiceAction
+{
 public:
     nlohmann::json Execute(CAppService& service, const nlohmann::json& params, Indexer::IProgressReporter* reporter = nullptr) override;
 };
 
-class CUpgradeAction : public IServiceAction {
+class CUpgradeAction : public IServiceAction
+{
 public:
     nlohmann::json Execute(CAppService& service, const nlohmann::json& params, Indexer::IProgressReporter* reporter = nullptr) override;
 };
 
-class CQueryAction : public IServiceAction {
+class CQueryAction : public IServiceAction
+{
 public:
     nlohmann::json Execute(CAppService& service, const nlohmann::json& params, Indexer::IProgressReporter* reporter = nullptr) override;
 };
 
-class CExportAction : public IServiceAction {
+class CExportAction : public IServiceAction
+{
 public:
     nlohmann::json Execute(CAppService& service, const nlohmann::json& params, Indexer::IProgressReporter* reporter = nullptr) override;
 };
 
-class CStatsAction : public IServiceAction {
+class CStatsAction : public IServiceAction
+{
 public:
     nlohmann::json Execute(CAppService& service, const nlohmann::json& params, Indexer::IProgressReporter* reporter = nullptr) override;
 };
