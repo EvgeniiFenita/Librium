@@ -71,6 +71,31 @@ void CLogger::ClearOutputs()
     m_outputs.clear();
 }
 
+void CLogger::Setup(ELogLevel level, const std::string& file)
+{
+    auto& logger = CLogger::Instance();
+    logger.ClearOutputs();
+    logger.SetLevel(level);
+    
+    if (!file.empty())
+    {
+        logger.AddFileOutput(file);
+    }
+    else
+    {
+        logger.AddConsoleOutput();
+    }
+}
+
+ELogLevel CLogger::ParseLevel(const std::string& levelStr, ELogLevel defaultLevel)
+{
+    if      (levelStr == "debug") return ELogLevel::Debug;
+    else if (levelStr == "warn")  return ELogLevel::Warn;
+    else if (levelStr == "error") return ELogLevel::Error;
+    else if (levelStr == "info")  return ELogLevel::Info;
+    return defaultLevel;
+}
+
 void CLogger::Log(ELogLevel level, const std::string& message, std::source_location loc) 
 {
     if (level < m_level)

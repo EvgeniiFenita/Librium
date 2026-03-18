@@ -4,7 +4,8 @@
 #include "Database/Database.hpp"
 #include "Fb2/Fb2Parser.hpp"
 #include "Inpx/BookRecord.hpp"
-#include "ThreadSafeQueue.hpp"
+#include "Utils/ThreadSafeQueue.hpp"
+#include "IProgressReporter.hpp"
 
 #include <atomic>
 #include <string>
@@ -19,7 +20,7 @@ class CIndexer
 public:
     explicit CIndexer(Config::CAppConfig cfg);
 
-    [[nodiscard]] Db::SImportStats Run();
+    [[nodiscard]] Db::SImportStats Run(IProgressReporter* reporter = nullptr);
     void RequestStop() 
     {
         m_stopRequested = true;
@@ -49,12 +50,12 @@ private:
     static constexpr size_t k_workQueueSize   = 5000;
     static constexpr size_t k_resultQueueSize = 2000;
 
-    CThreadSafeQueue<SWorkItem>   m_workQueue{k_workQueueSize};
-    CThreadSafeQueue<SResultItem> m_resultQueue{k_resultQueueSize};
+    Utils::CThreadSafeQueue<SWorkItem>   m_workQueue{k_workQueueSize};
+    Utils::CThreadSafeQueue<SResultItem> m_resultQueue{k_resultQueueSize};
 
     void ProducerThread(const std::string& inpxPath, const Config::CBookFilter& filter);
     void WorkerThread(const std::string& archivesDir, bool parseFb2);
-    Db::SImportStats WriterThread(Db::CDatabase& db, size_t batchSize);
+    Db::SImportStats WriterThread(Db::CDatabase& db, size_t batchSize, IProgressReporter* reporter, size_t totalBooks);
 };
 
 } // namespace Librium::Indexer

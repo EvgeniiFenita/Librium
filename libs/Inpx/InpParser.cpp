@@ -289,4 +289,22 @@ SInpParseStats CInpParser::ParseStreaming(const std::string& inpxPath, const std
     return m_stats;
 }
 
+size_t CInpParser::CountLines(const std::string& inpxPath)
+{
+    size_t total = 0;
+    Zip::CZipReader::IterateEntries(Config::Utf8ToPath(inpxPath), [&](const std::string& name, std::vector<uint8_t> data)
+    {
+        if (name.size() >= 4 && name.substr(name.size() - 4) == ".inp")
+        {
+            for (auto c : data)
+            {
+                if (c == '\n') ++total;
+            }
+            // If the last line doesn't end with a newline, we might miss one, but it's just an estimate anyway.
+        }
+        return true;
+    });
+    return total;
+}
+
 } // namespace Librium::Inpx

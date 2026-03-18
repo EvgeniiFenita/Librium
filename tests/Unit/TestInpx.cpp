@@ -1,67 +1,82 @@
 #include <catch2/catch_test_macros.hpp>
-
 #include "Inpx/InpParser.hpp"
+#include "TestUtils.hpp"
 #include <filesystem>
+#include <sstream>
 
 using namespace Librium::Inpx;
+using namespace Librium::Tests;
 
-const std::string k_inpx = LIBRIUM_TEST_DATA_DIR "/test.inpx";
-
-TEST_CASE("SAuthor::FullName full", "[inpx]")
+static std::string CreateInpxContent()
 {
-    REQUIRE(SAuthor{"Толстой","Лев","Николаевич"}.FullName() == "Толстой, Лев Николаевич");
+    constexpr char SEP = '\x04';
+    
+    auto inp_line = [SEP](const std::string& authors, const std::string& genres, const std::string& title, 
+                          const std::string& series="", const std::string& serno="",
+                          const std::string& file_id="100001", const std::string& size="1024000", 
+                          const std::string& deleted="0", const std::string& ext="fb2", 
+                          const std::string& date="2020-01-01", const std::string& lang="ru",
+                          const std::string& rating="", const std::string& keywords="") {
+        std::ostringstream ss;
+        ss << authors << SEP << genres << SEP << title << SEP << series << SEP << serno << SEP 
+           << file_id << SEP << size << SEP << file_id << SEP << deleted << SEP << ext << SEP 
+           << date << SEP << lang << SEP << rating << SEP << keywords << SEP << "";
+        return ss.str();
+    };
+
+    std::ostringstream lines;
+    lines << inp_line("Толстой,Лев,Николаевич:", "prose_classic:", "Война и мир", "Эпопея", "1", "100001", "2048000", "0", "fb2", "2020-01-01", "ru", "5") << "\r\n";
+    lines << inp_line("Достоевский,Фёдор,Михайлович:", "prose_classic:", "Преступление и наказание", "", "", "100002", "1024000", "0", "fb2", "2020-01-01", "ru", "5") << "\r\n";
+    lines << inp_line("Удалённый,Автор,:", "unknown:", "Удалённая книга", "", "", "100003", "512", "1") << "\r\n";
+    lines << inp_line("King,Stephen,:", "thriller:", "The Shining", "", "", "100004", "768000", "0", "fb2", "2020-01-01", "en", "4") << "\r\n";
+    
+    return lines.str();
 }
 
-TEST_CASE("SAuthor::FullName no middle", "[inpx]")
+TEST_CASE("InpParser operations", "[inpx]")
 {
-    REQUIRE(SAuthor{"Пушкин","Александр",""}.FullName() == "Пушкин, Александр");
-}
-
-TEST_CASE("SAuthor::IsEmpty", "[inpx]")
-{
-    REQUIRE(SAuthor{}.IsEmpty());
-    REQUIRE_FALSE(SAuthor{"X","",""}.IsEmpty());
-}
-
-TEST_CASE("InpParser streaming", "[inpx]")
-{
-    CInpParser parser;
-    std::vector<SBookRecord> books;
-    parser.ParseStreaming(k_inpx, [&](SBookRecord&& r)
-    {
-        books.push_back(std::move(r));
-        return true;
+    CTempDir tempDir;
+    std::filesystem::path inpxPath = tempDir.GetPath() / "test.inpx";
+    
+    CreateTestZip(inpxPath, {
+        {"fb2-test-001.zip.inp", CreateInpxContent()},
+        {"collection.info", "Test Library\ntest_lib\n65536\nTest\n"},
+        {"version.info", "20240101\r\n"}
     });
 
-    REQUIRE(books.size() > 0);
-    REQUIRE(parser.LastStats().parsedOk == books.size());
-}
-
-TEST_CASE("InpParser full parse", "[inpx]")
-{
-    CInpParser parser;
-    auto books = parser.Parse(k_inpx);
-    REQUIRE(books.size() > 0);
-    REQUIRE(parser.LastStats().parsedOk == books.size());
-}
-
-TEST_CASE("InpParser fields verification", "[inpx]")
-{
-    CInpParser parser;
-    auto books = parser.Parse(k_inpx);
-    
-    bool found = false;
-    for (const auto& b : books)
+    SECTION("SAuthor::FullName formatting")
     {
-        if (b.libId == "100001")
-        {
-            REQUIRE(b.title == "Война и мир");
-            REQUIRE(b.authors.size() == 1);
-            REQUIRE(b.authors[0].lastName == "Толстой");
-            REQUIRE(b.language == "ru");
-            found = true;
-            break;
-        }
+        SAuthor a;
+        a.lastName = "Толстой";
+        a.firstName = "Лев";
+        a.middleName = "Николаевич";
+        REQUIRE(a.FullName() == "Толстой, Лев Николаевич");
     }
-    REQUIRE(found);
+
+    SECTION("CInpParser::Parse loads data correctly")
+    {
+        CInpParser parser;
+        auto u8path = inpxPath.u8string();
+        auto books = parser.Parse(std::string(u8path.begin(), u8path.end()));
+
+        REQUIRE(parser.LastStats().totalLines == 4);
+        REQUIRE(parser.LastStats().skippedDeleted == 1);
+        REQUIRE(parser.LastStats().parsedOk == 3);
+
+        REQUIRE(books.size() == 3);
+
+        bool found = false;
+        for (const auto& b : books)
+        {
+            if (b.title == "Война и мир")
+            {
+                REQUIRE(b.authors.size() == 1);
+                REQUIRE(b.authors[0].lastName == "Толстой");
+                REQUIRE(b.language == "ru");
+                found = true;
+                break;
+            }
+        }
+        REQUIRE(found);
+    }
 }

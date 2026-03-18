@@ -2,60 +2,71 @@
 #include <string>
 #include <filesystem>
 #include "Zip/ZipReader.hpp"
+#include "TestUtils.hpp"
 
 using namespace Librium::Zip;
+using namespace Librium::Tests;
 
-static const std::string k_zip = std::string(LIBRIUM_TEST_DATA_DIR) + "/test.zip";
-
-TEST_CASE("CZipReader throws for missing archive", "[zip]")
+TEST_CASE("CZipReader operations", "[zip]")
 {
-    REQUIRE_THROWS_AS(CZipReader::ListEntries(std::filesystem::path("/no/such.zip")), CZipError);
-}
+    CTempDir tempDir;
+    std::filesystem::path zipPath = tempDir.GetPath() / "test.zip";
+    
+    CreateTestZip(zipPath, {
+        {"hello.txt", "hello world from test zip"},
+        {"subdir/another.txt", "another file"}
+    });
 
-TEST_CASE("CZipReader::ListEntries finds hello.txt", "[zip]")
-{
-    const auto entries = CZipReader::ListEntries(std::filesystem::path(k_zip));
-    bool found = false;
-    for (const auto& e : entries)
+    SECTION("throws for missing archive")
     {
-        if (e.name == "hello.txt")
-        {
-            found = true;
-            REQUIRE(e.uncompressedSize > 0);
-        }
+        REQUIRE_THROWS_AS(CZipReader::ListEntries(std::filesystem::path("/no/such.zip")), CZipError);
     }
-    REQUIRE(found);
-}
 
-TEST_CASE("CZipReader::ReadEntry returns correct content", "[zip]")
-{
-    const auto data = CZipReader::ReadEntry(std::filesystem::path(k_zip), "hello.txt");
-    REQUIRE(std::string(data.begin(), data.end()).find("hello") != std::string::npos);
-}
-
-TEST_CASE("CZipReader::ReadEntry throws for missing entry", "[zip]")
-{
-    REQUIRE_THROWS_AS(CZipReader::ReadEntry(std::filesystem::path(k_zip), "no_such.txt"), CZipError);
-}
-
-TEST_CASE("CZipReader::IterateEntries visits files", "[zip]")
-{
-    int count = 0;
-    CZipReader::IterateEntries(std::filesystem::path(k_zip), [&](const std::string&, std::vector<uint8_t>)
+    SECTION("ListEntries finds hello.txt")
     {
-        ++count;
-        return true;
-    });
-    REQUIRE(count >= 1);
-}
+        const auto entries = CZipReader::ListEntries(zipPath);
+        bool found = false;
+        for (const auto& e : entries)
+        {
+            if (e.name == "hello.txt")
+            {
+                found = true;
+                REQUIRE(e.uncompressedSize > 0);
+            }
+        }
+        REQUIRE(found);
+    }
 
-TEST_CASE("CZipReader::IterateEntries stops on false", "[zip]")
-{
-    int count = 0;
-    CZipReader::IterateEntries(std::filesystem::path(k_zip), [&](const std::string&, std::vector<uint8_t>)
+    SECTION("ReadEntry returns correct content")
     {
-        ++count;
-        return false;
-    });
-    REQUIRE(count == 1);
+        const auto data = CZipReader::ReadEntry(zipPath, "hello.txt");
+        REQUIRE(std::string(data.begin(), data.end()).find("hello") != std::string::npos);
+    }
+
+    SECTION("ReadEntry throws for missing entry")
+    {
+        REQUIRE_THROWS_AS(CZipReader::ReadEntry(zipPath, "no_such.txt"), CZipError);
+    }
+
+    SECTION("IterateEntries visits files")
+    {
+        int count = 0;
+        CZipReader::IterateEntries(zipPath, [&](const std::string&, std::vector<uint8_t>)
+        {
+            ++count;
+            return true;
+        });
+        REQUIRE(count >= 1);
+    }
+
+    SECTION("IterateEntries stops on false")
+    {
+        int count = 0;
+        CZipReader::IterateEntries(zipPath, [&](const std::string&, std::vector<uint8_t>)
+        {
+            ++count;
+            return false;
+        });
+        REQUIRE(count == 1);
+    }
 }

@@ -71,9 +71,10 @@ SQueryResult CBookQuery::Execute(Db::CDatabase& db, const SQueryParams& params)
 
     sqlite3* raw = db.Handle();
     std::stringstream sql;
-    sql << "SELECT b.id, b.lib_id, b.title, b.series_no, b.file_size, b.language, b.date_added, b.rating, b.archive_id, b.annotation, arch.name "
+    sql << "SELECT b.id, b.lib_id, b.title, b.series_no, b.file_size, b.language, b.date_added, b.rating, b.archive_id, b.annotation, arch.name, ser.name "
         << "FROM books b "
-        << "JOIN archives arch ON b.archive_id = arch.id ";
+        << "JOIN archives arch ON b.archive_id = arch.id "
+        << "LEFT JOIN series ser ON b.series_id = ser.id ";
 
     if (!params.author.empty())
         sql << "JOIN book_authors ba ON b.id = ba.book_id JOIN authors a ON ba.author_id = a.id ";
@@ -85,6 +86,7 @@ SQueryResult CBookQuery::Execute(Db::CDatabase& db, const SQueryParams& params)
     if (!params.title.empty()) sql << "AND b.title LIKE ? ";
     if (!params.author.empty()) sql << "AND (a.last_name LIKE ? OR a.first_name LIKE ?) ";
     if (!params.genre.empty()) sql << "AND g.code = ? ";
+    if (!params.series.empty()) sql << "AND ser.name LIKE ? ";
     if (!params.language.empty()) sql << "AND b.language = ? ";
     if (!params.libId.empty()) sql << "AND b.lib_id = ? ";
     if (!params.archiveName.empty()) sql << "AND arch.name = ? ";
@@ -106,6 +108,7 @@ SQueryResult CBookQuery::Execute(Db::CDatabase& db, const SQueryParams& params)
             sqlite3_bind_text(cstmt, idx++, (params.author + "%").c_str(), -1, SQLITE_TRANSIENT);
         }
         if (!params.genre.empty()) sqlite3_bind_text(cstmt, idx++, params.genre.c_str(), -1, SQLITE_TRANSIENT);
+        if (!params.series.empty()) sqlite3_bind_text(cstmt, idx++, (params.series + "%").c_str(), -1, SQLITE_TRANSIENT);
         if (!params.language.empty()) sqlite3_bind_text(cstmt, idx++, params.language.c_str(), -1, SQLITE_TRANSIENT);
         if (!params.libId.empty()) sqlite3_bind_text(cstmt, idx++, params.libId.c_str(), -1, SQLITE_TRANSIENT);
         if (!params.archiveName.empty()) sqlite3_bind_text(cstmt, idx++, params.archiveName.c_str(), -1, SQLITE_TRANSIENT);
@@ -133,6 +136,7 @@ SQueryResult CBookQuery::Execute(Db::CDatabase& db, const SQueryParams& params)
             sqlite3_bind_text(stmt, idx++, (params.author + "%").c_str(), -1, SQLITE_TRANSIENT);
         }
         if (!params.genre.empty()) sqlite3_bind_text(stmt, idx++, params.genre.c_str(), -1, SQLITE_TRANSIENT);
+        if (!params.series.empty()) sqlite3_bind_text(stmt, idx++, (params.series + "%").c_str(), -1, SQLITE_TRANSIENT);
         if (!params.language.empty()) sqlite3_bind_text(stmt, idx++, params.language.c_str(), -1, SQLITE_TRANSIENT);
         if (!params.libId.empty()) sqlite3_bind_text(stmt, idx++, params.libId.c_str(), -1, SQLITE_TRANSIENT);
         if (!params.archiveName.empty()) sqlite3_bind_text(stmt, idx++, params.archiveName.c_str(), -1, SQLITE_TRANSIENT);
@@ -158,8 +162,10 @@ SQueryResult CBookQuery::Execute(Db::CDatabase& db, const SQueryParams& params)
             br.rating = sqlite3_column_int(stmt, 7);
             const auto* ann = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9));
             const auto* arch = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 10));
+            const auto* ser = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 11));
             if (ann) br.annotation = ann;
             if (arch) br.archiveName = arch;
+            if (ser) br.series = ser;
 
             br.authors = FetchAuthors(raw, br.id);
             br.genres = FetchGenres(raw, br.id);

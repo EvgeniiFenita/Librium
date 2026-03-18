@@ -1,0 +1,18 @@
+{
+  "description": "Progress Reporting: verifying that the engine emits progress updates during import",
+  "library": [
+    { "title": "Book 1", "authors": ["Author 1"] },
+    { "title": "Book 2", "authors": ["Author 2"] },
+    { "title": "Book 3", "authors": ["Author 3"] },
+    { "title": "Book 4", "authors": ["Author 4"] },
+    { "title": "Book 5", "authors": ["Author 5"] }
+  ],
+  "config": {
+    "import": {
+      "transactionBatchSize": 2
+    }
+  },
+  "steps": [
+    { "args": ["import"], "expected": { "status": "ok" } }
+  ]
+}

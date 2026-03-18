@@ -5,9 +5,6 @@
   ],
   "steps": [
     { "args": ["import"] },
-    { "args": ["export", "--id", "1"] }
-  ],
-  "expected_text": [
-    "Successfully exported"
+    { "args": ["export", "--id", "1", "--out", "{LIB}/exported"], "expected": { "status": "ok" } }
   ]
 }

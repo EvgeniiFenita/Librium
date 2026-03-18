@@ -30,6 +30,9 @@ public:
     void AddConsoleOutput();
     void ClearOutputs();
 
+    static void Setup(ELogLevel level, const std::string& file = "");
+    static ELogLevel ParseLevel(const std::string& levelStr, ELogLevel defaultLevel = ELogLevel::Info);
+
     void Log(ELogLevel level, const std::string& message, 
              std::source_location loc = std::source_location::current());
 

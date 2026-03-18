@@ -1,64 +1,137 @@
 #include "Version.hpp"
-#include "Utils.hpp"
-#include "Commands/CIndexCommand.hpp"
-#include "Commands/CQueryCommand.hpp"
-#include "Commands/CExportCommand.hpp"
-#include "Commands/CHelperCommands.hpp"
+#include "Service/AppService.hpp"
+#include "Utils/Base64.hpp"
+#include "Utils/StringUtils.hpp"
+#include "Indexer/IProgressReporter.hpp"
+#include "Log/Logger.hpp"
 
-#include <CLI/CLI.hpp>
 #include <iostream>
+#include <string>
 #include <vector>
 #include <memory>
 
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <shellapi.h>
+#endif
+
 using namespace Librium::Apps;
+using namespace Librium::Service;
+using namespace Librium::Utils;
+using namespace Librium::Log;
+
+namespace {
+
+#ifdef _WIN32
+std::vector<std::string> GetUtf8Args() 
+{
+    int argc;
+    LPWSTR* argvw = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (!argvw) return {};
+    std::vector<std::string> args;
+    for (int i = 0; i < argc; ++i) args.push_back(CStringUtils::Utf16ToUtf8(argvw[i]));
+    LocalFree(argvw);
+    return args;
+}
+#endif
+
+class CProtocolProgressReporter : public Librium::Indexer::IProgressReporter
+{
+public:
+    void OnProgress(size_t processed, size_t total) override
+    {
+        nlohmann::json progress_msg = {
+            {"status", "progress"},
+            {"data", {
+                {"processed", processed},
+                {"total", total}
+            }}
+        };
+        std::cout << CBase64::Encode(progress_msg.dump()) << std::endl;
+    }
+};
+
+void ShowUsage()
+{
+    std::cout << "Librium Engine v" << VersionString << "\n\n";
+    std::cout << "Usage: Librium.exe --config <path_to_config.json>\n\n";
+    std::cout << "The engine will start and wait for Base64-encoded JSON commands on stdin.\n";
+}
+
+} // namespace
 
 int main(int argc, char* argv[]) 
 {
     (void)argc;
     (void)argv;
-
     std::vector<std::string> args;
 #ifdef _WIN32
-    args = get_utf8_args();
+    args = GetUtf8Args();
 #else
     for (int i = 0; i < argc; ++i) args.push_back(argv[i]);
 #endif
 
-    CLI::App app{"Librium - INPX library manager"};
-    app.set_version_flag("--version,-v", std::string("Librium v") + VersionString);
-    app.require_subcommand(1);
-
-    std::vector<std::unique_ptr<ICommand>> commands;
-    commands.push_back(std::make_unique<CImportCommand>());
-    commands.push_back(std::make_unique<CUpgradeCommand>());
-    commands.push_back(std::make_unique<CQueryCommand>());
-    commands.push_back(std::make_unique<CExportCommand>());
-    commands.push_back(std::make_unique<CStatsCommand>());
-    commands.push_back(std::make_unique<CInitConfigCommand>());
-
-    for (auto& cmd : commands) 
+    if (args.size() != 3 || args[1] != "--config")
     {
-        cmd->Setup(app);
+        ShowUsage();
+        return 1;
     }
 
-    std::vector<const char*> argv_utf8;
-    for (const auto& a : args) argv_utf8.push_back(a.c_str());
+    std::string configPath = args[2];
 
-    try 
+    try
     {
-        app.parse((int)argv_utf8.size(), argv_utf8.data());
-    } 
-    catch (const CLI::ParseError &e) 
-    {
-        return app.exit(e);
+        auto cfg = Librium::Config::CAppConfig::Load(configPath);
+        
+        // Use log file from config if possible, or default
+        CLogger::Setup(ELogLevel::Info, cfg.logging.file.empty() ? "Librium.log" : cfg.logging.file);
+
+        LOG_INFO("Librium Engine v{} started with config: {}", VersionString, configPath);
+
+        CAppService engine(std::move(cfg));
+        CProtocolProgressReporter reporter;
+        std::string line;
+
+        while (std::getline(std::cin, line))
+        {
+            if (line.empty()) continue;
+            if (line == "exit" || line == "quit") break;
+
+            try
+            {
+                std::string json_str = CBase64::Decode(line);
+                LOG_INFO("INCOMING: {}", json_str);
+
+                nlohmann::json command = nlohmann::json::parse(json_str);
+                nlohmann::json response = engine.Dispatch(command, &reporter);
+
+                std::string response_str = response.dump();
+                LOG_INFO("OUTGOING: {}", response_str);
+
+                std::cout << CBase64::Encode(response_str) << std::endl;
+            }
+            catch (const std::exception& e)
+            {
+                LOG_ERROR("Protocol error: {}", e.what());
+                
+                nlohmann::json err_resp = {
+                    {"status", "error"},
+                    {"error", std::string("Protocol error: ") + e.what()}
+                };
+                std::cout << CBase64::Encode(err_resp.dump()) << std::endl;
+            }
+        }
+
+        LOG_INFO("Librium Engine stopped");
     }
-
-    if (app.get_subcommand("import")->parsed()) return commands[0]->Execute();
-    if (app.get_subcommand("upgrade")->parsed()) return commands[1]->Execute();
-    if (app.get_subcommand("query")->parsed()) return commands[2]->Execute();
-    if (app.get_subcommand("export")->parsed()) return commands[3]->Execute();
-    if (app.get_subcommand("stats")->parsed()) return commands[4]->Execute();
-    if (app.get_subcommand("init-config")->parsed()) return commands[5]->Execute();
+    catch (const std::exception& e)
+    {
+        std::cerr << "Fatal error: " << e.what() << "\n";
+        return 1;
+    }
 
     return 0;
 }

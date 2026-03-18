@@ -6,19 +6,21 @@
 
 ## 1. Project Architecture
 
-The project is organized into independent, reusable static libraries and a single unified CLI application. All project-specific targets and files follow the **PascalCase** naming convention.
+The project is organized into independent, reusable static libraries and a single persistent Engine application. All project-specific targets and files follow the **PascalCase** naming convention.
 
 ### Module Overview
 
 | Module | Responsibility | Dependencies |
 | :--- | :--- | :--- |
-| **Log** | Thread-safe singleton logger. Silent by default, supports file and console outputs. | None |
-| **Zip** | Unicode-aware RAII wrapper around `libzip`. Supports long paths and кириллица. | `libzip`, `zlib` |
+| **Log** | Thread-safe singleton logger. Supports multiple outputs and static configuration. | None |
+| **Zip** | Unicode-aware RAII wrapper around `libzip`. Supports long paths and Cyrillic. | `libzip`, `zlib` |
 | **Fb2** | XML parser for FictionBook 2.0 metadata using `pugixml`. | `pugixml` |
-| **Inpx** | High-speed parser for `.inpx` and `.inp` collection indices. | **Zip**, **Config** |
+| **Inpx** | High-speed parser for `.inpx` collection indices. | **Zip**, **Config** |
 | **Config** | JSON-based configuration and cross-platform path helpers (`Utf8ToPath`). | **Inpx**, `nlohmann_json` |
 | **Database** | Thread-safe SQLite wrapper with optimized batch insertion. | **Fb2**, **Inpx**, `sqlite3` |
 | **QueryLib** | Search engine and JSON serialization for query results. | **Database**, `nlohmann_json` |
+| **Service** | Engine core using the Command pattern to dispatch JSON actions. | **Database**, **Indexer**, **QueryLib**, **Utils** |
+| **Utils** | Common technical utilities (Base64, Thread-safe queue, String helpers). | None |
 
 ---
 
@@ -27,14 +29,17 @@ The project is organized into independent, reusable static libraries and a singl
 ```text
 Librium/
 ├── apps/
-│   └── Librium/            ← Unified CLI application
+│   └── Librium/            ← Persistent Engine application
 ├── libs/
 │   ├── Config/             ← App settings & Unicode path helpers
 │   ├── Database/           ← SQLite schema & data persistence
 │   ├── Fb2/                ← Metadata extraction from books
+│   ├── Indexer/            ← Multi-threaded indexing logic
 │   ├── Inpx/               ← Collection index parsing
-│   ├── Log/                ← Centralized logging
+│   ├── Log/                ← Centralized logging with CLogger
 │   ├── Query/              ← Search logic (CMake target: QueryLib)
+│   ├── Service/            ← JSON Protocol & Action dispatching
+│   ├── Utils/              ← Shared utilities (Base64, Queue, etc.)
 │   └── Zip/                ← Unicode-aware archive handling
 ├── scripts/                ← Unified Python automation pipeline
 │   ├── run.py              ← Master entry point (orchestrator)
@@ -42,7 +47,7 @@ Librium/
 │   └── test.py             ← Multi-stage test runner
 ├── tests/
 │   ├── Scenarios/          ← Data-driven E2E scenarios (.json)
-│   └── Unit/               ← Catch2 test suite
+│   └── Unit/               ← Catch2 test suite (self-contained)
 ├── Dockerfile.linux        ← Linux build environment
 ├── CMakeLists.txt          ← Root build configuration
 └── CMakePresets.json       ← Cross-platform build presets
@@ -69,38 +74,84 @@ python scripts/run.py --preset x64-debug --clean
 ```
 
 ### Test Stages in `scripts/test.py`
-1.  **Stage 1: UNIT**: Fast C++ unit tests (Catch2).
+1.  **Stage 1: UNIT**: Fast C++ unit tests (Catch2). Fully self-contained, no external scripts required.
 2.  **Stage 2: SCENARIO**: Behavioral tests. 
     - Uses `LibGen.py` to create a "miniature" realistic library.
-    - Executes CLI commands via `ScenarioRunner.py` and validates JSON/text outputs.
+    - Communicates with `Librium.exe` via Base64-JSON protocol.
     - Includes **Smoke (Real)** test if `--real-library` path is provided.
 
 ---
 
-## 4. Platform Support
+## 4. Dependencies
 
-### Windows (Native)
-- **Compiler**: MSVC 19.40+ (Visual Studio 2022)
-- **Environment**: Requires `VCPKG_ROOT` environment variable.
-- **Unicode**: Full support for Cyrillic paths in archives and configurations.
-
-### Linux (Docker / WSL)
-- **Compiler**: GCC 13+
-- **Runner**: Uses `Dockerfile.linux` (Ubuntu 24.04).
-- **Usage**: Use `linux-debug` or `linux-release` presets with `scripts/run.py`.
+Librium uses **vcpkg** in manifest mode for dependency management:
+-   `nlohmann-json`: JSON for modern C++.
+-   `pugixml`: Light-weight XML parser.
+-   `libzip`: Zip archive handling.
+-   `catch2`: Unit testing framework.
+-   `sqlite3`: Built from amalgamation (included in project).
 
 ---
 
-## 5. CLI Usage Examples
+## 5. Interface & Protocol (Engine Mode)
 
-### Building the Database
-1.  **Initialize config**: `.\Librium.exe init-config --output AppConfig.json`
-2.  **Import**: `.\Librium.exe import --config AppConfig.json`
-3.  **Stats**: `.\Librium.exe stats --db library.db`
+Librium works as a persistent high-performance **Engine**. It must be started with a mandatory configuration file.
 
-### Querying and Exporting
-1.  **Search**: `.\Librium.exe query --db library.db --author "Толстой" --output out.json`
-2.  **Export**: `.\Librium.exe export --config AppConfig.json --id 123 --out ./Books/`
+### Startup
+```bash
+Librium.exe --config <path_to_config.json>
+```
+
+### Protocol Specification
+-   **Communication**: Via `stdin` (requests) and `stdout` (responses).
+-   **Format**: Every message is a single **Base64-encoded JSON** string ending with a newline (`\n`).
+-   **Logs**: Human-readable logs and audit trails are written to the file specified in the config (default: `Librium.log`).
+
+### Message Types
+
+#### 1. Command (Request)
+```json
+{
+  "action": "action_name",
+  "params": { ... }
+}
+```
+
+#### 2. Response (Final)
+```json
+{
+  "status": "ok",
+  "data": { ... }
+}
+```
+Or in case of failure:
+```json
+{
+  "status": "error",
+  "error": "Description of what went wrong"
+}
+```
+
+#### 3. Progress Update (Intermediate)
+During long operations (`import`, `upgrade`), the engine emits periodic updates:
+```json
+{
+  "status": "progress",
+  "data": {
+    "processed": 1500,
+    "total": 100000
+  }
+}
+```
+
+### Supported Actions
+| Action | Parameters | Description |
+| :--- | :--- | :--- |
+| `import` | *none* | Full library re-indexing using paths from config. |
+| `upgrade`| *none* | Incremental update (add only new archives). |
+| `query`  | `title`, `author`, `genre`, `series`, `limit`, `offset` | Search books in the database. |
+| `stats`  | *none* | Get database summary (books/authors count). |
+| `export` | `id` (int), `out` (path) | Extract a book from a ZIP archive. |
 
 ---
 

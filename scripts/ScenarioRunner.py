@@ -7,6 +7,7 @@ import glob
 import zipfile
 import sys
 import time
+import base64
 
 # Prevent creation of __pycache__ folders in source directories
 sys.dont_write_bytecode = True
@@ -37,6 +38,12 @@ class ScenarioRunner:
             
         return results
 
+    def _b64_encode(self, data):
+        return base64.b64encode(data.encode('utf-8')).decode('utf-8')
+
+    def _b64_decode(self, data):
+        return base64.b64decode(data.encode('utf-8')).decode('utf-8')
+
     def run_scenario(self, scenario_file):
         """Executes a single scenario workflow."""
         name = os.path.basename(scenario_file).replace(".json", "")
@@ -45,7 +52,7 @@ class ScenarioRunner:
             data = json.load(f)
             
         description = data.get("description", "No description provided")
-        print(f"Running scenario: {name} ({description})...", end="", flush=True)
+        print(f"Running scenario: {name} ({description})...")
         
         start_time = time.time()
         test_dir = self._prepare_test_dir(name)
@@ -60,26 +67,49 @@ class ScenarioRunner:
         # 2. Setup Config
         self._write_config(data, config_path, db_path, lib_path)
         
-        # 3. Execute Steps
+        # 3. Start Engine
+        process = subprocess.Popen(
+            [self.binary_path, "--config", config_path],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding='utf-8',
+            errors='ignore',
+            bufsize=1
+        )
+        
+        # 4. Execute Steps
         last_output = ""
-        for step in data["steps"]:
-            success, output = self._execute_step(step, test_dir, db_path, lib_path, config_path)
-            if not success:
-                return {"status": "FAIL"}
-            last_output = output
-            
-            # Per-step validation
-            if "expected" in step or "expected_text" in step:
-                if not self._validate(step, last_output, inpx_count):
+        try:
+            for step in data["steps"]:
+                success, output = self._execute_step_engine(process, step, test_dir, db_path, lib_path, config_path)
+                if not success:
+                    process.terminate()
                     return {"status": "FAIL"}
+                last_output = output
+                
+                # Per-step validation
+                if "expected" in step or "expected_text" in step:
+                    if not self._validate(step, last_output, inpx_count):
+                        process.terminate()
+                        return {"status": "FAIL"}
 
-        # 4. Final Validation (backwards compatibility)
-        if "expected" in data or "expected_text" in data:
-            if not self._validate(data, last_output, inpx_count):
-                return {"status": "FAIL"}
+            # 5. Final Validation (backwards compatibility)
+            if "expected" in data or "expected_text" in data:
+                if not self._validate(data, last_output, inpx_count):
+                    process.terminate()
+                    return {"status": "FAIL"}
+        finally:
+            if process.poll() is None:
+                try:
+                    process.stdin.write("quit\n")
+                    process.stdin.flush()
+                except:
+                    process.terminate()
 
         duration = time.time() - start_time
-        print(f" OK ({duration:.2f}s)")
+        print(f"  --> OK ({duration:.2f}s)\n")
         return {"status": "PASS"}
 
     def _prepare_test_dir(self, name):
@@ -125,41 +155,81 @@ class ScenarioRunner:
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2)
 
-    def _execute_step(self, step, test_dir, db_path, lib_path, config_path):
-        cmd_args = self._prepare_args(step["args"], db_path, lib_path, config_path, test_dir)
+    def _execute_step_engine(self, process, step, test_dir, db_path, lib_path, config_path):
+        action, params = self._map_args_to_json(step["args"], db_path, lib_path, config_path, test_dir)
+        cmd = {"action": action, "params": params}
         
-        res = subprocess.run(cmd_args, capture_output=True, text=True, encoding='utf-8', errors='ignore')
-        if res.returncode != 0:
-            print(f" FAIL\n--- COMMAND FAILED: {' '.join(cmd_args)} ---\nEXIT CODE: {res.returncode}\nSTDERR: {res.stderr}")
-            return False, ""
+        process.stdin.write(self._b64_encode(json.dumps(cmd)) + "\n")
+        process.stdin.flush()
         
-        output = res.stdout
-        if step["args"][0] == "query":
+        has_progress = False
+        while True:
+            line = process.stdout.readline().strip()
+            if not line:
+                return False, "Process exited prematurely"
+                
             try:
-                idx = cmd_args.index("--output")
-                with open(cmd_args[idx+1], 'r', encoding='utf-8') as f:
-                    output = f.read()
-            except: pass
-            
-        return True, output
+                resp_str = self._b64_decode(line)
+                resp = json.loads(resp_str)
+                
+                status = resp.get("status")
+                
+                if status == "progress":
+                    data = resp.get("data", {})
+                    processed = data.get("processed", 0)
+                    total = data.get("total", 0)
+                    pct = (processed * 100 // total) if total > 0 else 0
+                    print(f"\r    Progress: {processed}/{total} ({pct}%)", end="", flush=True)
+                    has_progress = True
+                    continue
+                    
+                elif status == "ok":
+                    if has_progress:
+                        print() 
+                    # For query, we expect data to be the actual result
+                    if action == "query":
+                        return True, json.dumps(resp.get("data"))
+                    return True, json.dumps(resp)
+                    
+                else: # error or unknown
+                    if has_progress: print()
+                    print(f" FAIL\n--- ACTION FAILED: {action} ---\nERROR: {resp.get('error', 'Unknown error')}")
+                    return False, ""
+                    
+            except Exception as e:
+                if has_progress: print()
+                print(f" FAIL\n--- PROTOCOL ERROR: {e} ---\nLINE: {line}")
+                return False, ""
 
-    def _prepare_args(self, args, db_path, lib_path, config_path, test_dir):
-        cmd_name = args[0]
-        cmd_args = [self.binary_path] + args
+    def _map_args_to_json(self, args, db_path, lib_path, config_path, test_dir):
+        action = args[0]
+        params = {}
         
-        if cmd_name in ["import", "upgrade"]:
-            if "--config" not in cmd_args: cmd_args += ["--config", config_path]
-        elif cmd_name in ["query", "stats", "export"]:
-            if "--db" not in cmd_args: cmd_args += ["--db", db_path]
-            if cmd_name == "query" and "--output" not in cmd_args:
-                cmd_args += ["--output", os.path.join(test_dir, "query_out.json")]
-            if cmd_name == "export":
-                if "--archives" not in cmd_args: cmd_args += ["--archives", lib_path]
-                if "--out" not in cmd_args: cmd_args += ["--out", os.path.join(test_dir, "exported")]
-        elif cmd_name == "init-config":
-            if "--output" not in cmd_args: cmd_args += ["--output", os.path.join(test_dir, "new_config.json")]
+        i = 1
+        while i < len(args):
+            arg = args[i]
+            if arg.startswith("--"):
+                key = arg[2:]
+                if i + 1 < len(args) and not args[i+1].startswith("--"):
+                    params[key] = args[i+1]
+                    i += 2
+                else:
+                    params[key] = True
+                    i += 1
+            else:
+                i += 1
 
-        return [a.replace("{LIB}", lib_path).replace("{DB}", db_path).replace("{CONFIG}", config_path) if isinstance(a, str) else a for a in cmd_args]
+        # Replace placeholders and convert types
+        for k, v in params.items():
+            if isinstance(v, str):
+                v = v.replace("{LIB}", lib_path).replace("{DB}", db_path).replace("{CONFIG}", config_path)
+                # Try to convert to int if it looks like a number
+                if v.isdigit():
+                    params[k] = int(v)
+                else:
+                    params[k] = v
+
+        return action, params
 
     def _validate(self, data, last_output, inpx_count):
         if "expected" in data:
@@ -167,8 +237,19 @@ class ScenarioRunner:
             expected = json.loads(expected_str)
             try:
                 actual = json.loads(last_output)
-                if not self._compare(actual, expected):
-                    print(f" FAIL (Mismatch)\nEXPECTED: {json.dumps(expected)}\nACTUAL: {json.dumps(actual)}")
+                
+                # Decision: what to compare?
+                # If expected has "status", compare the whole root.
+                # If actual has "data" and expected matches keys in "data", compare data.
+                
+                to_compare = actual
+                if "status" not in expected and "data" in actual and not isinstance(actual["data"], list):
+                    # Check if expected keys are in actual["data"]
+                    if all(k in actual["data"] for k in expected.keys()):
+                        to_compare = actual["data"]
+
+                if not self._compare(to_compare, expected):
+                    print(f" FAIL (Mismatch)\nEXPECTED: {json.dumps(expected)}\nACTUAL: {json.dumps(to_compare)}")
                     return False
             except Exception as e:
                 print(f" FAIL (Invalid JSON: {e})\nRAW: {last_output}")

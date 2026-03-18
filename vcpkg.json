@@ -7,7 +7,6 @@
     "pugixml",
     "libzip",
     "zlib",
-    "cli11",
     "catch2"
   ]
 }

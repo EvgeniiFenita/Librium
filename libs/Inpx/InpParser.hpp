@@ -23,6 +23,8 @@ public:
 
     SInpParseStats ParseStreaming(const std::string& inpxPath, const std::function<bool(SBookRecord&&)>& onBook);
 
+    [[nodiscard]] static size_t CountLines(const std::string& inpxPath);
+
     [[nodiscard]] const SInpParseStats& LastStats() const
     {
         return m_stats;

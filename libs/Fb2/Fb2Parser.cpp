@@ -10,11 +10,6 @@ namespace Librium::Fb2 {
 
 namespace {
 
-std::string GetNodeText(const pugi::xml_node& node)
-{
-    return node.child_value();
-}
-
 std::string GetChildText(const pugi::xml_node& parent, const char* name)
 {
     return parent.child(name).text().get();
@@ -45,12 +40,12 @@ SFb2Data CFb2Parser::Parse(const std::string& xmlText)
         res.annotation += p.text().get();
     }
 
-    res.keywords = titleInfo.child("keywords").text().get();
+    res.keywords = GetChildText(titleInfo, "keywords");
 
     auto pubInfo = desc.child("publish-info");
-    res.publisher = pubInfo.child("publisher").text().get();
-    res.isbn = pubInfo.child("isbn").text().get();
-    res.publishYear = pubInfo.child("year").text().get();
+    res.publisher = GetChildText(pubInfo, "publisher");
+    res.isbn      = GetChildText(pubInfo, "isbn");
+    res.publishYear = GetChildText(pubInfo, "year");
 
     // Cover
     auto coverPage = titleInfo.child("coverpage");

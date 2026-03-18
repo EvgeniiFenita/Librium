@@ -1,9 +1,0 @@
-{
-  "description": "Utility: generating default configuration file",
-  "steps": [
-    { 
-      "args": ["init-config", "--output", "{DB}/default_config.json"],
-      "expected_text": ["Config written to"]
-    }
-  ]
-}

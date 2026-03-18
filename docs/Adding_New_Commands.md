@@ -1,89 +1,62 @@
-# Guide: Adding New Commands to Librium CLI
+# Guide: Adding New Actions to Librium Engine
 
-This document outlines the standard procedure for adding a new subcommand to the unified Librium CLI application.
+This document outlines the standard procedure for adding a new JSON-based action to the Librium Engine.
 
-## 1. Define the Command Class
-Create a new header and source file in `apps/Librium/Commands/`.
-Follow the **PascalCase** naming convention (e.g., `CMyNewCommand.hpp` and `CMyNewCommand.cpp`).
+## 1. Define the Action Class
+Create a new class in `libs/Service/Actions/Actions.hpp` (or a separate file if it's large) that inherits from `IServiceAction`.
 
-### Header Template (`CMyNewCommand.hpp`)
 ```cpp
-#pragma once
-
-#include "ICommand.hpp"
-#include <string>
-
-namespace Librium::Apps {
-
-class CMyNewCommand : public ICommand
+// libs/Service/Actions/Actions.hpp
+class CMyNewAction : public IServiceAction 
 {
 public:
-    void Setup(CLI::App& app) override;
-    int Execute() override;
-
-private:
-    std::string m_someOption;
-    // Add other members...
+    nlohmann::json Execute(
+        CAppService& service, 
+        const nlohmann::json& params, 
+        Indexer::IProgressReporter* reporter = nullptr) override;
 };
-
-} // namespace Librium::Apps
 ```
 
-### Implementation Template (`CMyNewCommand.cpp`)
+## 2. Implement the Logic
+Add the implementation in `libs/Service/Actions/Actions.cpp`.
+
 ```cpp
-#include "CMyNewCommand.hpp"
-#include "Log/Logger.hpp"
-#include "Utils.hpp"
-
-namespace Librium::Apps {
-
-void CMyNewCommand::Setup(CLI::App& app) 
+// libs/Service/Actions/Actions.cpp
+nlohmann::json CMyNewAction::Execute(CAppService& service, const nlohmann::json& params, Indexer::IProgressReporter* reporter)
 {
-    auto* sub = app.add_subcommand("my-command", "Brief description of the command");
-    sub->add_option("--option", m_someOption, "Description of the option")->required();
-}
+    // 1. Get resources from service
+    auto& db = service.GetDatabase();
+    const auto& cfg = service.GetConfig();
 
-int CMyNewCommand::Execute() 
-{
-    try {
-        // Implementation logic...
-        LOG_INFO("Command executed successfully");
-        return 0;
-    } catch (const std::exception& e) {
-        LOG_ERROR("Command failed: {}", e.what());
-        return 1;
-    }
-}
+    // 2. Parse params
+    std::string someValue = params.value("my_param", "default");
 
-} // namespace Librium::Apps
+    // 3. Do work (optionally use reporter)
+    if (reporter) reporter->OnProgress(50, 100);
+
+    // 4. Return result
+    return {{"status", "ok"}, {"data", {{"result", "done"}}}};
+}
 ```
 
-## 2. Register the Command in Main
-Update `apps/Librium/Main.cpp`:
-1.  Include the new header: `#include "Commands/CMyNewCommand.hpp"`
-2.  Add the command to the `commands` vector in `main()`:
-    ```cpp
-    commands.push_back(std::make_unique<CMyNewCommand>());
-    ```
-3.  Add the execution logic in the subcommand check section:
-    ```cpp
-    if (app.get_subcommand("my-command")->parsed()) return commands[N]->Execute();
-    ```
-    *Note: Ensure the index `N` matches the order in the vector.*
+## 3. Register the Action
+Add the action to the `CAppService` constructor in `libs/Service/AppService.cpp`.
 
-## 3. Update Build System
-Update `apps/Librium/CMakeLists.txt`:
-Add the new `.cpp` file to the `add_executable(Librium ...)` list.
+```cpp
+CAppService::CAppService(Config::CAppConfig cfg) : m_config(std::move(cfg))
+{
+    RegisterAction("import", std::make_unique<CImportAction>());
+    // ...
+    RegisterAction("my-new-action", std::make_unique<CMyNewAction>());
+}
+```
 
-## 4. Documentation
-1.  Add usage examples to `docs/Project_Documentation.md`.
-2.  Mention any new dependencies or configuration changes.
+## 4. Verification
+1.  **Add a Scenario**: Create a new `.json` file in `tests/Scenarios/` to test your action.
+2.  **Run Pipeline**: Execute `python scripts/run.py --preset x64-debug`.
+3.  **Check Audit**: Verify the command and response in `Librium.log`.
 
-## 5. Testing
-1.  **Unit Tests**: If the command uses new logic in `libs/`, add Catch2 tests in `tests/Unit/`.
-2.  **Integration Tests**: Add a new test case to `tests/Integration/RunIntegrationTests.py` to verify the CLI behavior.
-
-## 6. Verification
-Run the following scripts to ensure everything is correct:
-1.  `.\Build.ps1 -Preset x64-debug`
-2.  `.\RunAllTests.ps1 -Preset x64-debug`
+## 5. Implementation Rules
+-   **No direct output**: Never use `std::cout` or `printf`. Use `LOG_*` macros for logging and return data via JSON.
+-   **Error Handling**: Wrap logic in `try-catch` (or let `CAppService::Dispatch` handle it). Always return `{"status": "error", "error": "msg"}` for predictable failures.
+-   **Paths**: Always use `service.GetConfig()` to get base paths for the library or database.

@@ -3,15 +3,15 @@
 #include "Inpx/InpParser.hpp"
 #include "Log/Logger.hpp"
 #include "Zip/ZipReader.hpp"
-#include "Utils.hpp"
 
 #include <filesystem>
 #include <unordered_map>
 
-using namespace Librium::Apps;
 namespace fs = std::filesystem;
 
 namespace Librium::Indexer {
+
+using Config::Utf8ToPath;
 
 CIndexer::CIndexer(Config::CAppConfig cfg)
     : m_cfg(std::move(cfg)) 
@@ -149,10 +149,11 @@ void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2)
     }
 }
 
-Db::SImportStats CIndexer::WriterThread(Db::CDatabase& db, size_t batchSize) 
+Db::SImportStats CIndexer::WriterThread(Db::CDatabase& db, size_t batchSize, IProgressReporter* reporter, size_t totalBooks) 
 {
     Db::SImportStats stats;
     size_t inBatch = 0;
+    size_t processed = 0;
     db.BeginTransaction();
 
     while (true) 
@@ -185,23 +186,35 @@ Db::SImportStats CIndexer::WriterThread(Db::CDatabase& db, size_t batchSize)
         }
 
         ++inBatch;
+        ++processed;
+        
         if (inBatch >= batchSize) 
         {
             db.Commit();
             db.BeginTransaction();
             inBatch = 0;
+            
+            if (reporter)
+            {
+                reporter->OnProgress(processed, totalBooks);
+            }
         }
     }
 
     try { db.Commit(); } catch (...) 
     { db.Rollback(); }
 
+    if (reporter && processed > 0)
+    {
+        reporter->OnProgress(processed, totalBooks);
+    }
+
     stats.booksFiltered = m_filteredCount.load();
     stats.fb2Errors    += m_errorCount.load();
     return stats;
 }
 
-Db::SImportStats CIndexer::Run() 
+Db::SImportStats CIndexer::Run(IProgressReporter* reporter) 
 {
     LOG_INFO("Opening database: {}", m_cfg.database.path);
     Db::CDatabase db(m_cfg.database.path);
@@ -210,6 +223,8 @@ Db::SImportStats CIndexer::Run()
     int numWorkers = std::max(1, m_cfg.import.threadCount);
 
     std::unordered_set<std::string> archivesInInpx;
+    
+    size_t totalBooks = 0;
 
     // Upgrade mode: populate skip set
     if (m_cfg.import.mode == "upgrade") 
@@ -223,11 +238,18 @@ Db::SImportStats CIndexer::Run()
         // Skip archives that are ALREADY indexed
         for (const auto& a : db.GetIndexedArchives())
             m_skipArchives.insert(a);
+            
+        // We could count lines only in new archives, but counting all is fast enough for an estimate
+        totalBooks = Inpx::CInpParser::CountLines(m_cfg.library.inpxPath);
+    }
+    else
+    {
+        totalBooks = Inpx::CInpParser::CountLines(m_cfg.library.inpxPath);
     }
 
     LOG_INFO(
-        "Starting import: {} worker threads, mode={}",
-        numWorkers, m_cfg.import.mode);
+        "Starting import: {} worker threads, mode={}, estimated total books={}",
+        numWorkers, m_cfg.import.mode, totalBooks);
 
     std::thread producer([this, &filter, &archivesInInpx]() 
     {
@@ -273,7 +295,7 @@ Db::SImportStats CIndexer::Run()
         m_resultQueue.Close();
     });
 
-    Db::SImportStats stats = WriterThread(db, m_cfg.import.transactionBatchSize);
+    Db::SImportStats stats = WriterThread(db, m_cfg.import.transactionBatchSize, reporter, totalBooks);
 
     producer.join();
     closer.join();

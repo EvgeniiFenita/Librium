@@ -1,10 +1,6 @@
 add_executable(Librium
     Main.cpp
-    Indexer/Indexer.cpp
-    Commands/CIndexCommand.cpp
-    Commands/CQueryCommand.cpp
-    Commands/CExportCommand.cpp
-    Commands/CHelperCommands.cpp
+    Version.hpp
 )
 
 target_include_directories(Librium PRIVATE
@@ -12,11 +8,12 @@ target_include_directories(Librium PRIVATE
 )
 
 target_link_libraries(Librium PRIVATE
+    Service
     Config
     Database
     Log
     QueryLib
-    CLI11::CLI11
+    Utils
 )
 
 if(WIN32)

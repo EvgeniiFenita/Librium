@@ -159,6 +159,8 @@ void CDatabase::PrepareStatements()
     prep("SELECT id FROM authors WHERE last_name=? AND first_name=? AND middle_name=?", &m_stmtGetAuthor);
     prep("INSERT OR IGNORE INTO genres (code) VALUES (?)", &m_stmtInsertGenre);
     prep("SELECT id FROM genres WHERE code=?", &m_stmtGetGenre);
+    prep("INSERT OR IGNORE INTO series (name) VALUES (?)", &m_stmtInsertSeries);
+    prep("SELECT id FROM series WHERE name=?", &m_stmtGetSeries);
     prep("INSERT OR IGNORE INTO archives (name) VALUES (?)", &m_stmtInsertArchive);
     prep("SELECT id FROM archives WHERE name=?", &m_stmtGetArchive);
 
@@ -197,6 +199,8 @@ void CDatabase::FinalizeStatements()
     sqlite3_finalize(m_stmtGetAuthor);
     sqlite3_finalize(m_stmtInsertGenre);
     sqlite3_finalize(m_stmtGetGenre);
+    sqlite3_finalize(m_stmtInsertSeries);
+    sqlite3_finalize(m_stmtGetSeries);
     sqlite3_finalize(m_stmtInsertArchive);
     sqlite3_finalize(m_stmtGetArchive);
     sqlite3_finalize(m_stmtInsertBookAuthor);
@@ -236,6 +240,20 @@ int64_t CDatabase::GetOrCreateGenre(const std::string& genre)
     return 0;
 }
 
+int64_t CDatabase::GetOrCreateSeries(const std::string& series)
+{
+    if (series.empty()) return 0;
+    sqlite3_reset(m_stmtInsertSeries);
+    sqlite3_bind_text(m_stmtInsertSeries, 1, series.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_step(m_stmtInsertSeries);
+
+    sqlite3_reset(m_stmtGetSeries);
+    sqlite3_bind_text(m_stmtGetSeries, 1, series.c_str(), -1, SQLITE_TRANSIENT);
+    if (sqlite3_step(m_stmtGetSeries) == SQLITE_ROW)
+        return sqlite3_column_int64(m_stmtGetSeries, 0);
+    return 0;
+}
+
 int64_t CDatabase::GetOrCreateArchive(const std::string& name)
 {
     sqlite3_reset(m_stmtInsertArchive);
@@ -252,14 +270,19 @@ int64_t CDatabase::GetOrCreateArchive(const std::string& name)
 int64_t CDatabase::InsertBook(const Inpx::SBookRecord& rec, const Fb2::SFb2Data& fb2)
 {
     int64_t archId = GetOrCreateArchive(rec.archiveName);
+    int64_t seriesId = GetOrCreateSeries(rec.series);
 
     sqlite3_reset(m_stmtInsertBook);
     sqlite3_bind_text(m_stmtInsertBook, 1, rec.libId.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_int64(m_stmtInsertBook, 2, archId);
     sqlite3_bind_text(m_stmtInsertBook, 3, rec.title.c_str(), -1, SQLITE_TRANSIENT);
     
-    // Series (simplified)
-    sqlite3_bind_null(m_stmtInsertBook, 4);
+    // Series
+    if (seriesId > 0)
+        sqlite3_bind_int64(m_stmtInsertBook, 4, seriesId);
+    else
+        sqlite3_bind_null(m_stmtInsertBook, 4);
+
     sqlite3_bind_int(m_stmtInsertBook, 5, rec.seriesNumber);
 
     sqlite3_bind_text(m_stmtInsertBook, 6, rec.fileName.c_str(), -1, SQLITE_TRANSIENT);
@@ -331,6 +354,7 @@ std::vector<std::string> CDatabase::GetIndexedArchives()
 
 void CDatabase::MarkArchiveIndexed(const std::string& archiveName)
 {
+    (void)GetOrCreateArchive(archiveName);
     sqlite3_stmt* stmt = nullptr;
     sqlite3_prepare_v2(m_db, "UPDATE archives SET last_indexed=datetime('now') WHERE name=?", -1, &stmt, nullptr);
     sqlite3_bind_text(stmt, 1, archiveName.c_str(), -1, SQLITE_TRANSIENT);

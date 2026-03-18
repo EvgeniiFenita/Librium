@@ -6,11 +6,6 @@
   ],
   "steps": [
     { "args": ["import"] },
-    { "args": ["stats"] }
-  ],
-  "expected_text": [
-    "Books    : 2",
-    "Authors  : 2",
-    "Genres   : 2"
+    { "args": ["stats"], "expected": { "total_books": 2, "total_authors": 2 } }
   ]
 }

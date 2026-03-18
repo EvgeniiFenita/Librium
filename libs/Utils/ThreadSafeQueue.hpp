@@ -5,7 +5,7 @@
 #include <optional>
 #include <queue>
 
-namespace Librium::Indexer {
+namespace Librium::Utils {
 
 template<typename T>
 class CThreadSafeQueue
@@ -58,4 +58,4 @@ private:
     bool                    m_closed{false};
 };
 
-} // namespace Librium::Indexer
+} // namespace Librium::Utils

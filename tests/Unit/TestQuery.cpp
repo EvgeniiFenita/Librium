@@ -35,14 +35,27 @@ TEST_CASE("BookQuery basic execution", "[query]")
         AddBook(db, "1", "Book One", "ru", "sf", 5);
         AddBook(db, "2", "Book Two", "ru", "detective", 4);
         AddBook(db, "3", "The Book", "en", "sf", 3, "Some desc");
+        
+        // Add a book with specific author and series for complex searches
+        Inpx::SBookRecord r;
+        r.libId = "4";
+        r.title = "War and Peace";
+        r.language = "ru";
+        r.genres = {"prose"};
+        r.rating = 5;
+        r.archiveName = "arch1";
+        r.series = "Classics";
+        r.seriesNumber = 1;
+        r.authors.push_back({"Tolstoy", "Leo", ""});
+        (void)db.InsertBook(r);
 
         SECTION("Filter by language")
         {
             Query::SQueryParams p; 
             p.language = "ru";
             auto res = Query::CBookQuery::Execute(db, p);
-            REQUIRE(res.totalFound == 2);
-            REQUIRE(res.books.size() == 2);
+            REQUIRE(res.totalFound == 3); // 1, 2, 4
+            REQUIRE(res.books.size() == 3);
         }
 
         SECTION("Filter by genre")
@@ -51,6 +64,46 @@ TEST_CASE("BookQuery basic execution", "[query]")
             p.genre = "sf";
             auto res = Query::CBookQuery::Execute(db, p);
             REQUIRE(res.totalFound == 2);
+        }
+
+        SECTION("Filter by author")
+        {
+            Query::SQueryParams p; 
+            p.author = "Tolstoy";
+            auto res = Query::CBookQuery::Execute(db, p);
+            REQUIRE(res.totalFound == 1);
+            REQUIRE(res.books[0].libId == "4");
+        }
+
+        SECTION("Filter by title")
+        {
+            Query::SQueryParams p; 
+            p.title = "War"; // Partial match
+            auto res = Query::CBookQuery::Execute(db, p);
+            REQUIRE(res.totalFound == 1);
+            REQUIRE(res.books[0].title == "War and Peace");
+        }
+
+        SECTION("Filter by series")
+        {
+            Query::SQueryParams p; 
+            p.series = "Classics";
+            auto res = Query::CBookQuery::Execute(db, p);
+            REQUIRE(res.totalFound == 1);
+            REQUIRE(res.books[0].series == "Classics");
+        }
+
+        SECTION("Combined filter (author + genre)")
+        {
+            Query::SQueryParams p; 
+            p.author = "Tolstoy";
+            p.genre = "prose";
+            auto res = Query::CBookQuery::Execute(db, p);
+            REQUIRE(res.totalFound == 1);
+            
+            p.genre = "sf"; // Tolstoy didn't write sf here
+            res = Query::CBookQuery::Execute(db, p);
+            REQUIRE(res.totalFound == 0);
         }
 
         SECTION("Filter with annotation")
@@ -65,10 +118,10 @@ TEST_CASE("BookQuery basic execution", "[query]")
         SECTION("Limit and offset")
         {
             Query::SQueryParams p; 
-            p.limit = 1;
+            p.limit = 2;
             auto res = Query::CBookQuery::Execute(db, p);
-            REQUIRE(res.totalFound == 3);
-            REQUIRE(res.books.size() == 1);
+            REQUIRE(res.totalFound == 4);
+            REQUIRE(res.books.size() == 2);
         }
     }
 

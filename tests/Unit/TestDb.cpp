@@ -30,14 +30,40 @@ TEST_CASE("Database basic operations", "[db]")
         Db::CDatabase db(dbPath);
         REQUIRE(db.CountBooks() == 0);
 
-        auto rec = MakeRec();
+        auto rec = MakeRec("100001", "Test Book");
         int64_t id = db.InsertBook(rec);
-        REQUIRE(id > 0);
-        REQUIRE(db.CountBooks() == 1);
-        REQUIRE(db.CountAuthors() == 1);
+        
+        SECTION("Insert and Count")
+        {
+            REQUIRE(id > 0);
+            REQUIRE(db.CountBooks() == 1);
+            REQUIRE(db.CountAuthors() == 1);
 
-        REQUIRE(db.BookExists("100001", "arch1"));
-        REQUIRE_FALSE(db.BookExists("999", "arch1"));
+            REQUIRE(db.BookExists("100001", "arch1"));
+            REQUIRE_FALSE(db.BookExists("999", "arch1"));
+        }
+
+        SECTION("GetBookPath")
+        {
+            auto pathOpt = db.GetBookPath(id);
+            REQUIRE(pathOpt.has_value());
+            REQUIRE(pathOpt->archiveName == "arch1");
+            REQUIRE(pathOpt->fileName == "file1.fb2");
+
+            auto missingPath = db.GetBookPath(9999);
+            REQUIRE_FALSE(missingPath.has_value());
+        }
+
+        SECTION("Archive indexing")
+        {
+            REQUIRE(db.GetIndexedArchives().empty());
+
+            db.MarkArchiveIndexed("my_archive");
+            
+            auto archives = db.GetIndexedArchives();
+            REQUIRE(archives.size() == 1);
+            REQUIRE(archives[0] == "my_archive");
+        }
     }
 
     std::filesystem::remove(dbPath);

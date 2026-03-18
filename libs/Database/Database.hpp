@@ -73,11 +73,8 @@ public:
         const std::string& libId,
         const std::string& archiveName);
 
-    void UpdateBookFb2(int64_t bookId, const Fb2::SFb2Data& fb2);
-
     [[nodiscard]] std::vector<std::string> GetIndexedArchives();
     void MarkArchiveIndexed(const std::string& archiveName);
-    [[nodiscard]] bool ArchiveExists(const std::string& archiveName);
 
     [[nodiscard]] std::optional<SBookPath> GetBookPath(int64_t bookId);
 
@@ -97,6 +94,8 @@ private:
     sqlite3_stmt* m_stmtGetAuthor{nullptr};
     sqlite3_stmt* m_stmtInsertGenre{nullptr};
     sqlite3_stmt* m_stmtGetGenre{nullptr};
+    sqlite3_stmt* m_stmtInsertSeries{nullptr};
+    sqlite3_stmt* m_stmtGetSeries{nullptr};
     sqlite3_stmt* m_stmtInsertArchive{nullptr};
     sqlite3_stmt* m_stmtGetArchive{nullptr};
     sqlite3_stmt* m_stmtInsertBookAuthor{nullptr};
