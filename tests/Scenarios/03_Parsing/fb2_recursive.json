@@ -1,0 +1,24 @@
+{
+  "description": "FB2 Recursive parsing: verifying the parser extracts text from nested tags",
+  "library": [
+    { 
+      "title": "Nested Book", 
+      "authors": ["Nester"], 
+      "lib_id": "88002",
+      "raw_fb2": "<?xml version=\"1.0\" encoding=\"utf-8\"?><FictionBook><description><title-info><annotation><p>Start <strong>bold</strong> and <em>italic</em> end.</p><empty-line/><p>Line two.</p></annotation></title-info></description></FictionBook>"
+    }
+  ],
+  "config": {
+    "import": { "parseFb2": true }
+  },
+  "steps": [
+    { "args": ["import"] },
+    { 
+      "args": ["query", "--with-annotation"],
+      "expected": {
+        "totalFound": 1,
+        "books": [ { "title": "Nested Book", "annotation": "Start bold and italic end.\n\nLine two." } ]
+      }
+    }
+  ]
+}

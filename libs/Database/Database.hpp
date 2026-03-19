@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 struct sqlite3;
 struct sqlite3_stmt;
@@ -49,7 +50,6 @@ struct SImportStats
         LOG_INFO("  FB2 errors         : {}", fb2Errors);
         LOG_INFO("======================");
     }
-
 };
 
 class CDatabase
@@ -86,6 +86,10 @@ public:
         return m_db; 
     }
 
+    void DropIndexes();
+    void CreateIndexes();
+    void Exec(const char* sql);
+
 private:
     sqlite3* m_db{nullptr};
 
@@ -103,6 +107,15 @@ private:
     sqlite3_stmt* m_stmtBookExists{nullptr};
     sqlite3_stmt* m_stmtUpdateFb2{nullptr};
     sqlite3_stmt* m_stmtGetBookPath{nullptr};
+    sqlite3_stmt* m_stmtInsertPublisher{nullptr};
+    sqlite3_stmt* m_stmtGetPublisher{nullptr};
+
+    // Memory caches for bulk indexing speed
+    std::unordered_map<std::string, int64_t> m_cacheArchives;
+    std::unordered_map<std::string, int64_t> m_cacheGenres;
+    std::unordered_map<std::string, int64_t> m_cacheSeries;
+    std::unordered_map<std::string, int64_t> m_cachePublishers;
+    std::unordered_map<std::string, int64_t> m_cacheAuthors;
 
     void PrepareStatements();
     void FinalizeStatements();
@@ -113,7 +126,6 @@ private:
     [[nodiscard]] int64_t GetOrCreatePublisher(const std::string& publisher);
     [[nodiscard]] int64_t GetOrCreateArchive(const std::string& archiveName);
 
-    void Exec(const char* sql);
     [[nodiscard]] int64_t LastInsertRowId() const;
     static void Check(int rc, const char* context);
 };

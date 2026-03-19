@@ -108,7 +108,8 @@ int main(int argc, char* argv[])
                 nlohmann::json command = nlohmann::json::parse(json_str);
                 nlohmann::json response = engine.Dispatch(command, &reporter);
 
-                std::string response_str = response.dump();
+                // Use 'replace' strategy for invalid UTF-8 bytes to prevent protocol crashes
+                std::string response_str = response.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
                 LOG_INFO("OUTGOING: {}", response_str);
 
                 std::cout << CBase64::Encode(response_str) << std::endl;
@@ -121,7 +122,7 @@ int main(int argc, char* argv[])
                     {"status", "error"},
                     {"error", std::string("Protocol error: ") + e.what()}
                 };
-                std::cout << CBase64::Encode(err_resp.dump()) << std::endl;
+                std::cout << CBase64::Encode(err_resp.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) << std::endl;
             }
         }
 

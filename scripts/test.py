@@ -55,10 +55,25 @@ def run_scenario_tests(build_dir, config, real_lib_path=None):
     res = subprocess.run(cmd, cwd=REPO_ROOT)
     return res.returncode == 0
 
+# --- Stage 3: Real Library Tests ---
+def run_real_library_test(build_dir, config, real_lib_path):
+    is_win = sys.platform.startswith("win")
+    ext = ".exe" if is_win else ""
+    librium_exe = build_dir / "apps" / "Librium" / (config if is_win else "") / f"Librium{ext}"
+    
+    test_script = REPO_ROOT / "scripts" / "RealLibraryTest.py"
+    output_root = build_dir / "tests" / "RealLibrary"
+    output_root.mkdir(parents=True, exist_ok=True)
+
+    print(f"Executing: {test_script}")
+    cmd = [sys.executable, "-u", str(test_script), str(librium_exe), str(output_root), real_lib_path]
+    res = subprocess.run(cmd, cwd=REPO_ROOT)
+    return res.returncode == 0
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--preset", required=True)
-    parser.add_argument("--stage", choices=["unit", "scenario", "all"], default="all")
+    parser.add_argument("--stage", choices=["unit", "scenario", "real", "all"], default="all")
     parser.add_argument("--real-library", help="Path to real library")
     args = parser.parse_args()
 
@@ -74,6 +89,10 @@ def main():
     if success and args.stage in ["scenario", "all"]:
         print_step(2, "SCENARIO TESTS")
         if not run_scenario_tests(build_dir, config, args.real_library): success = False
+
+    if success and args.stage in ["real", "all"] and args.real_library:
+        print_step(3, "REAL LIBRARY TESTS")
+        if not run_real_library_test(build_dir, config, args.real_library): success = False
 
     sys.exit(0 if success else 1)
 

@@ -162,3 +162,27 @@ To ensure Windows compatibility with non-ASCII paths:
 - **Never** use `std::filesystem::path::string()` for paths that might contain Unicode.
 - **Always** use `Librium::Config::Utf8ToPath(std::string)` when converting UTF-8 (from JSON/CLI) to a path object.
 - **Zip Archives**: The `ZipReader` is specialized to handle Unicode paths on Windows using Win32 wide-character APIs.
+
+---
+
+## 7. Performance & Robustness
+
+### High-Performance Import
+- **Archive-Aware Scheduling**: The indexer groups books by archive before processing. This ensures that each ZIP file is opened once and read linearly, minimizing HDD disk thrashing.
+- **Fast Upgrade**: The `upgrade` command automatically skips archives that are already marked as indexed in the database, reducing incremental update time from minutes to seconds.
+- **Index Management**: Search indexes are dropped before bulk imports and recreated afterward to maintain constant O(1) insertion speed.
+- **Database Caching**: Internal memory caches for Authors, Genres, Series, and Publishers IDs minimize SQLite lookup overhead during mass indexing.
+- **Worker Parallelism**: Supports high thread counts (up to 32+ threads) for simultaneous FB2 parsing and XML processing.
+
+### Data Quality & Robustness
+- **Recursive FB2 Parsing**: Text metadata (like annotations) is extracted recursively, ensuring clean text even when nested within complex XML tags (e.g., `<strong>`, `<a>`, `<v>`).
+- **Encoding Auto-Detection**: The engine prioritizes UTF-8 validation. If a file is not valid UTF-8, it automatically attempts conversion from Windows-1251 (CP1251), ensuring readability of legacy Russian books.
+- **Safe JSON Protocol**: Outgoing JSON messages use a byte-replacement strategy for invalid UTF-8 sequences to prevent engine crashes on "dirty" library data.
+
+### Comprehensive Validation
+The `RealLibraryTest.py` script performs multi-stage validation:
+1. **Clean Import**: Verifies progress reporting and 100% completion.
+2. **Data Integrity**: Randomly samples 10 books and inspects every database field for completeness and correct encoding.
+3. **Incremental Logic**: Verifies that a secondary `upgrade` command correctly skips all existing archives.
+4. **Export Integrity**: Validates exported books by checking file size and searching for valid XML signatures (`<FictionBook`) in the content.
+

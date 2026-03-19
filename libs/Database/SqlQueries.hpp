@@ -132,6 +132,12 @@ constexpr std::string_view InsertSeries = "INSERT OR IGNORE INTO series (name) V
 // Get series ID by name
 constexpr std::string_view GetSeriesId = "SELECT id FROM series WHERE name=?";
 
+// Insert a publisher
+constexpr std::string_view InsertPublisher = "INSERT OR IGNORE INTO publishers (name) VALUES (?)";
+
+// Get publisher ID by name
+constexpr std::string_view GetPublisherId = "SELECT id FROM publishers WHERE name=?";
+
 // Insert an archive record
 constexpr std::string_view InsertArchive = "INSERT OR IGNORE INTO archives (name) VALUES (?)";
 

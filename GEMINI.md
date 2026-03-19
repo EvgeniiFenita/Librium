@@ -44,6 +44,8 @@
 - **Database Architecture**: SQL queries must be stored as `constexpr std::string_view` constants in `SqlQueries.hpp`. Database schema creation must be handled by the `CDatabaseSchema` class.
 - **FB2 Parsing**: Only text metadata (annotations, keywords, etc.) is supported. Cover extraction logic is removed and MUST NOT be re-implemented.
 - **Clean Console**: Libraries (`libs/`) must NEVER use `std::cout`/`std::cerr`. Use `LOG_*` macros instead.
+- **Performance Integrity**: Bulk operations (like indexing) MUST use Archive-Aware scheduling to minimize disk thrashing. Always utilize memory caches for frequently accessed database IDs (Authors, Genres).
+- **Encoding Robustness**: All text parsers MUST prioritize UTF-8 validation before attempting legacy encoding conversions (e.g., CP1251).
 - **Mass-refactoring Whitelist**: `libs/`, `apps/`, `tests/`. NEVER touch `vcpkg_installed/` or `out/`.
 - **Verification Workflow**: After any structural change, run `python scripts/run.py --preset x64-debug`.
 

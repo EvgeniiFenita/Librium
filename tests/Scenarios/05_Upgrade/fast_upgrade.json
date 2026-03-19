@@ -1,0 +1,16 @@
+{
+  "description": "Fast Upgrade: verifying that already indexed archives are skipped during upgrade",
+  "library": [
+    { "title": "Existing Book", "authors": ["Author"], "archive": "arch1.zip", "lib_id": "1001" }
+  ],
+  "steps": [
+    { 
+      "args": ["import"],
+      "expected": { "status": "ok", "data": { "inserted": 1 } }
+    },
+    { 
+      "args": ["upgrade"],
+      "expected": { "status": "ok", "data": { "inserted": 0, "skipped": 1 } }
+    }
+  ]
+}

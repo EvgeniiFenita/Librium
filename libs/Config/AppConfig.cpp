@@ -20,7 +20,8 @@ SAppConfig SAppConfig::Defaults()
 
 SAppConfig SAppConfig::Load(const std::string& path) 
 {
-    std::ifstream f(path);
+    // Use filesystem::path to handle UTF-8 paths correctly on Windows
+    std::ifstream f(Utf8ToPath(path));
     if (!f.is_open())
         throw ConfigError("Cannot open config: " + path);
 

@@ -1,0 +1,24 @@
+{
+  "description": "FB2 Namespace handling: verifying the parser handles prefixes like <fb:annotation>",
+  "library": [
+    { 
+      "title": "Namespaced Book", 
+      "authors": ["Namespacer"], 
+      "lib_id": "88001",
+      "raw_fb2": "<?xml version=\"1.0\" encoding=\"utf-8\"?><fb:FictionBook xmlns:fb=\"http://www.gribuser.ru/xml/fictionbook/2.0\"><fb:description><fb:title-info><fb:annotation><p>Namespaced annotation text</p></fb:annotation></fb:title-info></fb:description></fb:FictionBook>"
+    }
+  ],
+  "config": {
+    "import": { "parseFb2": true }
+  },
+  "steps": [
+    { "args": ["import"] },
+    { 
+      "args": ["query", "--with-annotation"],
+      "expected": {
+        "totalFound": 1,
+        "books": [ { "title": "Namespaced Book", "annotation": "Namespaced annotation text" } ]
+      }
+    }
+  ]
+}

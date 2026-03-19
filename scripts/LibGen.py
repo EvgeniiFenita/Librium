@@ -20,7 +20,8 @@ class LibGen:
 
     def add_book(self, title, authors, genres=None, lang="ru", deleted=False, 
                  series="", ser_no="", archive="fb2-001.zip", lib_id=None,
-                 annotation=None, keywords="", size=None, date=None, rating=0):
+                 annotation=None, keywords="", size=None, date=None, rating=0,
+                 raw_fb2=None):
         """Adds a book description to the generation queue."""
         if not lib_id:
             lib_id = str(self.next_id)
@@ -41,7 +42,8 @@ class LibGen:
             "date": date if date else datetime.now().strftime("%Y-%m-%d"),
             "rating": str(rating),
             "annotation": annotation,
-            "keywords": keywords
+            "keywords": keywords,
+            "raw_fb2": raw_fb2
         }
         self.books.append(book)
         
@@ -70,7 +72,7 @@ class LibGen:
             arch_path = os.path.join(self.lib_path, arch_name)
             with zipfile.ZipFile(arch_path, "w", zipfile.ZIP_DEFLATED) as zf:
                 for b in books:
-                    fb2_content = self._generate_fb2(b)
+                    fb2_content = b['raw_fb2'] if b['raw_fb2'] else self._generate_fb2(b)
                     zf.writestr(f"{b['file']}.fb2", fb2_content)
 
         # 2. Create INPX
