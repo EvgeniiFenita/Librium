@@ -104,7 +104,6 @@ private:
     sqlite3_stmt* m_stmtUpdateFb2{nullptr};
     sqlite3_stmt* m_stmtGetBookPath{nullptr};
 
-    void CreateSchema();
     void PrepareStatements();
     void FinalizeStatements();
 

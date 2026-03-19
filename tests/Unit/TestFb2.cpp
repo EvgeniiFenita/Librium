@@ -10,7 +10,6 @@ static const std::string k_fb2 = R"(<?xml version="1.0" encoding="utf-8"?>
     <title-info>
       <annotation><p>First.</p><p>Second.</p></annotation>
       <keywords>history, war</keywords>
-      <coverpage><image l:href="#cover.jpg"/></coverpage>
     </title-info>
     <publish-info>
       <publisher>Test Publisher</publisher>
@@ -18,7 +17,6 @@ static const std::string k_fb2 = R"(<?xml version="1.0" encoding="utf-8"?>
       <isbn>978-0-00-000000-0</isbn>
     </publish-info>
   </description>
-  <binary id="cover.jpg" content-type="image/jpeg">/9j/4AAQSkZJRgABAQEASABIAAD/2Q==</binary>
 </FictionBook>)";
 
 TEST_CASE("Parses annotation", "[fb2]")
@@ -39,15 +37,6 @@ TEST_CASE("Parses publish info", "[fb2]")
     REQUIRE(d.publisher == "Test Publisher");
     REQUIRE(d.isbn == "978-0-00-000000-0");
     REQUIRE(d.publishYear == "1978");
-}
-
-TEST_CASE("Extracts cover metadata", "[fb2]")
-{
-    auto d = CFb2Parser{}.Parse(k_fb2);
-    REQUIRE(d.coverMime == "image/jpeg");
-    // NOTE: Base64 decoding is currently not implemented in Fb2Parser,
-    // so coverData remains empty.
-    REQUIRE(d.coverData.empty());
 }
 
 TEST_CASE("Invalid XML returns parseError", "[fb2]")

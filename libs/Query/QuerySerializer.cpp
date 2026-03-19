@@ -19,11 +19,14 @@ nlohmann::json CQuerySerializer::ToJson(const SQueryResult& result)
         jb["title"] = b.title;
         jb["series"] = b.series;
         jb["seriesNumber"] = b.seriesNumber;
+        jb["fileName"] = b.fileName;
+        jb["fileExt"] = b.fileExt;
         jb["language"] = b.language;
         jb["dateAdded"] = b.dateAdded;
         jb["rating"] = b.rating;
         jb["fileSize"] = b.fileSize;
         jb["archiveName"] = b.archiveName;
+        jb["keywords"] = b.keywords;
         jb["annotation"] = b.annotation;
         jb["publisher"] = b.publisher;
         jb["isbn"] = b.isbn;

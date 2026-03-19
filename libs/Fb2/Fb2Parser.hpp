@@ -13,8 +13,6 @@ struct SFb2Data
     std::string          publisher;
     std::string          isbn;
     std::string          publishYear;
-    std::vector<uint8_t> coverData;
-    std::string          coverMime;
     std::string          parseError;
 
     [[nodiscard]] bool IsOk() const

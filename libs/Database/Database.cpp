@@ -1,5 +1,6 @@
 #include "Database.hpp"
-
+#include "DatabaseSchema.hpp"
+#include "SqlQueries.hpp"
 #include "Log/Logger.hpp"
 
 #include <sqlite3.h>
@@ -14,7 +15,7 @@ CDatabase::CDatabase(const std::string& path)
     if (sqlite3_open(path.c_str(), &m_db) != SQLITE_OK)
         throw CDbError("Cannot open database: " + path);
 
-    CreateSchema();
+    CDatabaseSchema::Create(m_db);
     PrepareStatements();
 }
 
@@ -52,144 +53,27 @@ void CDatabase::Exec(const char* sql)
     }
 }
 
-void CDatabase::CreateSchema()
-{
-    Exec("PRAGMA journal_mode = WAL");
-    Exec("PRAGMA synchronous = NORMAL");
-
-    Exec(R"(
-        CREATE TABLE IF NOT EXISTS archives (
-            id INTEGER PRIMARY KEY,
-            name TEXT UNIQUE,
-            last_indexed TEXT
-        )
-    )");
-
-    Exec(R"(
-        CREATE TABLE IF NOT EXISTS authors (
-            id INTEGER PRIMARY KEY,
-            last_name TEXT,
-            first_name TEXT,
-            middle_name TEXT,
-            UNIQUE(last_name, first_name, middle_name)
-        )
-    )");
-
-    Exec(R"(
-        CREATE TABLE IF NOT EXISTS genres (
-            id INTEGER PRIMARY KEY,
-            code TEXT UNIQUE
-        )
-    )");
-
-    Exec(R"(
-        CREATE TABLE IF NOT EXISTS series (
-            id INTEGER PRIMARY KEY,
-            name TEXT UNIQUE
-        )
-    )");
-
-    Exec(R"(
-        CREATE TABLE IF NOT EXISTS publishers (
-            id INTEGER PRIMARY KEY,
-            name TEXT UNIQUE
-        )
-    )");
-
-    Exec(R"(
-        CREATE TABLE IF NOT EXISTS books (
-            id INTEGER PRIMARY KEY,
-            lib_id TEXT,
-            archive_id INTEGER,
-            title TEXT,
-            series_id INTEGER,
-            series_no INTEGER,
-            file_name TEXT,
-            file_size INTEGER,
-            file_ext TEXT,
-            date_added TEXT,
-            language TEXT,
-            rating INTEGER,
-            keywords TEXT,
-            annotation TEXT,
-            publisher_id INTEGER,
-            isbn TEXT,
-            publish_date TEXT,
-            cover_data BLOB,
-            cover_mime TEXT,
-            UNIQUE(lib_id, archive_id),
-            FOREIGN KEY(archive_id) REFERENCES archives(id),
-            FOREIGN KEY(series_id) REFERENCES series(id),
-            FOREIGN KEY(publisher_id) REFERENCES publishers(id)
-        )
-    )");
-
-    Exec(R"(
-        CREATE TABLE IF NOT EXISTS book_authors (
-            book_id INTEGER,
-            author_id INTEGER,
-            PRIMARY KEY(book_id, author_id),
-            FOREIGN KEY(book_id) REFERENCES books(id),
-            FOREIGN KEY(author_id) REFERENCES authors(id)
-        )
-    )");
-
-    Exec(R"(
-        CREATE TABLE IF NOT EXISTS book_genres (
-            book_id INTEGER,
-            genre_id INTEGER,
-            PRIMARY KEY(book_id, genre_id),
-            FOREIGN KEY(book_id) REFERENCES books(id),
-            FOREIGN KEY(genre_id) REFERENCES genres(id)
-        )
-    )");
-
-    Exec("CREATE INDEX IF NOT EXISTS idx_books_title ON books(title)");
-    Exec("CREATE INDEX IF NOT EXISTS idx_books_lang ON books(language)");
-}
-
 void CDatabase::PrepareStatements()
 {
-    auto prep = [&](const char* sql, sqlite3_stmt** stmt)
+    auto prep = [&](std::string_view sql, sqlite3_stmt** stmt)
     {
-        Check(sqlite3_prepare_v2(m_db, sql, -1, stmt, nullptr), "prepare");
+        Check(sqlite3_prepare_v2(m_db, sql.data(), -1, stmt, nullptr), "prepare");
     };
 
-    prep("INSERT OR IGNORE INTO authors (last_name, first_name, middle_name) VALUES (?, ?, ?)", &m_stmtInsertAuthor);
-    prep("SELECT id FROM authors WHERE last_name=? AND first_name=? AND middle_name=?", &m_stmtGetAuthor);
-    prep("INSERT OR IGNORE INTO genres (code) VALUES (?)", &m_stmtInsertGenre);
-    prep("SELECT id FROM genres WHERE code=?", &m_stmtGetGenre);
-    prep("INSERT OR IGNORE INTO series (name) VALUES (?)", &m_stmtInsertSeries);
-    prep("SELECT id FROM series WHERE name=?", &m_stmtGetSeries);
-    prep("INSERT OR IGNORE INTO archives (name) VALUES (?)", &m_stmtInsertArchive);
-    prep("SELECT id FROM archives WHERE name=?", &m_stmtGetArchive);
-
-    prep(R"(
-        INSERT INTO books (
-            lib_id, archive_id, title, series_id, series_no,
-            file_name, file_size, file_ext, date_added, language,
-            rating, keywords, annotation, publisher_id, isbn,
-            publish_date, cover_data, cover_mime
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    )", &m_stmtInsertBook);
-
-    prep("INSERT OR IGNORE INTO book_authors (book_id, author_id) VALUES (?, ?)", &m_stmtInsertBookAuthor);
-    prep("INSERT OR IGNORE INTO book_genres (book_id, genre_id) VALUES (?, ?)", &m_stmtInsertBookGenre);
-    prep("SELECT id FROM books WHERE lib_id=? AND archive_id=?", &m_stmtBookExists);
-
-    prep(R"(
-        UPDATE books SET 
-            annotation=?, publisher_id=?, isbn=?, 
-            publish_date=?, cover_data=?, cover_mime=?
-        WHERE id=?
-    )", &m_stmtUpdateFb2);
-
-    prep(R"(
-        SELECT arch.name, b.file_name || '.' || b.file_ext
-        FROM books b
-        JOIN archives arch ON b.archive_id = arch.id
-        WHERE b.id = ?
-    )", &m_stmtGetBookPath);
+    prep(Sql::InsertAuthor, &m_stmtInsertAuthor);
+    prep(Sql::GetAuthorId, &m_stmtGetAuthor);
+    prep(Sql::InsertGenre, &m_stmtInsertGenre);
+    prep(Sql::GetGenreId, &m_stmtGetGenre);
+    prep(Sql::InsertSeries, &m_stmtInsertSeries);
+    prep(Sql::GetSeriesId, &m_stmtGetSeries);
+    prep(Sql::InsertArchive, &m_stmtInsertArchive);
+    prep(Sql::GetArchiveId, &m_stmtGetArchive);
+    prep(Sql::InsertBook, &m_stmtInsertBook);
+    prep(Sql::InsertBookAuthor, &m_stmtInsertBookAuthor);
+    prep(Sql::InsertBookGenre, &m_stmtInsertBookGenre);
+    prep(Sql::CheckBookExists, &m_stmtBookExists);
+    prep(Sql::UpdateBookFb2, &m_stmtUpdateFb2);
+    prep(Sql::GetBookPath, &m_stmtGetBookPath);
 }
 
 void CDatabase::FinalizeStatements()
@@ -315,12 +199,7 @@ int64_t CDatabase::InsertBook(const Inpx::SBookRecord& rec, const Fb2::SFb2Data&
     sqlite3_bind_text(m_stmtInsertBook, 15, fb2.isbn.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_bind_text(m_stmtInsertBook, 16, fb2.publishYear.c_str(), -1, SQLITE_TRANSIENT);
     
-    if (!fb2.coverData.empty())
-        sqlite3_bind_blob(m_stmtInsertBook, 17, fb2.coverData.data(), (int)fb2.coverData.size(), SQLITE_TRANSIENT);
-    else
-        sqlite3_bind_null(m_stmtInsertBook, 17);
-
-    sqlite3_bind_text(m_stmtInsertBook, 18, fb2.coverMime.c_str(), -1, SQLITE_TRANSIENT);
+    // Cover data was here (removed)
 
     if (sqlite3_step(m_stmtInsertBook) != SQLITE_DONE)
         return 0;
@@ -374,7 +253,7 @@ std::vector<std::string> CDatabase::GetIndexedArchives()
 {
     std::vector<std::string> res;
     sqlite3_stmt* stmt = nullptr;
-    sqlite3_prepare_v2(m_db, "SELECT name FROM archives WHERE last_indexed IS NOT NULL", -1, &stmt, nullptr);
+    sqlite3_prepare_v2(m_db, Sql::GetIndexedArchives.data(), -1, &stmt, nullptr);
     while (sqlite3_step(stmt) == SQLITE_ROW)
         res.push_back(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
     sqlite3_finalize(stmt);
@@ -385,7 +264,7 @@ void CDatabase::MarkArchiveIndexed(const std::string& archiveName)
 {
     (void)GetOrCreateArchive(archiveName);
     sqlite3_stmt* stmt = nullptr;
-    sqlite3_prepare_v2(m_db, "UPDATE archives SET last_indexed=datetime('now') WHERE name=?", -1, &stmt, nullptr);
+    sqlite3_prepare_v2(m_db, Sql::UpdateArchiveIndexed.data(), -1, &stmt, nullptr);
     sqlite3_bind_text(stmt, 1, archiveName.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_step(stmt);
     sqlite3_finalize(stmt);
@@ -394,7 +273,7 @@ void CDatabase::MarkArchiveIndexed(const std::string& archiveName)
 int64_t CDatabase::CountBooks() const
 {
     sqlite3_stmt* stmt = nullptr;
-    sqlite3_prepare_v2(m_db, "SELECT COUNT(*) FROM books", -1, &stmt, nullptr);
+    sqlite3_prepare_v2(m_db, Sql::CountBooks.data(), -1, &stmt, nullptr);
     sqlite3_step(stmt);
     int64_t res = sqlite3_column_int64(stmt, 0);
     sqlite3_finalize(stmt);
@@ -404,7 +283,7 @@ int64_t CDatabase::CountBooks() const
 int64_t CDatabase::CountAuthors() const
 {
     sqlite3_stmt* stmt = nullptr;
-    sqlite3_prepare_v2(m_db, "SELECT COUNT(*) FROM authors", -1, &stmt, nullptr);
+    sqlite3_prepare_v2(m_db, Sql::CountAuthors.data(), -1, &stmt, nullptr);
     sqlite3_step(stmt);
     int64_t res = sqlite3_column_int64(stmt, 0);
     sqlite3_finalize(stmt);

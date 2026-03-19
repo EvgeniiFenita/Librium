@@ -121,4 +121,29 @@ nlohmann::json CStatsAction::Execute(CAppService& service, const nlohmann::json&
     }}};
 }
 
+// ----------------------------------------------------------------------------
+// GET-BOOK
+// ----------------------------------------------------------------------------
+nlohmann::json CGetBookAction::Execute(CAppService& service, const nlohmann::json& params, Indexer::IProgressReporter* reporter)
+{
+    (void)reporter;
+    if (!params.contains("id")) return {{"status", "error"}, {"error", "Missing 'id' parameter"}};
+
+    int64_t id = params["id"];
+    auto& db = service.GetDatabase();
+
+    auto book = Query::CBookQuery::GetBookById(db, id);
+    if (!book) return {{"status", "error"}, {"error", "Book not found"}};
+
+    // We can use QuerySerializer to reuse the logic of converting SBookResult to JSON
+    // But ToJson takes SQueryResult. Let's create a temporary result.
+    Query::SQueryResult result;
+    result.books.push_back(std::move(*book));
+    result.totalFound = 1;
+
+    auto json = Query::CQuerySerializer::ToJson(result);
+    // Extract only the book data
+    return {{"status", "ok"}, {"data", json["books"][0]}};
+}
+
 } // namespace Librium::Service

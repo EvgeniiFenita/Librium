@@ -14,10 +14,10 @@ The project is organized into independent, reusable static libraries and a singl
 | :--- | :--- | :--- |
 | **Log** | Thread-safe singleton logger. Supports multiple outputs and static configuration. | None |
 | **Zip** | Unicode-aware RAII wrapper around `libzip`. Supports long paths and Cyrillic. | `libzip`, `zlib` |
-| **Fb2** | XML parser for FictionBook 2.0 metadata using `pugixml`. | `pugixml` |
+| **Fb2** | XML parser for FictionBook 2.0 metadata using `pugixml`. Extracts text info (annotation, etc.) but ignores covers. | `pugixml` |
 | **Inpx** | High-speed parser for `.inpx` collection indices. | **Zip**, **Config** |
 | **Config** | JSON-based configuration and cross-platform path helpers (`Utf8ToPath`). | **Inpx**, `nlohmann_json` |
-| **Database** | Thread-safe SQLite wrapper with optimized batch insertion. | **Fb2**, **Inpx**, `sqlite3` |
+| **Database** | Thread-safe SQLite wrapper. Schema and SQL queries are separated into specialized headers. | **Fb2**, **Inpx**, `sqlite3` |
 | **QueryLib** | Search engine and JSON serialization for query results. | **Database**, `nlohmann_json` |
 | **Service** | Engine core using the Command pattern to dispatch JSON actions. | **Database**, **Indexer**, **QueryLib**, **Utils** |
 | **Utils** | Common technical utilities (Base64, Thread-safe queue, String helpers). | None |
@@ -151,6 +151,7 @@ During long operations (`import`, `upgrade`), the engine emits periodic updates:
 | `upgrade`| *none* | Incremental update (add only new archives). |
 | `query`  | `title`, `author`, `genre`, `series`, `limit`, `offset` | Search books in the database. |
 | `stats`  | *none* | Get database summary (books/authors count). |
+| `get-book` | `id` (int) | Get full metadata of a single book by ID. |
 | `export` | `id` (int), `out` (path) | Extract a book from a ZIP archive. |
 
 ---

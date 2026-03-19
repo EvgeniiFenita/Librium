@@ -19,7 +19,6 @@ struct SQueryParams
     std::string dateTo;
     int         ratingMin{0};
     bool        withAnnotation{false};
-    bool        withCover{false};
     int64_t     limit{100};
     int64_t     offset{0};
 };

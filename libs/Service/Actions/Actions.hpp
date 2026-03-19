@@ -35,4 +35,10 @@ public:
     nlohmann::json Execute(CAppService& service, const nlohmann::json& params, Indexer::IProgressReporter* reporter = nullptr) override;
 };
 
+class CGetBookAction : public IServiceAction
+{
+public:
+    nlohmann::json Execute(CAppService& service, const nlohmann::json& params, Indexer::IProgressReporter* reporter = nullptr) override;
+};
+
 } // namespace Librium::Service

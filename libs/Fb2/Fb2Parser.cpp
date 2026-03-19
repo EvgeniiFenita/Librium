@@ -47,27 +47,6 @@ SFb2Data CFb2Parser::Parse(const std::string& xmlText)
     res.isbn      = GetChildText(pubInfo, "isbn");
     res.publishYear = GetChildText(pubInfo, "year");
 
-    // Cover
-    auto coverPage = titleInfo.child("coverpage");
-    auto image = coverPage.child("image");
-    std::string href = image.attribute("l:href").value();
-    if (href.empty()) href = image.attribute("xlink:href").value();
-    if (!href.empty())
-    {
-        if (href[0] == '#') href.erase(0, 1);
-        for (auto binary : root.children("binary"))
-        {
-            if (std::string(binary.attribute("id").value()) == href)
-            {
-                res.coverMime = binary.attribute("content-type").value();
-                std::string base64 = binary.text().get();
-                // We'd need a base64 decoder here to actually fill coverData
-                // For now, let's just keep the metadata
-                break;
-            }
-        }
-    }
-
     return res;
 }
 

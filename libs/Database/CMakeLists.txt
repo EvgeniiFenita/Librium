@@ -1,5 +1,6 @@
 add_library(Database STATIC
     Database.cpp
+    DatabaseSchema.cpp
 )
 
 target_include_directories(Database PUBLIC

@@ -24,11 +24,14 @@ struct SBookResult
     std::vector<std::string>  genres;
     std::string               series;
     int                       seriesNumber{0};
+    std::string               fileName;
+    std::string               fileExt;
     std::string               language;
     std::string               dateAdded;
     int                       rating{0};
     uint64_t                  fileSize{0};
     std::string               archiveName;
+    std::string               keywords;
     std::string               annotation;
     std::string               publisher;
     std::string               isbn;

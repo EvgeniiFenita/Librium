@@ -53,8 +53,6 @@ struct SBookRecord
     std::string              publisher;
     std::string              isbn;
     std::string              publishDate;
-    std::vector<uint8_t>     coverData;
-    std::string              coverMime;
 
     [[nodiscard]] std::string FilePath() const
     {

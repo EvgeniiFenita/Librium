@@ -1,0 +1,37 @@
+{
+  "description": "Get Book: retrieving all available information about a book by its ID",
+  "library": [
+    { 
+      "title": "Full Info Book", 
+      "authors": ["Author, First"], 
+      "genres": ["sf"],
+      "series": "Test Series",
+      "ser_no": 5,
+      "lib_id": "88888",
+      "keywords": "test, info",
+      "lang": "en",
+      "rating": 4,
+      "date": "2023-01-01"
+    }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { 
+      "args": ["get-book", "--id", "1"], 
+      "expected": { 
+        "status": "ok",
+        "data": {
+          "title": "Full Info Book",
+          "authors": [ { "lastName": "Author", "firstName": "First" } ],
+          "genres": ["sf"],
+          "series": "Test Series",
+          "seriesNumber": 5,
+          "libId": "88888",
+          "keywords": "test, info",
+          "language": "en",
+          "rating": 4
+        }
+      } 
+    }
+  ]
+}

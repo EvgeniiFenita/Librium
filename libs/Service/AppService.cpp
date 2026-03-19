@@ -11,8 +11,10 @@ CAppService::CAppService(Config::SAppConfig cfg)
     RegisterAction("upgrade",     std::make_unique<CUpgradeAction>());
     RegisterAction("query",       std::make_unique<CQueryAction>());
     RegisterAction("export",      std::make_unique<CExportAction>());
-    RegisterAction("stats",       std::make_unique<CStatsAction>());
-}
+    RegisterAction("stats",  std::make_unique<CStatsAction>());
+    RegisterAction("get-book", std::make_unique<CGetBookAction>());
+    }
+
 
 CAppService::~CAppService() = default;
 
