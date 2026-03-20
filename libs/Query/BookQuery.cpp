@@ -1,7 +1,7 @@
 #include "BookQuery.hpp"
 #include "Database/SqlQueries.hpp"
-
-#include <sqlite3.h>
+#include "Database/ISqlDatabase.hpp"
+#include "Database/ISqlStatement.hpp"
 
 #include <sstream>
 
@@ -9,95 +9,83 @@ namespace Librium::Query {
 
 namespace {
 
-std::vector<SAuthorInfo> FetchAuthors(sqlite3* db, int64_t bookId)
+std::vector<SAuthorInfo> FetchAuthors(Db::ISqlDatabase* db, int64_t bookId)
 {
     std::vector<SAuthorInfo> result;
     const char* sql = Db::Sql::FetchBookAuthors.data();
 
-    sqlite3_stmt* stmt = nullptr;
-    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK)
+    auto stmt = db->Prepare(std::string(sql));
+    stmt->BindInt64(1, bookId);
+    stmt->Step();
+    while (stmt->IsRow())
     {
-        sqlite3_bind_int64(stmt, 1, bookId);
-        while (sqlite3_step(stmt) == SQLITE_ROW)
-        {
-            SAuthorInfo ai;
-            const auto* ln = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-            const auto* fn = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-            const auto* mn = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-            if (ln) ai.lastName = ln;
-            if (fn) ai.firstName = fn;
-            if (mn) ai.middleName = mn;
-            result.push_back(std::move(ai));
-        }
-        sqlite3_finalize(stmt);
+        SAuthorInfo ai;
+        ai.lastName = stmt->ColumnText(0);
+        ai.firstName = stmt->ColumnText(1);
+        ai.middleName = stmt->ColumnText(2);
+        result.push_back(std::move(ai));
+        stmt->Step();
     }
     return result;
 }
 
-std::vector<std::string> FetchGenres(sqlite3* db, int64_t bookId)
+std::vector<std::string> FetchGenres(Db::ISqlDatabase* db, int64_t bookId)
 {
     std::vector<std::string> result;
     const char* sql = Db::Sql::FetchBookGenres.data();
 
-    sqlite3_stmt* stmt = nullptr;
-    if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK)
+    auto stmt = db->Prepare(std::string(sql));
+    stmt->BindInt64(1, bookId);
+    stmt->Step();
+    while (stmt->IsRow())
     {
-        sqlite3_bind_int64(stmt, 1, bookId);
-        while (sqlite3_step(stmt) == SQLITE_ROW)
-        {
-            const auto* code = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-            if (code) result.push_back(code);
-        }
-        sqlite3_finalize(stmt);
+        std::string code = stmt->ColumnText(0);
+        if (!code.empty()) result.push_back(code);
+        stmt->Step();
     }
     return result;
 }
 
-void BindParams(sqlite3_stmt* stmt, const SQueryParams& params)
+void BindParams(Db::ISqlStatement* stmt, const SQueryParams& params)
 {
     int idx = 1;
-    if (!params.title.empty()) sqlite3_bind_text(stmt, idx++, (params.title + "%").c_str(), -1, SQLITE_TRANSIENT);
+    if (!params.title.empty()) stmt->BindText(idx++, params.title + "%");
     if (!params.author.empty()) 
     {
-        sqlite3_bind_text(stmt, idx++, (params.author + "%").c_str(), -1, SQLITE_TRANSIENT);
-        sqlite3_bind_text(stmt, idx++, (params.author + "%").c_str(), -1, SQLITE_TRANSIENT);
+        stmt->BindText(idx++, params.author + "%");
+        stmt->BindText(idx++, params.author + "%");
     }
-    if (!params.genre.empty()) sqlite3_bind_text(stmt, idx++, params.genre.c_str(), -1, SQLITE_TRANSIENT);
-    if (!params.series.empty()) sqlite3_bind_text(stmt, idx++, (params.series + "%").c_str(), -1, SQLITE_TRANSIENT);
-    if (!params.language.empty()) sqlite3_bind_text(stmt, idx++, params.language.c_str(), -1, SQLITE_TRANSIENT);
-    if (!params.libId.empty()) sqlite3_bind_text(stmt, idx++, params.libId.c_str(), -1, SQLITE_TRANSIENT);
-    if (!params.archiveName.empty()) sqlite3_bind_text(stmt, idx++, params.archiveName.c_str(), -1, SQLITE_TRANSIENT);
-    if (!params.dateFrom.empty()) sqlite3_bind_text(stmt, idx++, params.dateFrom.c_str(), -1, SQLITE_TRANSIENT);
-    if (!params.dateTo.empty()) sqlite3_bind_text(stmt, idx++, params.dateTo.c_str(), -1, SQLITE_TRANSIENT);
-    if (params.ratingMin > 0) sqlite3_bind_int(stmt, idx++, params.ratingMin);
+    if (!params.genre.empty()) stmt->BindText(idx++, params.genre);
+    if (!params.series.empty()) stmt->BindText(idx++, params.series + "%");
+    if (!params.language.empty()) stmt->BindText(idx++, params.language);
+    if (!params.libId.empty()) stmt->BindText(idx++, params.libId);
+    if (!params.archiveName.empty()) stmt->BindText(idx++, params.archiveName);
+    if (!params.dateFrom.empty()) stmt->BindText(idx++, params.dateFrom);
+    if (!params.dateTo.empty()) stmt->BindText(idx++, params.dateTo);
+    if (params.ratingMin > 0) stmt->BindInt(idx++, params.ratingMin);
 }
 
-SBookResult ReadBookRow(sqlite3_stmt* stmt, sqlite3* db)
+SBookResult ReadBookRow(Db::ISqlStatement* stmt, Db::ISqlDatabase* db)
 {
     SBookResult br;
-    br.id = sqlite3_column_int64(stmt, 0);
+    br.id = stmt->ColumnInt64(0);
     
-    auto safeText = [](sqlite3_stmt* s, int col) -> std::string {
-        const auto* text = reinterpret_cast<const char*>(sqlite3_column_text(s, col));
-        return text ? std::string(text) : std::string();
-    };
-
-    br.libId        = safeText(stmt, 1);
-    br.title        = safeText(stmt, 2);
-    br.series       = safeText(stmt, 3);
-    br.seriesNumber = sqlite3_column_int(stmt, 4);
-    br.fileName     = safeText(stmt, 5);
-    br.fileSize     = sqlite3_column_int64(stmt, 6);
-    br.fileExt      = safeText(stmt, 7);
-    br.dateAdded    = safeText(stmt, 8);
-    br.language     = safeText(stmt, 9);
-    br.rating       = sqlite3_column_int(stmt, 10);
-    br.keywords     = safeText(stmt, 11);
-    br.annotation   = safeText(stmt, 12);
-    br.archiveName  = safeText(stmt, 13);
-    br.publisher    = safeText(stmt, 14);
-    br.isbn         = safeText(stmt, 15);
-    br.publishYear  = safeText(stmt, 16);
+    br.libId        = stmt->ColumnText(1);
+    br.title        = stmt->ColumnText(2);
+    br.series       = stmt->ColumnText(3);
+    br.seriesNumber = stmt->ColumnInt(4); 
+    br.fileName     = stmt->ColumnText(5);
+    br.fileSize     = stmt->ColumnInt64(6);
+    br.fileExt      = stmt->ColumnText(7);
+    br.dateAdded    = stmt->ColumnText(8);
+    br.language     = stmt->ColumnText(9);
+    br.rating       = stmt->ColumnInt(10);
+    br.keywords     = stmt->ColumnText(11);
+    br.annotation   = stmt->ColumnText(12);
+    br.archiveName  = stmt->ColumnText(13);
+    br.publisher    = stmt->ColumnText(14);
+    br.isbn         = stmt->ColumnText(15);
+    br.publishYear  = stmt->ColumnText(16);
 
     br.authors = FetchAuthors(db, br.id);
     br.genres = FetchGenres(db, br.id);
@@ -111,10 +99,8 @@ SQueryResult CBookQuery::Execute(Db::CDatabase& db, const SQueryParams& params)
     SQueryResult result;
     result.params = params;
 
-    sqlite3* raw = db.Handle();
+    Db::ISqlDatabase* raw = db.Handle();
     std::stringstream sql;
-    // Columns: 0:id, 1:lib_id, 2:title, 3:series_name, 4:series_no, 5:file_name, 6:file_size, 7:file_ext, 8:date_added, 
-    //          9:language, 10:rating, 11:keywords, 12:annotation, 13:archive_name, 14:publisher_name, 15:isbn, 16:publish_date
     sql << "SELECT b.id, b.lib_id, b.title, ser.name, b.series_no, b.file_name, b.file_size, b.file_ext, b.date_added, "
         << "b.language, b.rating, b.keywords, b.annotation, arch.name, pub.name, b.isbn, b.publish_date "
         << "FROM books b "
@@ -142,31 +128,39 @@ SQueryResult CBookQuery::Execute(Db::CDatabase& db, const SQueryParams& params)
     if (params.withAnnotation) sql << "AND b.annotation IS NOT NULL AND b.annotation != '' ";
 
     // Count total matches
-    std::string countSql = "SELECT COUNT(*) FROM (" + sql.str() + ")";
-    sqlite3_stmt* cstmt = nullptr;
-    if (sqlite3_prepare_v2(raw, countSql.c_str(), -1, &cstmt, nullptr) == SQLITE_OK)
+    try
     {
-        BindParams(cstmt, params);
-
-        if (sqlite3_step(cstmt) == SQLITE_ROW)
-            result.totalFound = sqlite3_column_int64(cstmt, 0);
-        sqlite3_finalize(cstmt);
+        std::string countSql = "SELECT COUNT(*) FROM (" + sql.str() + ")";
+        auto cstmt = raw->Prepare(countSql);
+        BindParams(cstmt.get(), params);
+        cstmt->Step();
+        if (cstmt->IsRow())
+            result.totalFound = cstmt->ColumnInt64(0);
+    }
+    catch (const Db::CDbError&)
+    {
+        // Ignore or log error
     }
 
     // Fetch books
     sql << "ORDER BY b.title ";
     if (params.limit > 0) sql << "LIMIT " << params.limit << " OFFSET " << params.offset;
 
-    sqlite3_stmt* stmt = nullptr;
-    if (sqlite3_prepare_v2(raw, sql.str().c_str(), -1, &stmt, nullptr) == SQLITE_OK)
+    try
     {
-        BindParams(stmt, params);
+        auto stmt = raw->Prepare(sql.str());
+        BindParams(stmt.get(), params);
 
-        while (sqlite3_step(stmt) == SQLITE_ROW)
+        stmt->Step();
+        while (stmt->IsRow())
         {
-            result.books.push_back(ReadBookRow(stmt, raw));
+            result.books.push_back(ReadBookRow(stmt.get(), raw));
+            stmt->Step();
         }
-        sqlite3_finalize(stmt);
+    }
+    catch (const Db::CDbError&)
+    {
+        // Ignore or log error
     }
 
     return result;
@@ -174,7 +168,7 @@ SQueryResult CBookQuery::Execute(Db::CDatabase& db, const SQueryParams& params)
 
 std::optional<SBookResult> CBookQuery::GetBookById(Db::CDatabase& db, int64_t id)
 {
-    sqlite3* raw = db.Handle();
+    Db::ISqlDatabase* raw = db.Handle();
     std::stringstream sql;
     sql << "SELECT b.id, b.lib_id, b.title, ser.name, b.series_no, b.file_name, b.file_size, b.file_ext, b.date_added, "
         << "b.language, b.rating, b.keywords, b.annotation, arch.name, pub.name, b.isbn, b.publish_date "
@@ -184,18 +178,21 @@ std::optional<SBookResult> CBookQuery::GetBookById(Db::CDatabase& db, int64_t id
         << "LEFT JOIN publishers pub ON b.publisher_id = pub.id "
         << "WHERE b.id = ?";
 
-    sqlite3_stmt* stmt = nullptr;
-    if (sqlite3_prepare_v2(raw, sql.str().c_str(), -1, &stmt, nullptr) == SQLITE_OK)
+    try
     {
-        sqlite3_bind_int64(stmt, 1, id);
-        if (sqlite3_step(stmt) == SQLITE_ROW)
+        auto stmt = raw->Prepare(sql.str());
+        stmt->BindInt64(1, id);
+        stmt->Step();
+        if (stmt->IsRow())
         {
-            auto res = ReadBookRow(stmt, raw);
-            sqlite3_finalize(stmt);
-            return res;
+            return ReadBookRow(stmt.get(), raw);
         }
-        sqlite3_finalize(stmt);
     }
+    catch (const Db::CDbError&)
+    {
+        // Ignore or log error
+    }
+    
     return std::nullopt;
 }
 

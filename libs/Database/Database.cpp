@@ -2,80 +2,46 @@
 #include "DatabaseSchema.hpp"
 #include "SqlQueries.hpp"
 #include "Log/Logger.hpp"
-
-#include <sqlite3.h>
+#include "CSqliteDatabase.hpp"
 
 #include <filesystem>
 #include <sstream>
 
 namespace Librium::Db {
 
-void SSqliteDeleter::operator()(sqlite3* db) const
-{
-    if (db) sqlite3_close(db);
-}
-
-void SSqliteDeleter::operator()(sqlite3_stmt* stmt) const
-{
-    if (stmt) sqlite3_finalize(stmt);
-}
-
 CDatabase::CDatabase(const std::string& path, const Config::SImportConfig& cfg)
 {
-    LOG_INFO("Opening database: {}", path);
-    sqlite3* db = nullptr;
-    if (sqlite3_open(path.c_str(), &db) != SQLITE_OK)
-    {
-        if (db) sqlite3_close(db);
-        throw CDbError("Cannot open database: " + path);
-    }
-    m_db.reset(db);
+    m_db = std::make_unique<CSqliteDatabase>(path, cfg.sqliteCacheSize, cfg.sqliteMmapSize);
 
-    // Performance optimizations for bulk loading
-    Exec(("PRAGMA cache_size = " + std::to_string(cfg.sqliteCacheSize)).c_str());
-    Exec("PRAGMA page_size = 4096");
-    Exec("PRAGMA temp_store = MEMORY");
-    Exec(("PRAGMA mmap_size = " + std::to_string(cfg.sqliteMmapSize)).c_str());
-
-    CDatabaseSchema::Create(m_db.get());
+    CDatabaseSchema::Create(*m_db);
     PrepareStatements();
 }
 
 void CDatabase::BeginTransaction()
 {
-    Exec("BEGIN TRANSACTION");
+    m_db->BeginTransaction();
 }
 
 void CDatabase::Commit()
 {
-    Exec("COMMIT");
+    m_db->Commit();
 }
 
 void CDatabase::Rollback()
 {
-    Exec("ROLLBACK");
+    m_db->Rollback();
 }
 
-void CDatabase::Exec(const char* sql)
+void CDatabase::Exec(const std::string& sql)
 {
-    LOG_DEBUG("Executing SQL: {}", sql);
-    char* err = nullptr;
-    if (sqlite3_exec(m_db.get(), sql, nullptr, nullptr, &err) != SQLITE_OK)
-    {
-        std::string msg = err;
-        sqlite3_free(err);
-        LOG_ERROR("SQL error: {} | Query: {}", msg, sql);
-        throw CDbError("SQL error: " + msg);
-    }
+    m_db->Exec(sql);
 }
 
 void CDatabase::PrepareStatements()
 {
-    auto prep = [&](std::string_view sql, sqlite3_stmt_ptr& stmt)
+    auto prep = [&](std::string_view sql, std::unique_ptr<ISqlStatement>& stmt)
     {
-        sqlite3_stmt* raw = nullptr;
-        Check(sqlite3_prepare_v2(m_db.get(), sql.data(), -1, &raw, nullptr), "prepare");
-        stmt.reset(raw);
+        stmt = m_db->Prepare(std::string(sql));
     };
 
     prep(Sql::InsertAuthor, m_stmtInsertAuthor);
@@ -104,20 +70,21 @@ int64_t CDatabase::GetOrCreateAuthor(const Inpx::SAuthor& author)
     auto it = m_cacheAuthors.find(key);
     if (it != m_cacheAuthors.end()) return it->second;
 
-    sqlite3_reset(m_stmtInsertAuthor.get());
-    sqlite3_bind_text(m_stmtInsertAuthor.get(), 1, author.lastName.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(m_stmtInsertAuthor.get(), 2, author.firstName.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(m_stmtInsertAuthor.get(), 3, author.middleName.c_str(), -1, SQLITE_TRANSIENT);
-    Check(sqlite3_step(m_stmtInsertAuthor.get()), "InsertAuthor");
+    m_stmtInsertAuthor->Reset();
+    m_stmtInsertAuthor->BindText(1, author.lastName);
+    m_stmtInsertAuthor->BindText(2, author.firstName);
+    m_stmtInsertAuthor->BindText(3, author.middleName);
+    m_stmtInsertAuthor->Step();
 
-    sqlite3_reset(m_stmtGetAuthor.get());
-    sqlite3_bind_text(m_stmtGetAuthor.get(), 1, author.lastName.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(m_stmtGetAuthor.get(), 2, author.firstName.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(m_stmtGetAuthor.get(), 3, author.middleName.c_str(), -1, SQLITE_TRANSIENT);
+    m_stmtGetAuthor->Reset();
+    m_stmtGetAuthor->BindText(1, author.lastName);
+    m_stmtGetAuthor->BindText(2, author.firstName);
+    m_stmtGetAuthor->BindText(3, author.middleName);
     
     int64_t id = 0;
-    if (sqlite3_step(m_stmtGetAuthor.get()) == SQLITE_ROW)
-        id = sqlite3_column_int64(m_stmtGetAuthor.get(), 0);
+    m_stmtGetAuthor->Step();
+    if (m_stmtGetAuthor->IsRow())
+        id = m_stmtGetAuthor->ColumnInt64(0);
     
     if (id > 0) m_cacheAuthors[key] = id;
     return id;
@@ -128,16 +95,17 @@ int64_t CDatabase::GetOrCreateGenre(const std::string& genre)
     auto it = m_cacheGenres.find(genre);
     if (it != m_cacheGenres.end()) return it->second;
 
-    sqlite3_reset(m_stmtInsertGenre.get());
-    sqlite3_bind_text(m_stmtInsertGenre.get(), 1, genre.c_str(), -1, SQLITE_TRANSIENT);
-    Check(sqlite3_step(m_stmtInsertGenre.get()), "InsertGenre");
+    m_stmtInsertGenre->Reset();
+    m_stmtInsertGenre->BindText(1, genre);
+    m_stmtInsertGenre->Step();
 
-    sqlite3_reset(m_stmtGetGenre.get());
-    sqlite3_bind_text(m_stmtGetGenre.get(), 1, genre.c_str(), -1, SQLITE_TRANSIENT);
+    m_stmtGetGenre->Reset();
+    m_stmtGetGenre->BindText(1, genre);
     
     int64_t id = 0;
-    if (sqlite3_step(m_stmtGetGenre.get()) == SQLITE_ROW)
-        id = sqlite3_column_int64(m_stmtGetGenre.get(), 0);
+    m_stmtGetGenre->Step();
+    if (m_stmtGetGenre->IsRow())
+        id = m_stmtGetGenre->ColumnInt64(0);
     
     if (id > 0) m_cacheGenres[genre] = id;
     return id;
@@ -149,16 +117,17 @@ int64_t CDatabase::GetOrCreateSeries(const std::string& series)
     auto it = m_cacheSeries.find(series);
     if (it != m_cacheSeries.end()) return it->second;
 
-    sqlite3_reset(m_stmtInsertSeries.get());
-    sqlite3_bind_text(m_stmtInsertSeries.get(), 1, series.c_str(), -1, SQLITE_TRANSIENT);
-    Check(sqlite3_step(m_stmtInsertSeries.get()), "InsertSeries");
+    m_stmtInsertSeries->Reset();
+    m_stmtInsertSeries->BindText(1, series);
+    m_stmtInsertSeries->Step();
 
-    sqlite3_reset(m_stmtGetSeries.get());
-    sqlite3_bind_text(m_stmtGetSeries.get(), 1, series.c_str(), -1, SQLITE_TRANSIENT);
+    m_stmtGetSeries->Reset();
+    m_stmtGetSeries->BindText(1, series);
     
     int64_t id = 0;
-    if (sqlite3_step(m_stmtGetSeries.get()) == SQLITE_ROW)
-        id = sqlite3_column_int64(m_stmtGetSeries.get(), 0);
+    m_stmtGetSeries->Step();
+    if (m_stmtGetSeries->IsRow())
+        id = m_stmtGetSeries->ColumnInt64(0);
     
     if (id > 0) m_cacheSeries[series] = id;
     return id;
@@ -170,16 +139,17 @@ int64_t CDatabase::GetOrCreatePublisher(const std::string& pub)
     auto it = m_cachePublishers.find(pub);
     if (it != m_cachePublishers.end()) return it->second;
 
-    sqlite3_reset(m_stmtInsertPublisher.get());
-    sqlite3_bind_text(m_stmtInsertPublisher.get(), 1, pub.c_str(), -1, SQLITE_TRANSIENT);
-    Check(sqlite3_step(m_stmtInsertPublisher.get()), "InsertPublisher");
+    m_stmtInsertPublisher->Reset();
+    m_stmtInsertPublisher->BindText(1, pub);
+    m_stmtInsertPublisher->Step();
 
-    sqlite3_reset(m_stmtGetPublisher.get());
-    sqlite3_bind_text(m_stmtGetPublisher.get(), 1, pub.c_str(), -1, SQLITE_TRANSIENT);
+    m_stmtGetPublisher->Reset();
+    m_stmtGetPublisher->BindText(1, pub);
     
     int64_t id = 0;
-    if (sqlite3_step(m_stmtGetPublisher.get()) == SQLITE_ROW)
-        id = sqlite3_column_int64(m_stmtGetPublisher.get(), 0);
+    m_stmtGetPublisher->Step();
+    if (m_stmtGetPublisher->IsRow())
+        id = m_stmtGetPublisher->ColumnInt64(0);
     
     if (id > 0) m_cachePublishers[pub] = id;
     return id;
@@ -190,16 +160,17 @@ int64_t CDatabase::GetOrCreateArchive(const std::string& name)
     auto it = m_cacheArchives.find(name);
     if (it != m_cacheArchives.end()) return it->second;
 
-    sqlite3_reset(m_stmtInsertArchive.get());
-    sqlite3_bind_text(m_stmtInsertArchive.get(), 1, name.c_str(), -1, SQLITE_TRANSIENT);
-    Check(sqlite3_step(m_stmtInsertArchive.get()), "InsertArchive");
+    m_stmtInsertArchive->Reset();
+    m_stmtInsertArchive->BindText(1, name);
+    m_stmtInsertArchive->Step();
 
-    sqlite3_reset(m_stmtGetArchive.get());
-    sqlite3_bind_text(m_stmtGetArchive.get(), 1, name.c_str(), -1, SQLITE_TRANSIENT);
+    m_stmtGetArchive->Reset();
+    m_stmtGetArchive->BindText(1, name);
     
     int64_t id = 0;
-    if (sqlite3_step(m_stmtGetArchive.get()) == SQLITE_ROW)
-        id = sqlite3_column_int64(m_stmtGetArchive.get(), 0);
+    m_stmtGetArchive->Step();
+    if (m_stmtGetArchive->IsRow())
+        id = m_stmtGetArchive->ColumnInt64(0);
     
     if (id > 0) m_cacheArchives[name] = id;
     return id;
@@ -211,32 +182,33 @@ int64_t CDatabase::InsertBook(const Inpx::SBookRecord& rec, const Fb2::SFb2Data&
     int64_t seriesId = GetOrCreateSeries(rec.series);
     int64_t pubId = GetOrCreatePublisher(fb2.publisher);
 
-    sqlite3_reset(m_stmtInsertBook.get());
-    sqlite3_bind_text(m_stmtInsertBook.get(), 1, rec.libId.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int64(m_stmtInsertBook.get(), 2, archId);
-    sqlite3_bind_text(m_stmtInsertBook.get(), 3, rec.title.c_str(), -1, SQLITE_TRANSIENT);
+    m_stmtInsertBook->Reset();
+    m_stmtInsertBook->BindText(1, rec.libId);
+    m_stmtInsertBook->BindInt64(2, archId);
+    m_stmtInsertBook->BindText(3, rec.title);
     
-    if (seriesId > 0) sqlite3_bind_int64(m_stmtInsertBook.get(), 4, seriesId);
-    else              sqlite3_bind_null(m_stmtInsertBook.get(), 4);
+    if (seriesId > 0) m_stmtInsertBook->BindInt64(4, seriesId);
+    else              m_stmtInsertBook->BindNull(4);
 
-    sqlite3_bind_int(m_stmtInsertBook.get(), 5, rec.seriesNumber);
-    sqlite3_bind_text(m_stmtInsertBook.get(), 6, rec.fileName.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int64(m_stmtInsertBook.get(), 7, rec.fileSize);
-    sqlite3_bind_text(m_stmtInsertBook.get(), 8, rec.fileExt.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(m_stmtInsertBook.get(), 9, rec.dateAdded.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(m_stmtInsertBook.get(), 10, rec.language.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int(m_stmtInsertBook.get(), 11, rec.rating);
-    sqlite3_bind_text(m_stmtInsertBook.get(), 12, rec.keywords.c_str(), -1, SQLITE_TRANSIENT);
+    m_stmtInsertBook->BindInt(5, rec.seriesNumber);
+    m_stmtInsertBook->BindText(6, rec.fileName);
+    m_stmtInsertBook->BindInt64(7, rec.fileSize);
+    m_stmtInsertBook->BindText(8, rec.fileExt);
+    m_stmtInsertBook->BindText(9, rec.dateAdded);
+    m_stmtInsertBook->BindText(10, rec.language);
+    m_stmtInsertBook->BindInt(11, rec.rating);
+    m_stmtInsertBook->BindText(12, rec.keywords);
 
-    sqlite3_bind_text(m_stmtInsertBook.get(), 13, fb2.annotation.c_str(), -1, SQLITE_TRANSIENT);
+    m_stmtInsertBook->BindText(13, fb2.annotation);
     
-    if (pubId > 0) sqlite3_bind_int64(m_stmtInsertBook.get(), 14, pubId);
-    else           sqlite3_bind_null(m_stmtInsertBook.get(), 14);
+    if (pubId > 0) m_stmtInsertBook->BindInt64(14, pubId);
+    else           m_stmtInsertBook->BindNull(14);
 
-    sqlite3_bind_text(m_stmtInsertBook.get(), 15, fb2.isbn.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(m_stmtInsertBook.get(), 16, fb2.publishYear.c_str(), -1, SQLITE_TRANSIENT);
+    m_stmtInsertBook->BindText(15, fb2.isbn);
+    m_stmtInsertBook->BindText(16, fb2.publishYear);
     
-    if (sqlite3_step(m_stmtInsertBook.get()) != SQLITE_DONE)
+    m_stmtInsertBook->Step();
+    if (!m_stmtInsertBook->IsDone())
         return 0;
 
     int64_t bookId = LastInsertRowId();
@@ -244,19 +216,19 @@ int64_t CDatabase::InsertBook(const Inpx::SBookRecord& rec, const Fb2::SFb2Data&
     for (const auto& author : rec.authors)
     {
         int64_t aid = GetOrCreateAuthor(author);
-        sqlite3_reset(m_stmtInsertBookAuthor.get());
-        sqlite3_bind_int64(m_stmtInsertBookAuthor.get(), 1, bookId);
-        sqlite3_bind_int64(m_stmtInsertBookAuthor.get(), 2, aid);
-        Check(sqlite3_step(m_stmtInsertBookAuthor.get()), "InsertBookAuthor");
+        m_stmtInsertBookAuthor->Reset();
+        m_stmtInsertBookAuthor->BindInt64(1, bookId);
+        m_stmtInsertBookAuthor->BindInt64(2, aid);
+        m_stmtInsertBookAuthor->Step();
     }
 
     for (const auto& genre : rec.genres)
     {
         int64_t gid = GetOrCreateGenre(genre);
-        sqlite3_reset(m_stmtInsertBookGenre.get());
-        sqlite3_bind_int64(m_stmtInsertBookGenre.get(), 1, bookId);
-        sqlite3_bind_int64(m_stmtInsertBookGenre.get(), 2, gid);
-        Check(sqlite3_step(m_stmtInsertBookGenre.get()), "InsertBookGenre");
+        m_stmtInsertBookGenre->Reset();
+        m_stmtInsertBookGenre->BindInt64(1, bookId);
+        m_stmtInsertBookGenre->BindInt64(2, gid);
+        m_stmtInsertBookGenre->Step();
     }
 
     return bookId;
@@ -265,23 +237,24 @@ int64_t CDatabase::InsertBook(const Inpx::SBookRecord& rec, const Fb2::SFb2Data&
 bool CDatabase::BookExists(const std::string& libId, const std::string& archiveName)
 {
     int64_t archId = GetOrCreateArchive(archiveName);
-    sqlite3_reset(m_stmtBookExists.get());
-    sqlite3_bind_text(m_stmtBookExists.get(), 1, libId.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int64(m_stmtBookExists.get(), 2, archId);
-    return sqlite3_step(m_stmtBookExists.get()) == SQLITE_ROW;
+    m_stmtBookExists->Reset();
+    m_stmtBookExists->BindText(1, libId);
+    m_stmtBookExists->BindInt64(2, archId);
+    m_stmtBookExists->Step();
+    return m_stmtBookExists->IsRow();
 }
 
 std::vector<std::string> CDatabase::GetIndexedArchives()
 {
     std::vector<std::string> res;
-    sqlite3_stmt* raw = nullptr;
-    Check(sqlite3_prepare_v2(m_db.get(), Sql::GetIndexedArchives.data(), -1, &raw, nullptr), "GetIndexedArchives prepare");
-    sqlite3_stmt_ptr stmt(raw);
+    auto stmt = m_db->Prepare(std::string(Sql::GetIndexedArchives));
 
-    while (sqlite3_step(stmt.get()) == SQLITE_ROW)
+    stmt->Step();
+    while (stmt->IsRow())
     {
-        const auto* text = reinterpret_cast<const char*>(sqlite3_column_text(stmt.get(), 0));
-        if (text) res.emplace_back(text);
+        std::string text = stmt->ColumnText(0);
+        if (!text.empty()) res.emplace_back(text);
+        stmt->Step();
     }
     return res;
 }
@@ -289,57 +262,46 @@ std::vector<std::string> CDatabase::GetIndexedArchives()
 void CDatabase::MarkArchiveIndexed(const std::string& archiveName)
 {
     (void)GetOrCreateArchive(archiveName);
-    sqlite3_stmt* raw = nullptr;
-    Check(sqlite3_prepare_v2(m_db.get(), Sql::UpdateArchiveIndexed.data(), -1, &raw, nullptr), "MarkArchiveIndexed prepare");
-    sqlite3_stmt_ptr stmt(raw);
+    auto stmt = m_db->Prepare(std::string(Sql::UpdateArchiveIndexed));
 
-    sqlite3_bind_text(stmt.get(), 1, archiveName.c_str(), -1, SQLITE_TRANSIENT);
-    Check(sqlite3_step(stmt.get()), "MarkArchiveIndexed step");
+    stmt->BindText(1, archiveName);
+    stmt->Step();
 }
 
 int64_t CDatabase::CountBooks() const
 {
-    sqlite3_stmt* raw = nullptr;
-    Check(sqlite3_prepare_v2(m_db.get(), Sql::CountBooks.data(), -1, &raw, nullptr), "CountBooks prepare");
-    sqlite3_stmt_ptr stmt(raw);
-
-    if (sqlite3_step(stmt.get()) == SQLITE_ROW)
-        return sqlite3_column_int64(stmt.get(), 0);
+    auto stmt = m_db->Prepare(std::string(Sql::CountBooks));
+    stmt->Step();
+    if (stmt->IsRow())
+        return stmt->ColumnInt64(0);
     return 0;
 }
 
 int64_t CDatabase::CountAuthors() const
 {
-    sqlite3_stmt* raw = nullptr;
-    Check(sqlite3_prepare_v2(m_db.get(), Sql::CountAuthors.data(), -1, &raw, nullptr), "CountAuthors prepare");
-    sqlite3_stmt_ptr stmt(raw);
-
-    if (sqlite3_step(stmt.get()) == SQLITE_ROW)
-        return sqlite3_column_int64(stmt.get(), 0);
+    auto stmt = m_db->Prepare(std::string(Sql::CountAuthors));
+    stmt->Step();
+    if (stmt->IsRow())
+        return stmt->ColumnInt64(0);
     return 0;
 }
 
 int64_t CDatabase::LastInsertRowId() const
 {
-    return sqlite3_last_insert_rowid(m_db.get());
-}
-
-void CDatabase::Check(int rc, const char* context)
-{
-    if (rc != SQLITE_OK && rc != SQLITE_DONE && rc != SQLITE_ROW)
-        throw CDbError(std::string(context) + ": " + std::to_string(rc));
+    return m_db->LastInsertRowId();
 }
 
 std::optional<SBookPath> CDatabase::GetBookPath(int64_t bookId)
 {
-    sqlite3_reset(m_stmtGetBookPath.get());
-    sqlite3_bind_int64(m_stmtGetBookPath.get(), 1, bookId);
+    m_stmtGetBookPath->Reset();
+    m_stmtGetBookPath->BindInt64(1, bookId);
+    m_stmtGetBookPath->Step();
     
-    if (sqlite3_step(m_stmtGetBookPath.get()) == SQLITE_ROW)
+    if (m_stmtGetBookPath->IsRow())
     {
         SBookPath bp;
-        bp.archiveName = reinterpret_cast<const char*>(sqlite3_column_text(m_stmtGetBookPath.get(), 0));
-        bp.fileName = reinterpret_cast<const char*>(sqlite3_column_text(m_stmtGetBookPath.get(), 1));
+        bp.archiveName = m_stmtGetBookPath->ColumnText(0);
+        bp.fileName = m_stmtGetBookPath->ColumnText(1);
         return bp;
     }
     return std::nullopt;
@@ -348,15 +310,15 @@ std::optional<SBookPath> CDatabase::GetBookPath(int64_t bookId)
 void CDatabase::DropIndexes()
 {
     LOG_INFO("Dropping indexes for bulk import...");
-    Exec("DROP INDEX IF EXISTS idx_books_title");
-    Exec("DROP INDEX IF EXISTS idx_books_lang");
+    Exec(std::string(Sql::DropIndexBooksTitle));
+    Exec(std::string(Sql::DropIndexBooksLang));
 }
 
 void CDatabase::CreateIndexes()
 {
     LOG_INFO("Re-creating indexes after import...");
-    Exec(Sql::CreateIndexBooksTitle.data());
-    Exec(Sql::CreateIndexBooksLang.data());
+    Exec(std::string(Sql::CreateIndexBooksTitle));
+    Exec(std::string(Sql::CreateIndexBooksLang));
 }
 
 } // namespace Librium::Db

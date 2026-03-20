@@ -17,7 +17,7 @@ The project is organized into independent, reusable static libraries and a singl
 | **Fb2** | XML parser for FictionBook 2.0 metadata using `pugixml`. Extracts text info (annotation, etc.) but ignores covers. | `pugixml` |
 | **Inpx** | High-speed parser for `.inpx` collection indices. | **Zip**, **Config** |
 | **Config** | JSON-based configuration and cross-platform path helpers (`Utf8ToPath`). | **Inpx**, `nlohmann_json` |
-| **Database** | Thread-safe SQLite wrapper. Schema and SQL queries are separated into specialized headers. | **Fb2**, **Inpx**, `sqlite3` |
+| **Database** | Abstraction layer for SQL databases. Generic logic is isolated from application logic via `ISqlDatabase` and `ISqlStatement` interfaces. | **Fb2**, **Inpx**, `sqlite3_lib` |
 | **QueryLib** | Search engine and JSON serialization for query results. | **Database**, `nlohmann_json` |
 | **Service** | Engine core using the Command pattern to dispatch JSON actions. | **Database**, **Indexer**, **QueryLib**, **Utils** |
 | **Utils** | Common technical utilities (Base64, Thread-safe queue, String helpers). | None |

@@ -1,12 +1,12 @@
 #include "DatabaseSchema.hpp"
 #include "SqlQueries.hpp"
 #include "Log/Logger.hpp"
-
-#include <sqlite3.h>
+#include "ISqlDatabase.hpp"
+#include "Database.hpp"
 
 namespace Librium::Db {
 
-void CDatabaseSchema::Create(sqlite3* db)
+void CDatabaseSchema::Create(ISqlDatabase& db)
 {
     LOG_INFO("Initializing database schema...");
 
@@ -28,14 +28,15 @@ void CDatabaseSchema::Create(sqlite3* db)
     LOG_INFO("Database schema is ready.");
 }
 
-void CDatabaseSchema::Exec(sqlite3* db, const char* sql)
+void CDatabaseSchema::Exec(ISqlDatabase& db, const char* sql)
 {
-    char* err = nullptr;
-    if (sqlite3_exec(db, sql, nullptr, nullptr, &err) != SQLITE_OK)
+    try
     {
-        std::string msg = err;
-        sqlite3_free(err);
-        LOG_ERROR("Schema creation error: {} | Query: {}", msg, sql);
+        db.Exec(sql);
+    }
+    catch (const CDbError& e)
+    {
+        LOG_ERROR("Schema creation error: {} | Query: {}", e.what(), sql);
     }
 }
 

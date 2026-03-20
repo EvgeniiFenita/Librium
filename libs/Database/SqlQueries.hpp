@@ -111,6 +111,10 @@ constexpr std::string_view CreateIndexBooksTitle = "CREATE INDEX IF NOT EXISTS i
 // Index for faster language filtering
 constexpr std::string_view CreateIndexBooksLang = "CREATE INDEX IF NOT EXISTS idx_books_lang ON books(language)";
 
+// Drop indexes for bulk import
+constexpr std::string_view DropIndexBooksTitle = "DROP INDEX IF EXISTS idx_books_title";
+constexpr std::string_view DropIndexBooksLang = "DROP INDEX IF EXISTS idx_books_lang";
+
 
 // --- Data Operations ---
 

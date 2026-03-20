@@ -37,6 +37,7 @@ Analyze every file for the following, in this priority order:
 
 ### 🟠 HIGH — Architecture & Modularity
 - **Layer Violations**: Libraries in `libs/` depending on `apps/` or circular dependencies between libraries.
+- **Database Layer Isolation**: Application components (Indexer, Query, CDatabase) MUST interact with the database ONLY via `ISqlDatabase` and `ISqlStatement` interfaces. Direct calls to `sqlite3_*` API outside of the specific implementations (`CSqliteDatabase`, `CSqliteStatement`) are forbidden.
 - **Monolith Re-emergence**: Any attempt to re-introduce a "core" layer or tightly coupled modules.
 - **Include Strategy**: Headers must be included as `#include "ModuleName/Header.hpp"`. No `C/I/E/S` prefixes in filenames.
 - **Module Isolation**: Each module in `libs/` should be a standalone static library.

@@ -4,6 +4,8 @@
 #include "Inpx/BookRecord.hpp"
 #include "Log/Logger.hpp"
 #include "Config/AppConfig.hpp"
+#include "ISqlDatabase.hpp"
+#include "ISqlStatement.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -13,20 +15,7 @@
 #include <vector>
 #include <unordered_map>
 
-struct sqlite3;
-struct sqlite3_stmt;
-
 namespace Librium::Db {
-
-// RAII deleters for SQLite resources
-struct SSqliteDeleter 
-{
-    void operator()(sqlite3* db) const;
-    void operator()(sqlite3_stmt* stmt) const;
-};
-
-using sqlite3_ptr      = std::unique_ptr<sqlite3, SSqliteDeleter>;
-using sqlite3_stmt_ptr = std::unique_ptr<sqlite3_stmt, SSqliteDeleter>;
 
 struct SBookPath
 {
@@ -93,34 +82,34 @@ public:
     [[nodiscard]] int64_t CountBooks() const;
     [[nodiscard]] int64_t CountAuthors() const;
 
-    sqlite3* Handle() 
+    ISqlDatabase* Handle() 
     { 
         return m_db.get(); 
     }
 
     void DropIndexes();
     void CreateIndexes();
-    void Exec(const char* sql);
+    void Exec(const std::string& sql);
 
 private:
-    sqlite3_ptr m_db;
+    std::unique_ptr<ISqlDatabase> m_db;
 
-    sqlite3_stmt_ptr m_stmtInsertBook;
-    sqlite3_stmt_ptr m_stmtInsertAuthor;
-    sqlite3_stmt_ptr m_stmtGetAuthor;
-    sqlite3_stmt_ptr m_stmtInsertGenre;
-    sqlite3_stmt_ptr m_stmtGetGenre;
-    sqlite3_stmt_ptr m_stmtInsertSeries;
-    sqlite3_stmt_ptr m_stmtGetSeries;
-    sqlite3_stmt_ptr m_stmtInsertArchive;
-    sqlite3_stmt_ptr m_stmtGetArchive;
-    sqlite3_stmt_ptr m_stmtInsertBookAuthor;
-    sqlite3_stmt_ptr m_stmtInsertBookGenre;
-    sqlite3_stmt_ptr m_stmtBookExists;
-    sqlite3_stmt_ptr m_stmtUpdateFb2;
-    sqlite3_stmt_ptr m_stmtGetBookPath;
-    sqlite3_stmt_ptr m_stmtInsertPublisher;
-    sqlite3_stmt_ptr m_stmtGetPublisher;
+    std::unique_ptr<ISqlStatement> m_stmtInsertBook;
+    std::unique_ptr<ISqlStatement> m_stmtInsertAuthor;
+    std::unique_ptr<ISqlStatement> m_stmtGetAuthor;
+    std::unique_ptr<ISqlStatement> m_stmtInsertGenre;
+    std::unique_ptr<ISqlStatement> m_stmtGetGenre;
+    std::unique_ptr<ISqlStatement> m_stmtInsertSeries;
+    std::unique_ptr<ISqlStatement> m_stmtGetSeries;
+    std::unique_ptr<ISqlStatement> m_stmtInsertArchive;
+    std::unique_ptr<ISqlStatement> m_stmtGetArchive;
+    std::unique_ptr<ISqlStatement> m_stmtInsertBookAuthor;
+    std::unique_ptr<ISqlStatement> m_stmtInsertBookGenre;
+    std::unique_ptr<ISqlStatement> m_stmtBookExists;
+    std::unique_ptr<ISqlStatement> m_stmtUpdateFb2;
+    std::unique_ptr<ISqlStatement> m_stmtGetBookPath;
+    std::unique_ptr<ISqlStatement> m_stmtInsertPublisher;
+    std::unique_ptr<ISqlStatement> m_stmtGetPublisher;
 
     // Memory caches for bulk indexing speed
     std::unordered_map<std::string, int64_t> m_cacheArchives;
@@ -138,7 +127,6 @@ private:
     [[nodiscard]] int64_t GetOrCreateArchive(const std::string& archiveName);
 
     [[nodiscard]] int64_t LastInsertRowId() const;
-    static void Check(int rc, const char* context);
 };
 
 } // namespace Librium::Db

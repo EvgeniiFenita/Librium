@@ -43,6 +43,7 @@
 
 ## Safety & Precision Rules
 - **Database Architecture**: SQL queries must be stored as `constexpr std::string_view` constants in `SqlQueries.hpp`. Database schema creation must be handled by the `CDatabaseSchema` class.
+- **Database Abstraction**: Logic for specific SMTD (SQLite, etc.) MUST be isolated in `CSqliteDatabase`/`CSqliteStatement` classes. All application-level components (Indexer, Query) MUST interact with the database via `ISqlDatabase` and `ISqlStatement` interfaces to ensure loose coupling.
 - **FB2 Parsing**: Only text metadata (annotations, keywords, etc.) is supported. Cover extraction logic is removed and MUST NOT be re-implemented.
 - **Clean Console**: Libraries (`libs/`) must NEVER use `std::cout`/`std::cerr`. Use `LOG_*` macros instead.
 - **Performance Integrity**: Bulk operations (like indexing) MUST use Archive-Aware scheduling to minimize disk thrashing. Always utilize memory caches for frequently accessed database IDs (Authors, Genres).

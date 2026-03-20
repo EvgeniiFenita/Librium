@@ -1,6 +1,8 @@
 add_library(Database STATIC
     Database.cpp
     DatabaseSchema.cpp
+    CSqliteDatabase.cpp
+    CSqliteStatement.cpp
 )
 
 target_include_directories(Database PUBLIC
