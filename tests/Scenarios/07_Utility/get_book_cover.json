@@ -1,0 +1,22 @@
+{
+  "description": "Get Book Cover: retrieving cover path if it exists",
+  "config": {
+    "import": {
+      "parseFb2": true
+    }
+  },
+  "library": [
+    { 
+      "title": "Book With Cover", 
+      "authors": ["Test, Author"],
+      "raw_fb2": "<?xml version=\"1.0\" encoding=\"utf-8\"?><FictionBook xmlns:l=\"http://www.w3.org/1999/xlink\"><description><title-info><coverpage><image l:href=\"#cover.png\"/></coverpage></title-info></description><binary id=\"cover.png\" content-type=\"image/png\">iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=</binary></FictionBook>"
+    }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { 
+      "args": ["get-book", "--id", "1"], 
+      "expected_text": [ "cover.png" ]
+    }
+  ]
+}

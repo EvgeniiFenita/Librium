@@ -14,7 +14,7 @@ The project is organized into independent, reusable static libraries and a singl
 | :--- | :--- | :--- |
 | **Log** | Thread-safe singleton logger. Supports multiple outputs and static configuration. | None |
 | **Zip** | RAII-based ZIP archive management. Unified smart pointer interface for archives and files. | `libzip`, `zlib` |
-| **Fb2** | XML parser for FictionBook 2.0 metadata using `pugixml`. Extracts text info (annotation, etc.) but ignores covers. | `pugixml` |
+| **Fb2** | XML parser for FictionBook 2.0 metadata using `pugixml`. Extracts text info (annotation, keywords, etc.) and cover images (base64-decoded). | `pugixml` |
 | **Inpx** | High-speed parser for `.inpx` collection indices. | **Zip**, **Config** |
 | **Config** | JSON-based configuration and cross-platform path helpers (`Utf8ToPath`). | **Inpx**, `nlohmann_json` |
 | **Database** | Abstraction layer for SQL databases. Generic logic is isolated from application logic via `ISqlDatabase` and `ISqlStatement` interfaces. | **Fb2**, **Inpx**, `sqlite3_lib` |
@@ -151,7 +151,7 @@ During long operations (`import`, `upgrade`), the engine emits periodic updates:
 | `upgrade`| *none* | Incremental update (add only new archives). |
 | `query`  | `title`, `author`, `genre`, `series`, `limit`, `offset` | Search books in the database. |
 | `stats`  | *none* | Get database summary (books/authors count). |
-| `get-book` | `id` (int) | Get full metadata of a single book by ID. |
+| `get-book` | `id` (int) | Get full metadata of a single book by ID. Includes `"cover"` path if available. |
 | `export` | `id` (int), `out` (path) | Extract a book from a ZIP archive. |
 
 ---
@@ -185,4 +185,23 @@ The `RealLibraryTest.py` script performs multi-stage validation:
 2. **Data Integrity**: Randomly samples 10 books and inspects every database field for completeness and correct encoding.
 3. **Incremental Logic**: Verifies that a secondary `upgrade` command correctly skips all existing archives.
 4. **Export Integrity**: Validates exported books by checking file size and searching for valid XML signatures (`<FictionBook`) in the content.
+5. **Cover Extraction**: Verifies that cover images are correctly extracted from FB2 and saved to disk.
+
+---
+
+## 8. Meta Storage and Management
+
+Librium extracts cover images from FB2 files during the indexing process and stores them as standalone files to ensure fast access without re-parsing archives.
+
+- **Storage Location**: Metadata files are stored in a `meta/` directory located in the same folder as the SQLite database.
+- **Directory Structure**: Each book has its own subfolder named after its database `id` (e.g., `meta/123/`).
+- **Filename**: The cover image is saved as `cover.<ext>`, where `<ext>` is determined by the `content-type` in the FB2 file (typically `.jpg`, `.png`, or `.webp`).
+- **Lifecycle**: In **full import mode**, the `meta/` directory is automatically cleaned to prevent orphaned metadata from previous collections.
+- **Extraction Logic**: 
+  - The parser looks for the `<coverpage>` tag in the `<title-info>` section.
+  - The referenced `<binary>` block is decoded from Base64.
+  - All whitespace within the Base64 block is automatically stripped during parsing.
+- **API Access**: The `get-book` action automatically searches for files starting with `cover.` in the book's meta directory and returns the absolute path if found.
+- **Error Handling**: If a cover cannot be written to disk (e.g., due to permissions), the error is logged, but the indexing of the book record itself continues.
+
 

@@ -15,6 +15,11 @@ inline std::filesystem::path Utf8ToPath(const std::string& utf8Str)
     // C++20 way to create a path from a UTF-8 string
     return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(utf8Str.data()), utf8Str.size()));
 }
+
+inline std::filesystem::path GetBookMetaDir(const std::filesystem::path& dbPath, int64_t id)
+{
+    return dbPath.parent_path() / "meta" / std::to_string(id);
+}
 struct SFilterResult
 {
     bool        included{true};

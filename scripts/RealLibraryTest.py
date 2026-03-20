@@ -72,6 +72,9 @@ def main():
         except: pass
     if export_dir.exists():
         shutil.rmtree(export_dir)
+    covers_dir = output_dir / "meta"
+    if covers_dir.exists():
+        shutil.rmtree(covers_dir)
 
     # 1. Setup Config
     config = {
@@ -274,6 +277,27 @@ def main():
             
         print(f"Successfully validated {validated_count} exported files (size and basic structure check).")
         print("Exported files look valid.")
+
+        print_banner("STEP 6: VALIDATING COVERS (META)")
+        if not covers_dir.exists():
+            print("Error: meta directory not created!")
+            sys.exit(1)
+        
+        cover_files = list(covers_dir.rglob("cover.*"))
+        if len(cover_files) == 0:
+            print("Error: No covers found in the meta directory!")
+            sys.exit(1)
+            
+        print(f"Found {len(cover_files)} covers. Checking sizes...")
+        valid_covers = 0
+        for f in cover_files[:10]: # Check up to 10 covers
+            size = f.stat().st_size
+            if size < 50:
+                print(f"Error: Cover file {f} is suspiciously small ({size} bytes)!")
+                sys.exit(1)
+            valid_covers += 1
+            
+        print(f"Successfully validated {valid_covers} cover samples.")
 
     finally:
         print_banner("SHUTDOWN")

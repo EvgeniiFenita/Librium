@@ -24,7 +24,9 @@ Analyze every file for the following, in this priority order:
 ### 🔴 CRITICAL — Security & Data Integrity
 - **SQL Injection**: Improperly sanitized inputs in `Database` or `Query` modules.
 - **Buffer Overflows**: Unsafe string or buffer handling, especially when parsing INPX or FB2. **WinAPI Note**: Ensure `WideCharToMultiByte` and `MultiByteToWideChar` lengths are handled correctly (exclude `\0` from `std::string` length).
+- **Binary Data Handling**: Base64 decoding in `Fb2Parser` must be robust against whitespace and malformed input. Ensure cover images are not held in memory longer than necessary.
 - **Resource Leaks**: SQLite handles, prepared statements, file descriptors (ZIP), or memory not freed on error paths. **Mandatory**: Use RAII wrappers (e.g., `unique_ptr` with custom deleters) for all third-party handles.
+- **File System Operations**: Ensure `std::filesystem` usage correctly handles Unicode paths via `Utf8ToPath`. Cover writing logic in `Indexer` must have proper error handling and directory management.
 - **Hardcoded Paths**: Sensitive local paths or credentials left in code or example configs.
 - **Thread Safety**: Race conditions in `Log` (singleton), `ThreadSafeQueue`, or `Database` during multithreaded indexing. **Lifecycle**: Ensure `std::jthread` is used for automatic joining.
 

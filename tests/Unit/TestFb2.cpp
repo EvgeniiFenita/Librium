@@ -83,6 +83,24 @@ TEST_CASE("Handles XML namespaces in tags", "[fb2]")
     REQUIRE(d.keywords == "space, stars");
 }
 
+TEST_CASE("Parses cover image", "[fb2]")
+{
+    std::string b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+    std::string xml = R"(<?xml version="1.0" encoding="utf-8"?>
+    <FictionBook xmlns:l="http://www.w3.org/1999/xlink">
+      <description><title-info>
+        <coverpage><image l:href="#cover.png"/></coverpage>
+      </title-info></description>
+      <binary id="cover.png" content-type="image/png">
+        )" + b64 + R"(
+      </binary>
+    </FictionBook>)";
+    
+    auto d = CFb2Parser{}.Parse(xml);
+    REQUIRE(d.coverExt == ".png");
+    REQUIRE(d.coverData.size() == 68);
+}
+
 #ifdef _WIN32
 TEST_CASE("Converts Windows-1251 encoding", "[fb2]")
 {

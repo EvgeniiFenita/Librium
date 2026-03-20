@@ -142,8 +142,35 @@ nlohmann::json CGetBookAction::Execute(CAppService& service, const nlohmann::jso
     result.totalFound = 1;
 
     auto json = Query::CQuerySerializer::ToJson(result);
-    // Extract only the book data
-    return {{"status", "ok"}, {"data", json["books"][0]}};
+    auto bookData = json["books"][0];
+
+    // Check for cover
+    try
+    {
+        auto metaDir = Config::GetBookMetaDir(Config::Utf8ToPath(service.GetConfig().database.path), id);
+        
+        if (std::filesystem::exists(metaDir) && std::filesystem::is_directory(metaDir))
+        {
+            for (const auto& entry : std::filesystem::directory_iterator(metaDir))
+            {
+                if (entry.is_regular_file())
+                {
+                    auto filename = entry.path().filename().u8string();
+                    if (filename.find(u8"cover.") == 0)
+                    {
+                        bookData["cover"] = entry.path().u8string();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    catch (const std::exception& e)
+    {
+        LOG_WARN("Failed to check cover for book {}: {}", id, e.what());
+    }
+
+    return {{"status", "ok"}, {"data", bookData}};
 }
 
 } // namespace Librium::Service

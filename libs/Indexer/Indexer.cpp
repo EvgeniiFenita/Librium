@@ -6,6 +6,7 @@
 
 #include <filesystem>
 #include <unordered_map>
+#include <fstream>
 
 namespace fs = std::filesystem;
 
@@ -178,6 +179,26 @@ Db::SImportStats CIndexer::WriterThread(Db::CDatabase& db, size_t batchSize, IPr
                     ++stats.booksInserted;
                     if (item->fb2.IsOk()) ++stats.fb2Parsed;
                     else                  ++stats.fb2Errors;
+
+                    if (!item->fb2.coverData.empty())
+                    {
+                        try
+                        {
+                            auto metaDir = Config::GetBookMetaDir(Config::Utf8ToPath(m_cfg.database.path), id);
+                            fs::create_directories(metaDir);
+                            auto coverPath = metaDir / ("cover" + item->fb2.coverExt);
+                            
+                            std::ofstream ofs(coverPath, std::ios::binary);
+                            if (ofs)
+                            {
+                                ofs.write(reinterpret_cast<const char*>(item->fb2.coverData.data()), item->fb2.coverData.size());
+                            }
+                        }
+                        catch (const std::exception& e)
+                        {
+                            LOG_ERROR("Failed to write cover for book {}: {}", id, e.what());
+                        }
+                    }
                 }
                 else ++stats.booksSkipped;
             }
@@ -306,6 +327,17 @@ Db::SImportStats CIndexer::Run(IProgressReporter* reporter)
         emptyStats.booksSkipped = totalPreSkipped;
         emptyStats.archivesProcessed = db.GetIndexedArchives().size();
         return emptyStats;
+    }
+
+    if (m_cfg.import.mode == "full")
+    {
+        auto metaDir = Config::Utf8ToPath(m_cfg.database.path).parent_path() / "meta";
+        if (fs::exists(metaDir))
+        {
+            LOG_INFO("Full import mode: cleaning meta directory...");
+            try { fs::remove_all(metaDir); }
+            catch (const std::exception& e) { LOG_ERROR("Failed to clean meta dir: {}", e.what()); }
+        }
     }
 
     CImportGuard guard(db);

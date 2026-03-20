@@ -1,5 +1,6 @@
 #include "Fb2Parser.hpp"
 #include "Log/Logger.hpp"
+#include "Utils/Base64.hpp"
 
 #include <pugixml.hpp>
 
@@ -137,6 +138,57 @@ SFb2Data CFb2Parser::Parse(const std::string& xmlText)
     res.publisher = GetChildText(pubInfo, "publisher");
     res.isbn      = GetChildText(pubInfo, "isbn");
     res.publishYear = GetChildText(pubInfo, "year");
+
+    auto coverpage = FindChildIgnoreCase(titleInfo, "coverpage");
+    auto image = FindChildIgnoreCase(coverpage, "image");
+    std::string href;
+    for (auto attr : image.attributes())
+    {
+        std::string name = attr.name();
+        if (name.find("href") != std::string::npos)
+        {
+            href = attr.value();
+            break;
+        }
+    }
+    if (!href.empty() && href[0] == '#') href = href.substr(1);
+
+    if (!href.empty())
+    {
+        for (auto binary : root.children())
+        {
+            std::string name = binary.name();
+            if (name.find("binary") != std::string::npos)
+            {
+                std::string idVal;
+                std::string ctype;
+                for (auto attr : binary.attributes())
+                {
+                    std::string aname = attr.name();
+                    if (aname == "id") idVal = attr.value();
+                    else if (aname == "content-type") ctype = attr.value();
+                }
+                
+                if (idVal == href)
+                {
+                    std::string b64 = binary.text().get();
+                    b64.erase(std::remove_if(b64.begin(), b64.end(), [](unsigned char c) { return std::isspace(c); }), b64.end());
+                    
+                    if (!b64.empty())
+                    {
+                        std::string decoded = Utils::CBase64::Decode(b64);
+                        res.coverData = std::vector<uint8_t>(decoded.begin(), decoded.end());
+                        
+                        if (ctype == "image/png") res.coverExt = ".png";
+                        else if (ctype == "image/jpeg" || ctype == "image/jpg") res.coverExt = ".jpg";
+                        else if (ctype == "image/webp") res.coverExt = ".webp";
+                        else res.coverExt = ".bin";
+                    }
+                    break;
+                }
+            }
+        }
+    }
 
     if (g_debugDumpCount.load() <= 5)
     {
