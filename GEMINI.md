@@ -18,6 +18,7 @@
 - **Namespaces**: Use C++20 nested namespace syntax (`namespace Librium::Db { ... }`).
 - **Unicode**: ALWAYS use `Librium::Config::Utf8ToPath()` when creating paths from strings. NEVER use `path.string()` on Windows; use `path.u8string()` if conversion is needed.
 - **Thread Safety**: ALWAYS use `std::jthread` for thread lifecycle. Wrap thread entry functions in `try-catch` blocks to prevent `std::terminate`.
+- **Error Handling**: AVOID `catch (...)`. ALWAYS catch specific exceptions (at least `const std::exception&`) and LOG the error message using `LOG_*` macros before handling or skipping.
 - **RAII Compliance**: ALWAYS wrap third-party handles (sqlite3, zip_t, etc.) in RAII containers (like `std::unique_ptr` with custom deleters) immediately upon acquisition. Manual resource management is forbidden.
 
 ## Build & Environment

@@ -35,11 +35,11 @@ private:
 
     std::vector<SBookRecord> ParseInpData(const std::vector<uint8_t>& data, const std::string& archiveName, SInpParseStats& stats);
 
-    SBookRecord ParseLine(const std::string& line, const std::string& archiveName);
+    SBookRecord ParseLine(std::string_view line, const std::string& archiveName);
 
-    static SAuthor        ParseAuthor(const std::string& s);
-    static std::vector<std::string> Split(const std::string& s, char delim);
-    static std::string   Trim(const std::string& s);
+    static SAuthor        ParseAuthor(std::string_view s);
+    static std::vector<std::string_view> Split(std::string_view s, char delim);
+    static std::string_view   Trim(std::string_view s);
 };
 
 } // namespace Librium::Inpx

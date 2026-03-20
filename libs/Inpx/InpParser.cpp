@@ -5,14 +5,14 @@
 #include "Config/AppConfig.hpp"
 
 #include <filesystem>
-#include <sstream>
+#include <string>
 
 namespace Librium::Inpx {
 
-std::string CInpParser::Trim(const std::string& s)
+std::string_view CInpParser::Trim(std::string_view s)
 {
     auto start = s.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos)
+    if (start == std::string_view::npos)
     {
         return {};
     }
@@ -20,19 +20,24 @@ std::string CInpParser::Trim(const std::string& s)
     return s.substr(start, end - start + 1);
 }
 
-std::vector<std::string> CInpParser::Split(const std::string& s, char delim)
+std::vector<std::string_view> CInpParser::Split(std::string_view s, char delim)
 {
-    std::vector<std::string> result;
-    std::istringstream ss(s);
-    std::string token;
-    while (std::getline(ss, token, delim))
+    std::vector<std::string_view> result;
+    size_t start = 0;
+    size_t end = s.find(delim);
+
+    while (end != std::string_view::npos)
     {
-        result.push_back(token);
+        result.push_back(s.substr(start, end - start));
+        start = end + 1;
+        end = s.find(delim, start);
     }
+    result.push_back(s.substr(start));
+
     return result;
 }
 
-SAuthor CInpParser::ParseAuthor(const std::string& s)
+SAuthor CInpParser::ParseAuthor(std::string_view s)
 {
     SAuthor a;
     if (s.empty())
@@ -42,20 +47,20 @@ SAuthor CInpParser::ParseAuthor(const std::string& s)
     auto parts = Split(s, ',');
     if (parts.size() > 0)
     {
-        a.lastName = Trim(parts[0]);
+        a.lastName = std::string(Trim(parts[0]));
     }
     if (parts.size() > 1)
     {
-        a.firstName = Trim(parts[1]);
+        a.firstName = std::string(Trim(parts[1]));
     }
     if (parts.size() > 2)
     {
-        a.middleName = Trim(parts[2]);
+        a.middleName = std::string(Trim(parts[2]));
     }
     return a;
 }
 
-SBookRecord CInpParser::ParseLine(const std::string& line, const std::string& archiveName)
+SBookRecord CInpParser::ParseLine(std::string_view line, const std::string& archiveName)
 {
     constexpr char SEP = '\x04';
     auto fields = Split(line, SEP);
@@ -88,58 +93,64 @@ SBookRecord CInpParser::ParseLine(const std::string& line, const std::string& ar
         auto gn = Trim(g);
         if (!gn.empty())
         {
-            rec.genres.push_back(gn);
+            rec.genres.emplace_back(std::string(gn));
         }
     }
 
-    rec.title = Trim(fields[2]);
-    rec.series = Trim(fields[3]);
+    rec.title = std::string(Trim(fields[2]));
+    rec.series = std::string(Trim(fields[3]));
     try
     {
-        if (!Trim(fields[4]).empty())
+        auto seriesNumStr = Trim(fields[4]);
+        if (!seriesNumStr.empty())
         {
-            rec.seriesNumber = std::stoi(Trim(fields[4]));
+            rec.seriesNumber = std::stoi(std::string(seriesNumStr));
         }
     }
-    catch (...)
+    catch (const std::exception& e)
     {
+        LOG_DEBUG("Failed to parse series number '{}' in archive {}: {}", fields[4], archiveName, e.what());
     }
 
-    rec.fileName = Trim(fields[5]);
+    rec.fileName = std::string(Trim(fields[5]));
     try
     {
-        if (!Trim(fields[6]).empty())
+        auto fileSizeStr = Trim(fields[6]);
+        if (!fileSizeStr.empty())
         {
-            rec.fileSize = std::stoull(Trim(fields[6]));
+            rec.fileSize = std::stoull(std::string(fileSizeStr));
         }
     }
-    catch (...)
+    catch (const std::exception& e)
     {
+        LOG_DEBUG("Failed to parse file size '{}' in archive {}: {}", fields[6], archiveName, e.what());
     }
 
-    rec.libId = Trim(fields[7]);
+    rec.libId = std::string(Trim(fields[7]));
     rec.deleted = (Trim(fields[8]) == "1");
-    rec.fileExt = Trim(fields[9]);
+    rec.fileExt = std::string(Trim(fields[9]));
     if (rec.fileExt.empty())
     {
         rec.fileExt = "fb2";
     }
 
-    rec.dateAdded = Trim(fields[10]);
-    rec.language = Trim(fields[11]);
+    rec.dateAdded = std::string(Trim(fields[10]));
+    rec.language = std::string(Trim(fields[11]));
 
     try
     {
-        if (!Trim(fields[12]).empty())
+        auto ratingStr = Trim(fields[12]);
+        if (!ratingStr.empty())
         {
-            rec.rating = std::stoi(Trim(fields[12]));
+            rec.rating = std::stoi(std::string(ratingStr));
         }
     }
-    catch (...)
+    catch (const std::exception& e)
     {
+        LOG_DEBUG("Failed to parse rating '{}' in archive {}: {}", fields[12], archiveName, e.what());
     }
 
-    rec.keywords = Trim(fields[13]);
+    rec.keywords = std::string(Trim(fields[13]));
     // fields[14] always empty — ignored
 
     return rec;
@@ -148,15 +159,23 @@ SBookRecord CInpParser::ParseLine(const std::string& line, const std::string& ar
 std::vector<SBookRecord> CInpParser::ParseInpData(const std::vector<uint8_t>& data, const std::string& archiveName, SInpParseStats& stats)
 {
     std::vector<SBookRecord> books;
-    std::string text(reinterpret_cast<const char*>(data.data()), data.size());
-    std::istringstream ss(text);
-    std::string line;
+    std::string_view text(reinterpret_cast<const char*>(data.data()), data.size());
 
-    while (std::getline(ss, line))
+    size_t start = 0;
+    size_t end = text.find('\n', start);
+
+    while (start < text.size())
     {
+        std::string_view line = (end == std::string_view::npos) 
+            ? text.substr(start) 
+            : text.substr(start, end - start);
+
+        start = (end == std::string_view::npos) ? text.size() : end + 1;
+        end = text.find('\n', start);
+
         if (!line.empty() && line.back() == '\r')
         {
-            line.pop_back();
+            line.remove_suffix(1);
         }
         if (line.empty())
         {
@@ -180,8 +199,9 @@ std::vector<SBookRecord> CInpParser::ParseInpData(const std::vector<uint8_t>& da
             ++stats.parsedOk;
             books.push_back(std::move(rec));
         }
-        catch (...)
+        catch (const std::exception& e)
         {
+            LOG_ERROR("Unexpected error parsing line in archive {}: {}", archiveName, e.what());
             ++stats.skippedInvalid;
         }
     }
@@ -239,15 +259,22 @@ SInpParseStats CInpParser::ParseStreaming(const std::string& inpxPath, const std
         auto archive = p.stem().string();
         LOG_DEBUG("Parsing archive: {}", archive);
 
-        std::string text(reinterpret_cast<const char*>(data.data()), data.size());
-        std::istringstream ss(text);
-        std::string line;
+        std::string_view text(reinterpret_cast<const char*>(data.data()), data.size());
+        size_t start = 0;
+        size_t end = text.find('\n', start);
 
-        while (std::getline(ss, line))
+        while (start < text.size())
         {
+            std::string_view line = (end == std::string_view::npos) 
+                ? text.substr(start) 
+                : text.substr(start, end - start);
+
+            start = (end == std::string_view::npos) ? text.size() : end + 1;
+            end = text.find('\n', start);
+
             if (!line.empty() && line.back() == '\r')
             {
-                line.pop_back();
+                line.remove_suffix(1);
             }
             if (line.empty())
             {
@@ -274,8 +301,9 @@ SInpParseStats CInpParser::ParseStreaming(const std::string& inpxPath, const std
                     break;
                 }
             }
-            catch (...)
+            catch (const std::exception& e)
             {
+                LOG_ERROR("Unexpected error parsing line in archive {}: {}", archive, e.what());
                 ++m_stats.skippedInvalid;
             }
         }

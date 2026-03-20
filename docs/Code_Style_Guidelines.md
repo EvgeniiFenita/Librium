@@ -278,20 +278,20 @@ All project-specific files must use **PascalCase** (`ThisIsFile.cpp`). Standard 
 
 ---
 
-# 16. nullptr
+# 18. nullptr
 
 Use `nullptr` instead of `NULL` or `0`.
 
 ---
 
-# 17. override and final
+# 19. override and final
 
 Always use `override` when overriding a virtual method.
 Use `final` to prevent further overriding.
 
 ---
 
-# 18. Class Section Order
+# 20. Class Section Order
 
 Class sections must follow this order:
 1. `public`
@@ -300,31 +300,31 @@ Class sections must follow this order:
 
 ---
 
-# 19. No `using namespace` in Headers
+# 21. No `using namespace` in Headers
 
 `using namespace` is forbidden in header files.
 
 ---
 
-# 20. [[nodiscard]]
+# 22. [[nodiscard]]
 
 Mark functions with `[[nodiscard]]` when ignoring the return value is likely a bug.
 
 ---
 
-# 21. Member Initialization
+# 23. Member Initialization
 
 Prefer in-class initialization or constructor member initializer lists.
 
 ---
 
-# 22. Braces for Single-Line Bodies
+# 24. Braces for Single-Line Bodies
 
 For `if`, `else`, `for`, `while`, curly braces **may be omitted** if the body consists of a single statement.
 
 ---
 
-# 23. Formatting for Structs
+# 25. Formatting for Structs
 
 Struct members must each be on their own line.
 
@@ -344,32 +344,32 @@ struct SResult { int code; std::string message; };
 
 ---
 
-# 24. Function Parameters Layout
+# 26. Function Parameters Layout
 
 Function parameters should stay on a single line unless there are too many of them or the line exceeds reasonable length (e.g., 100-120 characters).
 
-Correct:
-```cpp
-void ProcessData(const std::string& input, int count, bool dryRun);
-```
-
 ---
 
-# 25. Build Target Naming
+# 27. Build Target Naming
 
 All binary and library targets in CMake must be named in **PascalCase** (`MyLib`, `MyApp`).
 
 ---
 
-# 26. Code That Violates These Rules
-
-Generated code that violates these rules must be considered **invalid** and must be rewritten.
-
----
-
-# 27. Thread Safety (C++20)
+# 28. Thread Safety (C++20)
 
 1.  **Lifecycle**: Use `std::jthread` instead of `std::thread` to ensure automatic joining on destruction and easier interruption.
 2.  **Exception Safety**: Thread entry points must be wrapped in `try-catch` blocks to prevent `std::terminate`.
 3.  **Synchronization**: Prefer `std::mutex`, `std::atomic`, and thread-safe containers (like `ThreadSafeQueue`). Avoid low-level primitives if a higher-level abstraction is available.
 
+---
+
+# 29. Error Handling
+
+Avoid `catch (...)`. Always catch specific exceptions (at least `const std::exception&`) and **log the error message** using `LOG_*` macros before handling or skipping the exception.
+
+---
+
+# 30. Code That Violates These Rules
+
+Generated code that violates these rules must be considered **invalid** and must be rewritten.
