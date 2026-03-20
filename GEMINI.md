@@ -5,7 +5,7 @@
 - **Architecture**: Modular. Standalone static libraries in `libs/`.
 
 ## Critical Naming Rules
-- **File Naming**: ALWAYS use **PascalCase** for all project-specific files (`ThisIsFile.cpp`, `run.py`). 
+- **File Naming**: ALWAYS use **PascalCase** for all project-specific files (`ThisIsFile.cpp`, `run.py`). Files should NOT include the `C` or `I` prefix, even if the primary class/interface inside does.
 - **CMake Targets**: ALWAYS use **PascalCase** for targets (`Database`, `Librium`).
 - **Classes**: Prefix with `C` (`CDatabase`).
 - **Interfaces**: Prefix with `I` (`IDatabase`).

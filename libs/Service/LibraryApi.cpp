@@ -19,7 +19,7 @@ Db::CDatabase& CLibraryApi::GetDatabase()
 {
     if (!m_db)
     {
-        m_db = std::make_unique<Db::CDatabase>(m_config.database.path);
+        m_db = std::make_unique<Db::CDatabase>(m_config.database.path, m_config.import);
     }
     return *m_db;
 }
@@ -28,14 +28,14 @@ Db::SImportStats CLibraryApi::Import(Indexer::IProgressReporter* reporter)
 {
     m_config.import.mode = "full";
     Indexer::CIndexer indexer(m_config);
-    return indexer.Run(reporter);
+    return indexer.Run(GetDatabase(), reporter);
 }
 
 Db::SImportStats CLibraryApi::Upgrade(Indexer::IProgressReporter* reporter)
 {
     m_config.import.mode = "upgrade";
     Indexer::CIndexer indexer(m_config);
-    return indexer.Run(reporter);
+    return indexer.Run(GetDatabase(), reporter);
 }
 
 Query::SQueryResult CLibraryApi::SearchBooks(const Query::SQueryParams& params)

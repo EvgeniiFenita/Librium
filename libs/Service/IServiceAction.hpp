@@ -11,6 +11,7 @@ class IServiceAction
 {
 public:
     virtual ~IServiceAction() = default;
+    virtual std::string GetName() const = 0;
     virtual nlohmann::json Execute(CAppService& service, const nlohmann::json& params, Indexer::IProgressReporter* reporter = nullptr) = 0;
 };
 

@@ -11,9 +11,11 @@ namespace Librium::Indexer {
     class IProgressReporter;
 }
 
+
 namespace Librium::Service {
 
 class IServiceAction;
+class ICommandChannel;
 
 class CAppService
 {
@@ -22,12 +24,14 @@ public:
     ~CAppService();
 
     nlohmann::json Dispatch(const nlohmann::json& command, Indexer::IProgressReporter* reporter = nullptr);
+    void Run(ICommandChannel& channel, Indexer::IProgressReporter* reporter = nullptr);
+
 
     // Helpers for actions
     [[nodiscard]] CLibraryApi& GetApi();
 
 private:
-    void RegisterAction(const std::string& name, std::unique_ptr<IServiceAction> action);
+    void RegisterAction(std::unique_ptr<IServiceAction> action);
 
     Config::SAppConfig                                   m_config;
     std::unique_ptr<CLibraryApi>                         m_api;

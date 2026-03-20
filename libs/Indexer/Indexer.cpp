@@ -272,11 +272,8 @@ private:
 
 } // namespace
 
-Db::SImportStats CIndexer::Run(IProgressReporter* reporter) 
+Db::SImportStats CIndexer::Run(Db::CDatabase& db, IProgressReporter* reporter) 
 {
-    LOG_INFO("Opening database: {}", m_cfg.database.path);
-    Db::CDatabase db(m_cfg.database.path, m_cfg.import);
-
     Config::CBookFilter filter(m_cfg.filters);
     
     std::unordered_map<std::string, std::vector<Inpx::SBookRecord>> preparedWork;

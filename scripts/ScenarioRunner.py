@@ -145,7 +145,7 @@ class ScenarioRunner:
                 "archivesDir": lib_path if "library" in data else os.path.join(lib_path, "lib.rus.ec")
             },
             "import": { "threadCount": 8, "parseFb2": False },
-            "logging": { "level": "info", "file": os.path.join(os.path.dirname(config_path), "librium.log") }
+            "logging": { "level": "debug", "file": os.path.join(os.path.dirname(config_path), "librium.log") }
         }
         if "config" in data:
             for section, settings in data["config"].items():

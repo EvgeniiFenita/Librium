@@ -95,17 +95,15 @@ TEST_CASE("Indexer handles 0 new books gracefully (Index Preservation)", "[index
     };
 
     // 1. Initialize DB and verify indexes exist
-    {
-        CDatabase db(dbPath);
-        REQUIRE(countIndexes(dbPath) > 0);
-        
-        // Mark archive as indexed so upgrade mode has 0 work
-        db.MarkArchiveIndexed("archive1");
-    }
+    CDatabase db(dbPath);
+    REQUIRE(countIndexes(dbPath) > 0);
+    
+    // Mark archive as indexed so upgrade mode has 0 work
+    db.MarkArchiveIndexed("archive1");
 
     // 2. Run indexer in upgrade mode (should find 0 work)
     CIndexer indexer(cfg);
-    (void)indexer.Run(nullptr);
+    (void)indexer.Run(db, nullptr);
 
     // 3. Verify indexes STILL exist (they shouldn't have been dropped)
     // We check via raw sqlite to avoid CDatabase constructor's "auto-fix"

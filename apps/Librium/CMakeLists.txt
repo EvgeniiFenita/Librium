@@ -1,6 +1,7 @@
 add_executable(Librium
     Main.cpp
     Version.hpp
+    ProtocolProgressReporter.hpp
 )
 
 target_include_directories(Librium PRIVATE

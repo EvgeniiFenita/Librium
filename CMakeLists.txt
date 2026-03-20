@@ -56,6 +56,7 @@ target_compile_definitions(sqlite3_lib PRIVATE
 # Libraries (lib)
 # ------------------------------------------------------------------
 add_subdirectory(libs/Log)
+add_subdirectory(libs/Utils)
 add_subdirectory(libs/Zip)
 add_subdirectory(libs/Fb2)
 add_subdirectory(libs/Inpx)
@@ -64,7 +65,6 @@ add_subdirectory(libs/Database)
 add_subdirectory(libs/Query)
 add_subdirectory(libs/Indexer)
 add_subdirectory(libs/Service)
-add_subdirectory(libs/Utils)
 
 # ------------------------------------------------------------------
 # Applications (bin)

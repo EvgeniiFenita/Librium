@@ -20,7 +20,7 @@ class CIndexer
 public:
     explicit CIndexer(Config::SAppConfig cfg);
 
-    [[nodiscard]] Db::SImportStats Run(IProgressReporter* reporter = nullptr);
+    [[nodiscard]] Db::SImportStats Run(Db::CDatabase& db, IProgressReporter* reporter = nullptr);
     void RequestStop()
     {
         m_stopRequested = true;
@@ -31,7 +31,8 @@ public:
 private:
     Config::SAppConfig        m_cfg;
     std::atomic<bool>         m_stopRequested{false};
-    std::unordered_set<std::string> m_skipArchives;    std::atomic<size_t>       m_parsedCount{0};
+    std::unordered_set<std::string> m_skipArchives;
+    std::atomic<size_t>       m_parsedCount{0};
     std::atomic<size_t>       m_filteredCount{0};
     std::atomic<size_t>       m_errorCount{0};
 

@@ -19,7 +19,7 @@ The project is organized into independent, reusable static libraries and a singl
 | **Config** | JSON-based configuration and cross-platform path helpers (`Utf8ToPath`). | **Inpx**, `nlohmann_json` |
 | **Database** | Abstraction layer for SQL databases. Generic logic is isolated from application logic via `ISqlDatabase` and `ISqlStatement` interfaces. | **Fb2**, **Inpx**, `sqlite3_lib` |
 | **QueryLib** | Search engine and JSON serialization for query results. | **Database**, `nlohmann_json` |
-| **Service** | Engine core using the Command pattern to dispatch JSON actions. | **Database**, **Indexer**, **QueryLib**, **Utils** |
+| **Service** | Engine core using the Command pattern to dispatch JSON actions. Abstracts communication via `ICommandChannel`. | **Database**, **Indexer**, **QueryLib**, **Utils** |
 | **Utils** | Common technical utilities (Base64, Thread-safe queue, String helpers). | None |
 
 ---
@@ -30,6 +30,9 @@ The project is organized into independent, reusable static libraries and a singl
 Librium/
 ├── apps/
 │   └── Librium/            ← Persistent Engine application
+│       ├── Main.cpp
+│       ├── Version.hpp
+│       └── ProtocolProgressReporter.hpp
 ├── libs/
 │   ├── Config/             ← App settings & Unicode path helpers
 │   ├── Database/           ← SQLite schema & data persistence
@@ -103,7 +106,7 @@ Librium.exe --config <path_to_config.json>
 ```
 
 ### Protocol Specification
--   **Communication**: Via `stdin` (requests) and `stdout` (responses).
+-   **Communication**: Abstracted via `ICommandChannel`. By default, uses `std::stdin` (requests) and `std::stdout` (responses) via `CStdIoChannel`.
 -   **Format**: Every message is a single **Base64-encoded JSON** string ending with a newline (`\n`).
 -   **Logs**: Human-readable logs and audit trails are written to the file specified in the config (default: `Librium.log`).
 
