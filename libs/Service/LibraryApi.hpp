@@ -1,0 +1,49 @@
+#pragma once
+
+#include "Config/AppConfig.hpp"
+#include "Indexer/Indexer.hpp"
+#include "Query/BookQuery.hpp"
+#include <filesystem>
+#include <optional>
+#include <string>
+#include <memory>
+
+namespace Librium::Db { class CDatabase; }
+
+namespace Librium::Service {
+
+struct SAppStats {
+    int64_t totalBooks = 0;
+    int64_t totalAuthors = 0;
+};
+
+struct SBookDetails {
+    Query::SBookResult book;
+    std::u8string coverPath; // Empty if no cover
+};
+
+class CLibraryApi
+{
+public:
+    explicit CLibraryApi(Config::SAppConfig cfg);
+    ~CLibraryApi();
+
+    Db::SImportStats Import(Indexer::IProgressReporter* reporter);
+    Db::SImportStats Upgrade(Indexer::IProgressReporter* reporter);
+
+    Query::SQueryResult SearchBooks(const Query::SQueryParams& params);
+
+    std::filesystem::path ExportBook(int64_t id, const std::filesystem::path& outDir);
+
+    SAppStats GetStats();
+
+    std::optional<SBookDetails> GetBook(int64_t id);
+
+private:
+    Db::CDatabase& GetDatabase();
+
+    Config::SAppConfig m_config;
+    std::unique_ptr<Db::CDatabase> m_db;
+};
+
+} // namespace Librium::Service

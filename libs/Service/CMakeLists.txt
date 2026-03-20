@@ -1,6 +1,7 @@
 add_library(Service STATIC
     AppService.cpp
     Actions/Actions.cpp
+    LibraryApi.cpp
 )
 
 target_include_directories(Service PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)

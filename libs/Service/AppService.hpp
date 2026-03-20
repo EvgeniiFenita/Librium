@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Config/AppConfig.hpp"
-#include "Database/Database.hpp"
+#include "LibraryApi.hpp"
 #include <nlohmann/json.hpp>
 #include <memory>
 #include <string>
@@ -24,14 +24,13 @@ public:
     nlohmann::json Dispatch(const nlohmann::json& command, Indexer::IProgressReporter* reporter = nullptr);
 
     // Helpers for actions
-    [[nodiscard]] Db::CDatabase& GetDatabase();
-    [[nodiscard]] const Config::SAppConfig& GetConfig() const;
+    [[nodiscard]] CLibraryApi& GetApi();
 
 private:
     void RegisterAction(const std::string& name, std::unique_ptr<IServiceAction> action);
 
     Config::SAppConfig                                   m_config;
-    std::unique_ptr<Db::CDatabase>                       m_db;
+    std::unique_ptr<CLibraryApi>                         m_api;
     std::map<std::string, std::unique_ptr<IServiceAction>> m_actions;
 };
 

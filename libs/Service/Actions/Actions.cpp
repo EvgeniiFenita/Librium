@@ -1,12 +1,8 @@
 #include "Actions.hpp"
 #include "Service/AppService.hpp"
-#include "Indexer/Indexer.hpp"
-#include "Query/BookQuery.hpp"
+#include "Service/LibraryApi.hpp"
 #include "Query/QuerySerializer.hpp"
-#include "Log/Logger.hpp"
-#include "Zip/ZipReader.hpp"
-#include <filesystem>
-#include <fstream>
+#include "Config/AppConfig.hpp"
 
 namespace Librium::Service {
 
@@ -16,11 +12,7 @@ namespace Librium::Service {
 nlohmann::json CImportAction::Execute(CAppService& service, const nlohmann::json& params, Indexer::IProgressReporter* reporter)
 {
     (void)params;
-    auto cfg = service.GetConfig();
-    cfg.import.mode = "full";
-    
-    Indexer::CIndexer indexer(cfg);
-    auto stats = indexer.Run(reporter);
+    auto stats = service.GetApi().Import(reporter);
 
     return {{"status", "ok"}, {"data", {
         {"inserted", stats.booksInserted},
@@ -39,11 +31,7 @@ nlohmann::json CImportAction::Execute(CAppService& service, const nlohmann::json
 nlohmann::json CUpgradeAction::Execute(CAppService& service, const nlohmann::json& params, Indexer::IProgressReporter* reporter)
 {
     (void)params;
-    auto cfg = service.GetConfig();
-    cfg.import.mode = "upgrade";
-    
-    Indexer::CIndexer indexer(cfg);
-    auto stats = indexer.Run(reporter);
+    auto stats = service.GetApi().Upgrade(reporter);
 
     return {{"status", "ok"}, {"data", {
         {"inserted", stats.booksInserted},
@@ -62,8 +50,6 @@ nlohmann::json CUpgradeAction::Execute(CAppService& service, const nlohmann::jso
 nlohmann::json CQueryAction::Execute(CAppService& service, const nlohmann::json& params, Indexer::IProgressReporter* reporter)
 {
     (void)reporter;
-    auto& db = service.GetDatabase();
-    
     Query::SQueryParams qp;
     if (params.contains("title"))    qp.title = params["title"];
     if (params.contains("author"))   qp.author = params["author"];
@@ -73,7 +59,7 @@ nlohmann::json CQueryAction::Execute(CAppService& service, const nlohmann::json&
     if (params.contains("limit"))    qp.limit = params["limit"];
     if (params.contains("offset"))   qp.offset = params["offset"];
 
-    auto result = Query::CBookQuery::Execute(db, qp);
+    auto result = service.GetApi().SearchBooks(qp);
     return {{"status", "ok"}, {"data", Query::CQuerySerializer::ToJson(result)}};
 }
 
@@ -86,24 +72,16 @@ nlohmann::json CExportAction::Execute(CAppService& service, const nlohmann::json
     if (!params.contains("id"))  return {{"status", "error"}, {"error", "Missing book 'id'"}};
     if (!params.contains("out")) return {{"status", "error"}, {"error", "Missing 'out' directory"}};
 
-    auto& db = service.GetDatabase();
-    auto bookInfo = db.GetBookPath(params["id"]);
-    if (!bookInfo) return {{"status", "error"}, {"error", "Book not found"}};
-
-    std::string zipName = bookInfo->archiveName;
-    if (zipName.size() < 4 || zipName.substr(zipName.size() - 4) != ".zip") zipName += ".zip";
-
-    auto zipPath = Config::Utf8ToPath(service.GetConfig().library.archivesDir) / Config::Utf8ToPath(zipName);
-    auto data = Zip::CZipReader::ReadEntry(zipPath, bookInfo->fileName);
-    
-    auto outDir = Config::Utf8ToPath(params["out"]);
-    if (!std::filesystem::exists(outDir)) std::filesystem::create_directories(outDir);
-
-    auto outPath = outDir / Config::Utf8ToPath(bookInfo->fileName);
-    std::ofstream ofs(outPath, std::ios::binary);
-    ofs.write(reinterpret_cast<const char*>(data.data()), data.size());
-
-    return {{"status", "ok"}, {"data", {{"file", outPath.u8string()}}}};
+    try
+    {
+        auto outDir = Config::Utf8ToPath(params["out"]);
+        auto outPath = service.GetApi().ExportBook(params["id"], outDir);
+        return {{"status", "ok"}, {"data", {{"file", outPath.u8string()}}}};
+    }
+    catch (const std::exception& e)
+    {
+        return {{"status", "error"}, {"error", e.what()}};
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -113,11 +91,11 @@ nlohmann::json CStatsAction::Execute(CAppService& service, const nlohmann::json&
 {
     (void)params;
     (void)reporter;
-    auto& db = service.GetDatabase();
+    auto stats = service.GetApi().GetStats();
     
     return {{"status", "ok"}, {"data", {
-        {"total_books", db.CountBooks()},
-        {"total_authors", db.CountAuthors()}
+        {"total_books", stats.totalBooks},
+        {"total_authors", stats.totalAuthors}
     }}};
 }
 
@@ -129,45 +107,21 @@ nlohmann::json CGetBookAction::Execute(CAppService& service, const nlohmann::jso
     (void)reporter;
     if (!params.contains("id")) return {{"status", "error"}, {"error", "Missing 'id' parameter"}};
 
-    int64_t id = params["id"];
-    auto& db = service.GetDatabase();
-
-    auto book = Query::CBookQuery::GetBookById(db, id);
-    if (!book) return {{"status", "error"}, {"error", "Book not found"}};
+    auto bookOpt = service.GetApi().GetBook(params["id"]);
+    if (!bookOpt) return {{"status", "error"}, {"error", "Book not found"}};
 
     // We can use QuerySerializer to reuse the logic of converting SBookResult to JSON
     // But ToJson takes SQueryResult. Let's create a temporary result.
     Query::SQueryResult result;
-    result.books.push_back(std::move(*book));
+    result.books.push_back(std::move(bookOpt->book));
     result.totalFound = 1;
 
     auto json = Query::CQuerySerializer::ToJson(result);
     auto bookData = json["books"][0];
 
-    // Check for cover
-    try
+    if (!bookOpt->coverPath.empty())
     {
-        auto metaDir = Config::GetBookMetaDir(Config::Utf8ToPath(service.GetConfig().database.path), id);
-        
-        if (std::filesystem::exists(metaDir) && std::filesystem::is_directory(metaDir))
-        {
-            for (const auto& entry : std::filesystem::directory_iterator(metaDir))
-            {
-                if (entry.is_regular_file())
-                {
-                    auto filename = entry.path().filename().u8string();
-                    if (filename.find(u8"cover.") == 0)
-                    {
-                        bookData["cover"] = entry.path().u8string();
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    catch (const std::exception& e)
-    {
-        LOG_WARN("Failed to check cover for book {}: {}", id, e.what());
+        bookData["cover"] = bookOpt->coverPath;
     }
 
     return {{"status", "ok"}, {"data", bookData}};
