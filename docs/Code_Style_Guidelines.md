@@ -193,12 +193,16 @@ Prefer smart pointers instead of raw pointers.
 Use: `std::unique_ptr`, `std::shared_ptr`, `std::weak_ptr`.
 Avoid: `new`, `delete`.
 
+For third-party C-style handles (e.g., SQLite, libzip), always use `std::unique_ptr` with a custom deleter structure.
+
 ---
 
 # 10. RAII
 
 Resources must follow the **RAII principle**.
 Acquire resources in constructors and release them in destructors.
+
+**Mandatory for Third-Party Handles**: All external resources (database handles, prepared statements, file handles from libraries) MUST be wrapped in RAII containers from the moment of acquisition. No manual `close` or `finalize` calls should be present in business logic.
 
 ---
 
@@ -360,3 +364,12 @@ All binary and library targets in CMake must be named in **PascalCase** (`MyLib`
 # 26. Code That Violates These Rules
 
 Generated code that violates these rules must be considered **invalid** and must be rewritten.
+
+---
+
+# 27. Thread Safety (C++20)
+
+1.  **Lifecycle**: Use `std::jthread` instead of `std::thread` to ensure automatic joining on destruction and easier interruption.
+2.  **Exception Safety**: Thread entry points must be wrapped in `try-catch` blocks to prevent `std::terminate`.
+3.  **Synchronization**: Prefer `std::mutex`, `std::atomic`, and thread-safe containers (like `ThreadSafeQueue`). Avoid low-level primitives if a higher-level abstraction is available.
+

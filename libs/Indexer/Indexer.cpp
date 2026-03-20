@@ -89,7 +89,7 @@ void CIndexer::ProducerThread(const std::string& inpxPath, const Config::CBookFi
 void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2) 
 {
     std::unordered_map<std::string, fs::path> archivePathCache;
-    std::unique_ptr<Zip::CZipHandle> currentZip;
+    std::unique_ptr<Zip::CZipReader> currentZip;
     Fb2::CFb2Parser fb2Parser;
 
     while (!m_stopRequested) 
@@ -124,10 +124,10 @@ void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2)
                     {
                         if (!currentZip || currentZip->Path() != archivePath)
                         {
-                            currentZip = std::make_unique<Zip::CZipHandle>(archivePath);
+                            currentZip = std::make_unique<Zip::CZipReader>(archivePath);
                         }
 
-                        auto data = Zip::CZipReader::ReadFromHandle(*currentZip, result.record.FilePath());
+                        auto data = currentZip->ReadEntry(result.record.FilePath());
                         result.fb2 = fb2Parser.Parse(data);
                     }
                     catch (const std::exception& e) 
@@ -223,13 +223,38 @@ Db::SImportStats CIndexer::WriterThread(Db::CDatabase& db, size_t batchSize, IPr
     return stats;
 }
 
+namespace {
+
+class CImportGuard
+{
+public:
+    explicit CImportGuard(Db::CDatabase& db) : m_db(db) {}
+    ~CImportGuard()
+    {
+        if (!m_finished)
+        {
+            LOG_WARN("Import interrupted! Attempting to restore database state...");
+            try { m_db.CreateIndexes(); }
+            catch (const std::exception& e) { LOG_ERROR("Failed to restore indexes: {}", e.what()); }
+
+            try { m_db.Exec("PRAGMA synchronous = NORMAL"); }
+            catch (const std::exception& e) { LOG_ERROR("Failed to restore synchronous mode: {}", e.what()); }
+        }
+    }
+
+    void MarkFinished() { m_finished = true; }
+
+private:
+    Db::CDatabase& m_db;
+    bool           m_finished{false};
+};
+
+} // namespace
+
 Db::SImportStats CIndexer::Run(IProgressReporter* reporter) 
 {
     LOG_INFO("Opening database: {}", m_cfg.database.path);
-    Db::CDatabase db(m_cfg.database.path);
-
-    db.Exec("PRAGMA synchronous = OFF");
-    db.DropIndexes();
+    Db::CDatabase db(m_cfg.database.path, m_cfg.import);
 
     Config::CBookFilter filter(m_cfg.filters);
     
@@ -283,13 +308,15 @@ Db::SImportStats CIndexer::Run(IProgressReporter* reporter)
         return emptyStats;
     }
 
+    CImportGuard guard(db);
+
     db.Exec("PRAGMA synchronous = OFF");
     db.DropIndexes();
 
     int workerCount = std::max(1, m_cfg.import.threadCount);
     LOG_INFO("Starting import: {} worker threads, mode={}, total to process={}", workerCount, m_cfg.import.mode, totalToProcess);
 
-    std::thread producer([this, work = std::move(preparedWork)]() mutable
+    std::jthread producer([this, work = std::move(preparedWork)]() mutable
     {
         for (auto& group : work)
         {
@@ -303,19 +330,21 @@ Db::SImportStats CIndexer::Run(IProgressReporter* reporter)
         m_workQueue.Close();
     });
 
-    std::vector<std::thread> workers;
+    std::vector<std::jthread> workers;
     for (int i = 0; i < workerCount; ++i)
         workers.emplace_back([this]() { WorkerThread(m_cfg.library.archivesDir, m_cfg.import.parseFb2); });
 
-    std::thread closer([&]() { for (auto& w : workers) w.join(); m_resultQueue.Close(); });
+    std::jthread closer([&]() { for (auto& w : workers) w.join(); m_resultQueue.Close(); });
 
     Db::SImportStats stats = WriterThread(db, m_cfg.import.transactionBatchSize, reporter, totalToProcess);
 
-    producer.join();
-    closer.join();
+    if (producer.joinable()) producer.join();
+    if (closer.joinable()) closer.join();
 
     db.CreateIndexes();
     db.Exec("PRAGMA synchronous = NORMAL");
+
+    guard.MarkFinished();
 
     // Mark processed archives as indexed
     for (const auto& arch : archivesToMark)

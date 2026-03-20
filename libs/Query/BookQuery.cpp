@@ -76,36 +76,28 @@ SBookResult ReadBookRow(sqlite3_stmt* stmt, sqlite3* db)
 {
     SBookResult br;
     br.id = sqlite3_column_int64(stmt, 0);
-    const auto* lid  = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-    const auto* tit  = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-    const auto* ser  = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
-    br.seriesNumber  = sqlite3_column_int(stmt, 4);
-    const auto* fn   = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 5));
-    br.fileSize      = sqlite3_column_int64(stmt, 6);
-    const auto* fext = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
-    const auto* dadd = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8));
-    const auto* lang = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 9));
-    br.rating        = sqlite3_column_int(stmt, 10);
-    const auto* kw   = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 11));
-    const auto* ann  = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 12));
-    const auto* arch = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 13));
-    const auto* pub  = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 14));
-    const auto* isbn = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 15));
-    const auto* year = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 16));
+    
+    auto safeText = [](sqlite3_stmt* s, int col) -> std::string {
+        const auto* text = reinterpret_cast<const char*>(sqlite3_column_text(s, col));
+        return text ? std::string(text) : std::string();
+    };
 
-    if (lid)  br.libId = lid;
-    if (tit)  br.title = tit;
-    if (ser)  br.series = ser;
-    if (fn)   br.fileName = fn;
-    if (fext) br.fileExt = fext;
-    if (dadd) br.dateAdded = dadd;
-    if (lang) br.language = lang;
-    if (kw)   br.keywords = kw;
-    if (ann)  br.annotation = ann;
-    if (arch) br.archiveName = arch;
-    if (pub)  br.publisher = pub;
-    if (isbn) br.isbn = isbn;
-    if (year) br.publishYear = year;
+    br.libId        = safeText(stmt, 1);
+    br.title        = safeText(stmt, 2);
+    br.series       = safeText(stmt, 3);
+    br.seriesNumber = sqlite3_column_int(stmt, 4);
+    br.fileName     = safeText(stmt, 5);
+    br.fileSize     = sqlite3_column_int64(stmt, 6);
+    br.fileExt      = safeText(stmt, 7);
+    br.dateAdded    = safeText(stmt, 8);
+    br.language     = safeText(stmt, 9);
+    br.rating       = sqlite3_column_int(stmt, 10);
+    br.keywords     = safeText(stmt, 11);
+    br.annotation   = safeText(stmt, 12);
+    br.archiveName  = safeText(stmt, 13);
+    br.publisher    = safeText(stmt, 14);
+    br.isbn         = safeText(stmt, 15);
+    br.publishYear  = safeText(stmt, 16);
 
     br.authors = FetchAuthors(db, br.id);
     br.genres = FetchGenres(db, br.id);

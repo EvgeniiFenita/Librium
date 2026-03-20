@@ -19,9 +19,10 @@ public:
     {
         if (utf16.empty()) return {};
 #ifdef _WIN32
-        int size = WideCharToMultiByte(CP_UTF8, 0, utf16.c_str(), -1, nullptr, 0, nullptr, nullptr);
-        std::string res(size - 1, 0);
-        WideCharToMultiByte(CP_UTF8, 0, utf16.c_str(), -1, res.data(), size, nullptr, nullptr);
+        int size = WideCharToMultiByte(CP_UTF8, 0, utf16.data(), (int)utf16.size(), nullptr, 0, nullptr, nullptr);
+        if (size <= 0) return {};
+        std::string res(size, 0);
+        WideCharToMultiByte(CP_UTF8, 0, utf16.data(), (int)utf16.size(), res.data(), size, nullptr, nullptr);
         return res;
 #else
         auto u8 = std::filesystem::path(utf16).u8string();
@@ -33,9 +34,10 @@ public:
     {
         if (cp1251.empty()) return {};
 #ifdef _WIN32
-        int size = MultiByteToWideChar(1251, 0, cp1251.c_str(), -1, nullptr, 0);
+        int size = MultiByteToWideChar(1251, 0, cp1251.data(), (int)cp1251.size(), nullptr, 0);
+        if (size <= 0) return {};
         std::wstring wstr(size, 0);
-        MultiByteToWideChar(1251, 0, cp1251.c_str(), -1, wstr.data(), size);
+        MultiByteToWideChar(1251, 0, cp1251.data(), (int)cp1251.size(), wstr.data(), size);
         return Utf16ToUtf8(wstr);
 #else
         return cp1251;

@@ -3,8 +3,10 @@
 #include "Fb2/Fb2Parser.hpp"
 #include "Inpx/BookRecord.hpp"
 #include "Log/Logger.hpp"
+#include "Config/AppConfig.hpp"
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -15,6 +17,16 @@ struct sqlite3;
 struct sqlite3_stmt;
 
 namespace Librium::Db {
+
+// RAII deleters for SQLite resources
+struct SSqliteDeleter 
+{
+    void operator()(sqlite3* db) const;
+    void operator()(sqlite3_stmt* stmt) const;
+};
+
+using sqlite3_ptr      = std::unique_ptr<sqlite3, SSqliteDeleter>;
+using sqlite3_stmt_ptr = std::unique_ptr<sqlite3_stmt, SSqliteDeleter>;
 
 struct SBookPath
 {
@@ -55,8 +67,8 @@ struct SImportStats
 class CDatabase
 {
 public:
-    explicit CDatabase(const std::string& path);
-    ~CDatabase();
+    explicit CDatabase(const std::string& path, const Config::SImportConfig& cfg = Config::SImportConfig{});
+    ~CDatabase() = default;
 
     CDatabase(const CDatabase&)            = delete;
     CDatabase& operator=(const CDatabase&) = delete;
@@ -83,7 +95,7 @@ public:
 
     sqlite3* Handle() 
     { 
-        return m_db; 
+        return m_db.get(); 
     }
 
     void DropIndexes();
@@ -91,24 +103,24 @@ public:
     void Exec(const char* sql);
 
 private:
-    sqlite3* m_db{nullptr};
+    sqlite3_ptr m_db;
 
-    sqlite3_stmt* m_stmtInsertBook{nullptr};
-    sqlite3_stmt* m_stmtInsertAuthor{nullptr};
-    sqlite3_stmt* m_stmtGetAuthor{nullptr};
-    sqlite3_stmt* m_stmtInsertGenre{nullptr};
-    sqlite3_stmt* m_stmtGetGenre{nullptr};
-    sqlite3_stmt* m_stmtInsertSeries{nullptr};
-    sqlite3_stmt* m_stmtGetSeries{nullptr};
-    sqlite3_stmt* m_stmtInsertArchive{nullptr};
-    sqlite3_stmt* m_stmtGetArchive{nullptr};
-    sqlite3_stmt* m_stmtInsertBookAuthor{nullptr};
-    sqlite3_stmt* m_stmtInsertBookGenre{nullptr};
-    sqlite3_stmt* m_stmtBookExists{nullptr};
-    sqlite3_stmt* m_stmtUpdateFb2{nullptr};
-    sqlite3_stmt* m_stmtGetBookPath{nullptr};
-    sqlite3_stmt* m_stmtInsertPublisher{nullptr};
-    sqlite3_stmt* m_stmtGetPublisher{nullptr};
+    sqlite3_stmt_ptr m_stmtInsertBook;
+    sqlite3_stmt_ptr m_stmtInsertAuthor;
+    sqlite3_stmt_ptr m_stmtGetAuthor;
+    sqlite3_stmt_ptr m_stmtInsertGenre;
+    sqlite3_stmt_ptr m_stmtGetGenre;
+    sqlite3_stmt_ptr m_stmtInsertSeries;
+    sqlite3_stmt_ptr m_stmtGetSeries;
+    sqlite3_stmt_ptr m_stmtInsertArchive;
+    sqlite3_stmt_ptr m_stmtGetArchive;
+    sqlite3_stmt_ptr m_stmtInsertBookAuthor;
+    sqlite3_stmt_ptr m_stmtInsertBookGenre;
+    sqlite3_stmt_ptr m_stmtBookExists;
+    sqlite3_stmt_ptr m_stmtUpdateFb2;
+    sqlite3_stmt_ptr m_stmtGetBookPath;
+    sqlite3_stmt_ptr m_stmtInsertPublisher;
+    sqlite3_stmt_ptr m_stmtGetPublisher;
 
     // Memory caches for bulk indexing speed
     std::unordered_map<std::string, int64_t> m_cacheArchives;
@@ -118,7 +130,6 @@ private:
     std::unordered_map<std::string, int64_t> m_cacheAuthors;
 
     void PrepareStatements();
-    void FinalizeStatements();
 
     [[nodiscard]] int64_t GetOrCreateAuthor(const Inpx::SAuthor& author);
     [[nodiscard]] int64_t GetOrCreateGenre(const std::string& genre);

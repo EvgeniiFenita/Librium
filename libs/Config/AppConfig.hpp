@@ -50,6 +50,10 @@ struct SImportConfig
     int         threadCount{4};
     size_t      transactionBatchSize{1000};
     std::string mode{"full"};
+
+    // SQLite performance tunables
+    int64_t     sqliteCacheSize{-64000}; // negative for KB, positive for pages
+    int64_t     sqliteMmapSize{268435456}; // 256MB
 };
 
 struct SFiltersConfig

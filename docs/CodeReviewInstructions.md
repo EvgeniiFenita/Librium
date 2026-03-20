@@ -23,17 +23,17 @@ Analyze every file for the following, in this priority order:
 
 ### 🔴 CRITICAL — Security & Data Integrity
 - **SQL Injection**: Improperly sanitized inputs in `Database` or `Query` modules.
-- **Buffer Overflows**: Unsafe string or buffer handling, especially when parsing INPX or FB2.
-- **Resource Leaks**: SQLite handles, file descriptors (ZIP), or memory not freed on error paths.
+- **Buffer Overflows**: Unsafe string or buffer handling, especially when parsing INPX or FB2. **WinAPI Note**: Ensure `WideCharToMultiByte` and `MultiByteToWideChar` lengths are handled correctly (exclude `\0` from `std::string` length).
+- **Resource Leaks**: SQLite handles, prepared statements, file descriptors (ZIP), or memory not freed on error paths. **Mandatory**: Use RAII wrappers (e.g., `unique_ptr` with custom deleters) for all third-party handles.
 - **Hardcoded Paths**: Sensitive local paths or credentials left in code or example configs.
-- **Thread Safety**: Race conditions in `Log` (singleton), `ThreadSafeQueue`, or `Database` during multithreaded indexing.
+- **Thread Safety**: Race conditions in `Log` (singleton), `ThreadSafeQueue`, or `Database` during multithreaded indexing. **Lifecycle**: Ensure `std::jthread` is used for automatic joining.
 
 ### 🔴 CRITICAL — Bugs and correctness
 - **Logic Errors**: Flaws in INPX streaming, FB2 parsing, or query filtering logic.
 - **Algorithm Correctness**: Incorrect or edge-case-prone implementation of algorithms.
 - **Undefined Behavior**: Signed overflows, invalid iterator use, uninitialized variables.
 - **SQLite Binding Errors**: Use of `SQLITE_STATIC` for temporary objects (ensure `SQLITE_TRANSIENT` is used where needed).
-- **Exception Safety**: Exceptions thrown across boundaries without proper catching or RAII cleanup.
+- **Exception Safety**: Exceptions thrown across boundaries without proper catching or RAII cleanup. **Guard Logic**: Use scope guards (like `CImportGuard`) to restore system state (indexes, PRAGMAs) after exceptions.
 
 ### 🟠 HIGH — Architecture & Modularity
 - **Layer Violations**: Libraries in `libs/` depending on `apps/` or circular dependencies between libraries.

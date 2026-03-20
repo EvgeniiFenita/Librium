@@ -13,7 +13,7 @@ The project is organized into independent, reusable static libraries and a singl
 | Module | Responsibility | Dependencies |
 | :--- | :--- | :--- |
 | **Log** | Thread-safe singleton logger. Supports multiple outputs and static configuration. | None |
-| **Zip** | Unicode-aware RAII wrapper around `libzip`. Supports long paths and Cyrillic. | `libzip`, `zlib` |
+| **Zip** | RAII-based ZIP archive management. Unified smart pointer interface for archives and files. | `libzip`, `zlib` |
 | **Fb2** | XML parser for FictionBook 2.0 metadata using `pugixml`. Extracts text info (annotation, etc.) but ignores covers. | `pugixml` |
 | **Inpx** | High-speed parser for `.inpx` collection indices. | **Zip**, **Config** |
 | **Config** | JSON-based configuration and cross-platform path helpers (`Utf8ToPath`). | **Inpx**, `nlohmann_json` |

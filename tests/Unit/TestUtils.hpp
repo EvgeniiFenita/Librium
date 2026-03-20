@@ -4,8 +4,9 @@
 #include <string>
 #include <map>
 #include <stdexcept>
-#include <zip.h>
 #include <random>
+#include "Zip/ZipReader.hpp"
+#include <zip.h>
 
 namespace Librium::Tests {
 
@@ -41,50 +42,41 @@ private:
 
 inline void CreateTestZip(const std::filesystem::path& zipPath, const std::map<std::string, std::string>& files)
 {
-    int err = 0;
-    zip_t* archive = nullptr;
+    zip_t* raw_archive = nullptr;
 
 #ifdef _WIN32
     zip_error_t zerr;
     zip_error_init(&zerr);
-    // On Windows we use the wide char API to create/open
-    archive = zip_open(reinterpret_cast<const char*>(zipPath.u8string().c_str()), ZIP_CREATE | ZIP_TRUNCATE, &err);
-    // Wait, zip_open on windows with libzip from vcpkg might not support UTF-8 path automatically unless specialized.
-    // However, for tests with temp paths, usually it works if no non-ascii.
-    // To be safe and follow ZipReader pattern:
     zip_source_t* src = zip_source_win32w_create(zipPath.c_str(), 0, -1, &zerr);
     if (src) {
-        archive = zip_open_from_source(src, ZIP_CREATE | ZIP_TRUNCATE, &zerr);
+        raw_archive = zip_open_from_source(src, ZIP_CREATE | ZIP_TRUNCATE, &zerr);
     }
+    zip_error_fini(&zerr);
 #else
-    archive = zip_open(zipPath.c_str(), ZIP_CREATE | ZIP_TRUNCATE, &err);
+    int err = 0;
+    raw_archive = zip_open(zipPath.c_str(), ZIP_CREATE | ZIP_TRUNCATE, &err);
 #endif
 
-    if (!archive)
+    if (!raw_archive)
     {
         throw std::runtime_error("Failed to create test zip");
     }
 
+    Zip::zip_ptr archive(raw_archive);
+
     for (const auto& [name, content] : files)
     {
-        zip_source_t* source = zip_source_buffer(archive, content.c_str(), content.size(), 0);
+        zip_source_t* source = zip_source_buffer(archive.get(), content.c_str(), content.size(), 0);
         if (!source)
         {
-            zip_close(archive);
             throw std::runtime_error("Failed to create zip source for " + name);
         }
 
-        if (zip_file_add(archive, name.c_str(), source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8) < 0)
+        if (zip_file_add(archive.get(), name.c_str(), source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8) < 0)
         {
             zip_source_free(source);
-            zip_close(archive);
             throw std::runtime_error("Failed to add file to zip: " + name);
         }
-    }
-
-    if (zip_close(archive) < 0)
-    {
-        throw std::runtime_error("Failed to close test zip");
     }
 }
 
