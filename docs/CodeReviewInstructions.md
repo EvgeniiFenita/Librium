@@ -40,7 +40,8 @@ Analyze every file for the following, in this priority order:
 
 ### 🟠 HIGH — Architecture & Modularity
 - **Layer Violations**: Libraries in `libs/` depending on `apps/` or circular dependencies between libraries.
-- **Database Layer Isolation**: Application components (Indexer, Query, CDatabase) MUST interact with the database ONLY via `ISqlDatabase` and `ISqlStatement` interfaces. Direct calls to `sqlite3_*` API outside of the specific implementations (`CSqliteDatabase`, `CSqliteStatement`) are forbidden.
+- **Database Layer Isolation**: Application components (Indexer, Query, CDatabase) MUST interact with the database ONLY via `ISqlDatabase` and `ISqlStatement` interfaces. Direct calls to `sqlite3_*` API outside of the specific implementations (`CSqliteDatabase`, `CSqliteStatement`) are forbidden. **Search strategy**: grep all files outside `CSqliteDatabase.cpp` and `CSqliteStatement.cpp` for the token `sqlite3_` — any match is an architecture violation.
+- **Inline SQL Strings**: All SQL must live in `SqlQueries.hpp` as `constexpr std::string_view` constants. **Search strategy**: grep all files outside `SqlQueries.hpp` for string literals containing `SELECT`, `INSERT`, `UPDATE`, `DELETE`, or `CREATE TABLE` — any match is a violation.
 - **Monolith Re-emergence**: Any attempt to re-introduce a "core" layer or tightly coupled modules.
 - **Include Strategy**: Headers must be included as `#include "ModuleName/Header.hpp"`. No `C/I/E/S` prefixes in filenames.
 - **Module Isolation**: Each module in `libs/` should be a standalone static library.
@@ -96,7 +97,7 @@ Write the report to `ReviewReport.md` with this exact structure:
 ```markdown
 # Librium — Code Review Report
 **Date:** <date>
-**Reviewer:** Gemini CLI
+**Reviewer:** AI Assistant
 **Scope:** Full codebase audit (libs/, apps/, tests/, build system)
 
 ---

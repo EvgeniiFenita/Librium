@@ -4,7 +4,7 @@ Librium uses the **Command Pattern** implemented via the `IServiceAction` interf
 
 ## 1. Create the Action Class
 
-Add your new action class to `libs/Service/Actions/Actions.hpp` and implement it in `Actions.cpp`.
+Add your new action class to `libs/Service/Actions.hpp` and implement it in `Actions.cpp`.
 
 ### Interface: `IServiceAction`
 ```cpp
@@ -23,6 +23,8 @@ public:
         int64_t count = req.GetInt("count", 0);
 
         // 2. Business Logic (using service.GetApi())
+        // NOTE: Do NOT write SQL strings here. If new queries are needed,
+        //       add them to SqlQueries.hpp as constexpr std::string_view first.
         try {
             // ... logic here ...
             
@@ -92,3 +94,17 @@ Create a new `.json` scenario in `tests/Scenarios/` to verify your command:
   ]
 }
 ```
+
+---
+
+## 7. Completion Checklist
+
+Before considering a new command complete, verify ALL of the following items. Do not mark the task done until every box can be checked.
+
+- [ ] Action class declared in `libs/Service/Actions.hpp`
+- [ ] Action class implemented in `libs/Service/Actions.cpp`
+- [ ] Action registered in `CAppService` constructor in `libs/Service/AppService.cpp`
+- [ ] If a new domain struct is returned: `SetData` overload added to `libs/Service/Response.hpp`
+- [ ] If a new domain struct is returned: serialization implemented in `libs/Protocol/JsonProtocol.cpp`
+- [ ] `.json` scenario created in `tests/Scenarios/` covering at least one success case
+- [ ] `python scripts/run.py --preset x64-debug` passes without errors

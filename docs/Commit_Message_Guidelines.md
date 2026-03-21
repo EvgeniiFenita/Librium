@@ -30,7 +30,7 @@ When asked to "make a beautiful commit" or "describe changes," follow these step
 3. **Draft the Summary**:
     - Be specific. Instead of `Refactor: Database cleanup`, use `Refactor: Abstract database implementation using ISqlDatabase interface`.
     - Focus on the *intent* and the *result*.
-4. **Use Imperative Mood**: (e.g., "Add", "Fix", "Refactor" instead of "Added", "Fixed", "Refactoring"). *Note: The existing history used past tense, but moving forward, imperative is preferred for consistency with standard Git practices.*
+4. **Use Imperative Mood**: Always use imperative ("Add", "Fix", "Refactor"), not past tense ("Added", "Fixed", "Refactored"). This is a hard rule.
 
 ## Examples of High-Signal vs. Low-Signal Messages
 

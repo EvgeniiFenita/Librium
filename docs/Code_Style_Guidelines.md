@@ -90,7 +90,7 @@ int GetUserById(int userId);
 
 # 5. Braces Style
 
-Opening braces for classes, structs, functions, and methods must be on a **new line** (Allman style).
+Opening braces for classes, structs, functions, methods, and all control flow blocks (`if`, `else`, `for`, `while`, `switch`) must be on a **new line** (Allman style).
 
 Correct:
 ```cpp
@@ -101,12 +101,25 @@ class CUserService
 void DoWork()
 {
 }
+
+if (condition)
+{
+    DoWork();
+}
+else
+{
+    HandleError();
+}
 ```
 
 Incorrect:
 ```cpp
 class CUserService {
 };
+
+if (condition) {
+    DoWork();
+}
 ```
 
 ---
@@ -366,10 +379,43 @@ All binary and library targets in CMake must be named in **PascalCase** (`MyLib`
 
 # 29. Error Handling
 
-Avoid `catch (...)`. Always catch specific exceptions (at least `const std::exception&`) and **log the error message** using `LOG_*` macros before handling or skipping the exception.
+NEVER use `catch (...)`. Always catch specific exceptions (at minimum `const std::exception&`) and log the error using `LOG_ERROR` before handling or skipping. Silent exception swallowing is a violation.
+
+Wrong:
+```cpp
+catch (...) { }
+catch (const std::exception&) { /* silently ignored */ }
+```
+
+Right:
+```cpp
+catch (const std::exception& e)
+{
+    LOG_ERROR("Failed to process record: {}", e.what());
+    // then re-throw or handle
+}
+```
 
 ---
 
 # 30. Code That Violates These Rules
 
 Generated code that violates these rules must be considered **invalid** and must be rewritten.
+
+---
+
+# 31. Console Output in Libraries
+
+Files under `libs/` must NEVER use `std::cout`, `std::cerr`, or `printf` for any output — including temporary debug output. Use `LOG_*` macros from `Log/Logger.hpp` exclusively. This rule has no exceptions.
+
+Wrong (forbidden in every file under libs/):
+```cpp
+std::cout << "Processing file: " << path << std::endl;
+std::cerr << "Error: " << e.what() << std::endl;
+```
+
+Right:
+```cpp
+LOG_INFO("Processing file: {}", path.u8string());
+LOG_ERROR("Error: {}", e.what());
+```

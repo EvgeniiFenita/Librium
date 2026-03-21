@@ -17,8 +17,7 @@ The project is organized into independent, reusable static libraries and a singl
 | **Fb2** | XML parser for FictionBook 2.0 metadata using `pugixml`. Extracts text info (annotation, keywords, etc.) and cover images (base64-decoded). | `pugixml` |
 | **Inpx** | High-speed parser for `.inpx` collection indices. | **Zip**, **Config** |
 | **Config** | JSON-based configuration and cross-platform path helpers (`Utf8ToPath`). | **Inpx**, `nlohmann_json` |
-| **Database** | Abstraction layer for SQL databases. Generic logic is isolated from application logic via `ISqlDatabase` and `ISqlStatement` interfaces. | **Fb2**, **Inpx**, `Sqlite3Lib` |
-| **QueryLib** | Search engine and query logic. | **Database** |
+| **Database** | Abstraction layer for SQL databases. Generic logic is isolated from application logic via `ISqlDatabase` and `ISqlStatement` interfaces. Includes full query and search engine logic. | **Fb2**, **Inpx**, `Sqlite3Lib` |
 | **Service** | Engine core using the Command pattern. Abstracts communication via `IRequest`/`IResponse` interfaces. | **Database**, **Indexer**, **QueryLib**, **Utils** |
 | **Protocol** | Implementation of communication formats (e.g., JSON over Base64). | **Service**, **Utils**, `nlohmann_json` |
 | **Transport** | Network communication layer (Localhost TCP via **Asio**). | **Log**, `asio` |
@@ -37,13 +36,12 @@ Librium/
 │       └── ProtocolProgressReporter.hpp
 ├── libs/
 │   ├── Config/             ← App settings & Unicode path helpers
-│   ├── Database/           ← SQLite schema & data persistence
+│   ├── Database/           ← SQLite schema, data persistence & search logic
 │   ├── Fb2/                ← Metadata extraction from books
-│   ├── Indexer/            ← Multi-threaded indexing logic
+│   ├── Indexer/            ← Multi-threaded indexing logic (Producer/Worker/Writer pipeline)
 │   ├── Inpx/               ← Collection index parsing
 │   ├── Log/                ← Centralized logging with CLogger
 │   ├── Protocol/           ← JSON Serialization & Base64 protocol
-│   ├── Query/              ← Search logic (CMake target: QueryLib)
 │   ├── Service/            ← Business logic & Action dispatching
 │   ├── Transport/          ← Asio-based TCP server
 │   ├── Utils/              ← Shared utilities (Base64, Queue, etc.)
@@ -163,7 +161,7 @@ During long operations (`import`, `upgrade`), the engine emits periodic updates:
 | :--- | :--- | :--- |
 | `import` | *none* | Full library re-indexing using paths from config. |
 | `upgrade`| *none* | Incremental update (add only new archives). |
-| `query`  | `title`, `author`, `genre`, `series`, `limit`, `offset` | Search books in the database. |
+| `query`  | `title`, `author`, `genre`, `series`, `language`, `lib-id`, `archive`, `date-from`, `date-to`, `rating-min`, `with-annotation`, `limit`, `offset` | Search books in the database. |
 | `stats`  | *none* | Get database summary (books/authors count). |
 | `get-book` | `id` (int) | Get full metadata of a single book by ID. Includes `"cover"` path if available. |
 | `export` | `id` (int), `out` (directory path) | Extract a book from a ZIP archive into the specified directory. Response includes `data.file` — absolute path to the extracted file. |
