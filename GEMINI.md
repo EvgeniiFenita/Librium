@@ -44,6 +44,7 @@
 - **[Git Commit Guidelines](docs/Commit_Message_Guidelines.md)**: Rules for writing descriptive and high-signal commit messages.
 
 ## Safety & Precision Rules
+- **No Automatic Commits**: NEVER stage or commit changes unless explicitly requested by the user. Automatic commits are strictly forbidden.
 - **Database Architecture**: SQL queries must be stored as `constexpr std::string_view` constants in `SqlQueries.hpp`. Database schema creation must be handled by the `CDatabaseSchema` class.
 - **Database Abstraction**: Logic for specific SMTD (SQLite, etc.) MUST be isolated in `CSqliteDatabase`/`CSqliteStatement` classes. All application-level components (Indexer, Service) MUST interact with the database via `ISqlDatabase` and `ISqlStatement` interfaces OR via the `CDatabase` public API which encapsulates these interfaces.
 - **FB2 Parsing**: Only text metadata (annotations, keywords, etc.) and cover images are supported. Covers must be extracted and saved to disk next to the database in a `meta/` folder, using the database row `id` as the subfolder name.

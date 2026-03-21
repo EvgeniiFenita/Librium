@@ -41,5 +41,11 @@ When asked to "make a beautiful commit" or "describe changes," follow these step
 | `Fix bug` | `Fix: Correct UTF-8 validation in Fb2Parser for legacy encodings` |
 | `Added api` | `Feature: Implement LibraryApi to encapsulate application business logic` |
 
+## Workflow & Authorization
+
+- **No Auto-Commits**: The AI assistant must NEVER stage or commit changes automatically. 
+- **Explicit Request**: Commits are performed ONLY when the user explicitly provides a directive (e.g., "Commit these changes," "Make a beautiful commit").
+- **Draft First**: Before committing, the assistant should propose a draft message and ask for confirmation if the change is complex.
+
 ## Verification
 Before committing, always review the message with `git status` to ensure it accurately reflects the staged changes.
