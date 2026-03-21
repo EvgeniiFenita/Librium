@@ -15,12 +15,18 @@
 
 namespace Librium::Indexer {
 
+enum class EImportMode
+{
+    Full,
+    Upgrade
+};
+
 class CIndexer
 {
 public:
     explicit CIndexer(Config::SAppConfig cfg);
 
-    [[nodiscard]] Db::SImportStats Run(Db::CDatabase& db, IProgressReporter* reporter = nullptr);
+    [[nodiscard]] Db::SImportStats Run(Db::CDatabase& db, EImportMode mode, IProgressReporter* reporter = nullptr);
     void RequestStop()
     {
         m_stopRequested = true;

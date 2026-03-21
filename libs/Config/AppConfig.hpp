@@ -54,7 +54,6 @@ struct SImportConfig
     bool        parseFb2{true};
     int         threadCount{4};
     size_t      transactionBatchSize{1000};
-    std::string mode{"full"};
 
     // SQLite performance tunables
     int64_t     sqliteCacheSize{-64000}; // negative for KB, positive for pages

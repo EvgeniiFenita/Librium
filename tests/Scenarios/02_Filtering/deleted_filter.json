@@ -4,9 +4,6 @@
     { "title": "Visible Book", "authors": ["Author1"], "deleted": false },
     { "title": "Hidden Book", "authors": ["Author2"], "deleted": true }
   ],
-  "config": {
-    "import": { "mode": "full" }
-  },
   "steps": [
     { "args": ["import"] },
     { "args": ["query", "--limit", "10"] }

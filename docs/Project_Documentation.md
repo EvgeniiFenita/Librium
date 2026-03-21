@@ -208,7 +208,7 @@ Librium extracts cover images from FB2 files during the indexing process and sto
 - **Storage Location**: Metadata files are stored in a `meta/` directory located in the same folder as the SQLite database.
 - **Directory Structure**: Each book has its own subfolder named after its database `id` (e.g., `meta/123/`).
 - **Filename**: The cover image is saved as `cover.<ext>`, where `<ext>` is determined by the `content-type` in the FB2 file (typically `.jpg`, `.png`, or `.webp`).
-- **Lifecycle**: In **full import mode**, the `meta/` directory is automatically cleaned to prevent orphaned metadata from previous collections.
+- **Lifecycle**: When the `import` command is used (full re-indexing), the `meta/` directory is automatically cleaned to prevent orphaned metadata from previous collections.
 - **Extraction Logic**: 
   - The parser looks for the `<coverpage>` tag in the `<title-info>` section.
   - The referenced `<binary>` block is decoded from Base64.

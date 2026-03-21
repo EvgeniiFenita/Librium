@@ -26,16 +26,14 @@ Db::CDatabase& CLibraryApi::GetDatabase()
 
 Db::SImportStats CLibraryApi::Import(Indexer::IProgressReporter* reporter)
 {
-    m_config.import.mode = "full";
     Indexer::CIndexer indexer(m_config);
-    return indexer.Run(GetDatabase(), reporter);
+    return indexer.Run(GetDatabase(), Indexer::EImportMode::Full, reporter);
 }
 
 Db::SImportStats CLibraryApi::Upgrade(Indexer::IProgressReporter* reporter)
 {
-    m_config.import.mode = "upgrade";
     Indexer::CIndexer indexer(m_config);
-    return indexer.Run(GetDatabase(), reporter);
+    return indexer.Run(GetDatabase(), Indexer::EImportMode::Upgrade, reporter);
 }
 
 Db::SQueryResult CLibraryApi::SearchBooks(const Db::SQueryParams& params)

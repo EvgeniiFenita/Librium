@@ -280,7 +280,7 @@ private:
 
 } // namespace
 
-Db::SImportStats CIndexer::Run(Db::CDatabase& db, IProgressReporter* reporter) 
+Db::SImportStats CIndexer::Run(Db::CDatabase& db, EImportMode mode, IProgressReporter* reporter) 
 {
     Config::CBookFilter filter(m_cfg.filters);
     
@@ -296,7 +296,7 @@ Db::SImportStats CIndexer::Run(Db::CDatabase& db, IProgressReporter* reporter)
     {
         if (m_stopRequested) return false;
         
-        if (m_cfg.import.mode == "upgrade") 
+        if (mode == EImportMode::Upgrade) 
         {
             if (m_skipArchives.empty())
             {
@@ -327,14 +327,14 @@ Db::SImportStats CIndexer::Run(Db::CDatabase& db, IProgressReporter* reporter)
 
     if (totalToProcess == 0)
     {
-        LOG_INFO("No new books to process in {} mode.", m_cfg.import.mode);
+        LOG_INFO("No new books to process in {} mode.", mode == EImportMode::Upgrade ? "upgrade" : "full");
         Db::SImportStats emptyStats;
         emptyStats.booksSkipped = totalPreSkipped;
         emptyStats.archivesProcessed = db.GetIndexedArchives().size();
         return emptyStats;
     }
 
-    if (m_cfg.import.mode == "full")
+    if (mode == EImportMode::Full)
     {
         auto metaDir = Config::Utf8ToPath(m_cfg.database.path).parent_path() / "meta";
         if (fs::exists(metaDir))
@@ -351,7 +351,7 @@ Db::SImportStats CIndexer::Run(Db::CDatabase& db, IProgressReporter* reporter)
     db.DropIndexes();
 
     int workerCount = std::max(1, m_cfg.import.threadCount);
-    LOG_INFO("Starting import: {} worker threads, mode={}, total to process={}", workerCount, m_cfg.import.mode, totalToProcess);
+    LOG_INFO("Starting import: {} worker threads, mode={}, total to process={}", workerCount, mode == EImportMode::Upgrade ? "upgrade" : "full", totalToProcess);
 
     std::jthread producer([this, work = std::move(preparedWork)]() mutable
     {

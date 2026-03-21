@@ -53,7 +53,6 @@ SAppConfig SAppConfig::Load(const std::string& path)
         get(j["import"], "parseFb2",            cfg.import.parseFb2);
         get(j["import"], "threadCount",         cfg.import.threadCount);
         get(j["import"], "transactionBatchSize",cfg.import.transactionBatchSize);
-        get(j["import"], "mode",                cfg.import.mode);
     }
     if (j.contains("filters")) 
     {
@@ -86,7 +85,7 @@ void SAppConfig::Save(const std::string& path) const
         {"database", {{"path", database.path}}},
         {"library",  {{"inpxPath", library.inpxPath}, {"archivesDir", library.archivesDir}}},
         {"import",   {{"parseFb2", import.parseFb2}, {"threadCount", import.threadCount},
-                      {"transactionBatchSize", import.transactionBatchSize}, {"mode", import.mode}}},
+                      {"transactionBatchSize", import.transactionBatchSize}}},
         {"filters",  {{"excludeLanguages", filters.excludeLanguages},
                       {"includeLanguages", filters.includeLanguages},
                       {"excludeGenres",    filters.excludeGenres},

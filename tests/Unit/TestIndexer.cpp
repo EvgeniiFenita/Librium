@@ -28,7 +28,6 @@ TEST_CASE("Indexer basic operations", "[indexer]")
     SAppConfig cfg;
     cfg.database.path = dbPath;
     cfg.library.inpxPath = inpxPath;
-    cfg.import.mode = "upgrade";
 
     SECTION("GetNewArchives identifies new archives correctly")
     {
@@ -76,9 +75,8 @@ TEST_CASE("Indexer handles 0 new books gracefully (Index Preservation)", "[index
     SAppConfig cfg;
     cfg.database.path = dbPath;
     cfg.library.inpxPath = inpxPath;
-    cfg.import.mode = "upgrade";
 
-    auto countIndexes = [](Librium::Db::CDatabase& database) -> int
+    auto countIndexes= [](Librium::Db::CDatabase& database) -> int
     {
         const std::string sql = "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name LIKE 'idx_books_%'";
         auto stmt = database.Handle()->Prepare(sql);
@@ -95,7 +93,7 @@ TEST_CASE("Indexer handles 0 new books gracefully (Index Preservation)", "[index
 
     // 2. Run indexer in upgrade mode (should find 0 work)
     CIndexer indexer(cfg);
-    (void)indexer.Run(db, nullptr);
+    (void)indexer.Run(db, EImportMode::Upgrade, nullptr);
 
     // 3. Verify indexes STILL exist (they shouldn't have been dropped)
     REQUIRE(countIndexes(db) > 0);
