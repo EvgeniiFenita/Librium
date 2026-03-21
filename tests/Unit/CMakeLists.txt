@@ -4,13 +4,23 @@ add_executable(UnitTests
     TestMain.cpp
     TestVersion.cpp
     TestZip.cpp
+    TestZipInstance.cpp
     TestInpx.cpp
+    TestInpxExtra.cpp
     TestFb2.cpp
     TestDb.cpp
+    TestDbTransactions.cpp
     TestDatabaseQuery.cpp
+    TestQueryEdgeCases.cpp
     TestConfig.cpp
+    TestBookFilter.cpp
+    TestConfigUtils.cpp
     TestLogger.cpp
+    TestLoggerExtra.cpp
     TestIndexer.cpp
+    TestStringUtils.cpp
+    TestBase64.cpp
+    TestThreadSafeQueue.cpp
 )
 
 target_include_directories(UnitTests PRIVATE
@@ -22,6 +32,7 @@ target_link_libraries(UnitTests PRIVATE
     Database
     Log
     Indexer
+    Utils
     Catch2::Catch2
 )
 

@@ -80,6 +80,8 @@ python scripts/run.py --preset x64-debug --clean
 
 ### Test Stages in `scripts/test.py`
 1.  **Stage 1: UNIT**: Fast C++ unit tests (Catch2). Fully self-contained, no external scripts required.
+    - **Coverage**: Filters (genres/size/authors), string encoding (UTF-8/CP1251/UTF-16), Base64, thread-safe concurrency, database transactions, INPX streaming, ZIP RAII, logger configuration, query edge cases, config utilities.
+    - **Crash Diagnostics**: `TestMain.cpp` writes `unit_tests.log` next to `UnitTests.exe` on every run for post-mortem analysis.
 2.  **Stage 2: SCENARIO**: Behavioral tests. 
     - Uses `LibGen.py` to create a "miniature" realistic library.
     - Communicates with `Librium.exe` via **TCP sockets**.
@@ -198,6 +200,12 @@ The `RealLibraryTest.py` script performs multi-stage validation:
 3. **Incremental Logic**: Verifies that a secondary `upgrade` command correctly skips all existing archives.
 4. **Export Integrity**: Validates exported books by checking file size and searching for valid XML signatures (`<FictionBook`) in the content.
 5. **Cover Extraction**: Verifies that cover images are correctly extracted from FB2 and saved to disk.
+
+---
+
+## 9. Known Gaps
+
+- **Keyword Filtering**: `SFiltersConfig::excludeKeywords` is parsed from config and serialized correctly, but is never read inside `CBookFilter::ShouldInclude()`. Books with excluded keywords are not filtered out. Any implementation must be accompanied by unit tests in `tests/Unit/TestBookFilter.cpp`.
 
 ---
 
