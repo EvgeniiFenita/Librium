@@ -85,7 +85,8 @@ int64_t CDatabase::GetOrCreateAuthor(const Inpx::SAuthor& author)
     m_stmtGetAuthor->Step();
     if (m_stmtGetAuthor->IsRow())
         id = m_stmtGetAuthor->ColumnInt64(0);
-    
+    m_stmtGetAuthor->Reset();
+
     if (id > 0) m_cacheAuthors[key] = id;
     return id;
 }
@@ -106,7 +107,8 @@ int64_t CDatabase::GetOrCreateGenre(const std::string& genre)
     m_stmtGetGenre->Step();
     if (m_stmtGetGenre->IsRow())
         id = m_stmtGetGenre->ColumnInt64(0);
-    
+    m_stmtGetGenre->Reset();
+
     if (id > 0) m_cacheGenres[genre] = id;
     return id;
 }
@@ -128,7 +130,8 @@ int64_t CDatabase::GetOrCreateSeries(const std::string& series)
     m_stmtGetSeries->Step();
     if (m_stmtGetSeries->IsRow())
         id = m_stmtGetSeries->ColumnInt64(0);
-    
+    m_stmtGetSeries->Reset();
+
     if (id > 0) m_cacheSeries[series] = id;
     return id;
 }
@@ -150,7 +153,8 @@ int64_t CDatabase::GetOrCreatePublisher(const std::string& pub)
     m_stmtGetPublisher->Step();
     if (m_stmtGetPublisher->IsRow())
         id = m_stmtGetPublisher->ColumnInt64(0);
-    
+    m_stmtGetPublisher->Reset();
+
     if (id > 0) m_cachePublishers[pub] = id;
     return id;
 }
@@ -171,7 +175,8 @@ int64_t CDatabase::GetOrCreateArchive(const std::string& name)
     m_stmtGetArchive->Step();
     if (m_stmtGetArchive->IsRow())
         id = m_stmtGetArchive->ColumnInt64(0);
-    
+    m_stmtGetArchive->Reset();
+
     if (id > 0) m_cacheArchives[name] = id;
     return id;
 }
@@ -241,7 +246,9 @@ bool CDatabase::BookExists(const std::string& libId, const std::string& archiveN
     m_stmtBookExists->BindText(1, libId);
     m_stmtBookExists->BindInt64(2, archId);
     m_stmtBookExists->Step();
-    return m_stmtBookExists->IsRow();
+    bool exists = m_stmtBookExists->IsRow();
+    m_stmtBookExists->Reset();
+    return exists;
 }
 
 std::vector<std::string> CDatabase::GetIndexedArchives()
@@ -302,8 +309,10 @@ std::optional<SBookPath> CDatabase::GetBookPath(int64_t bookId)
         SBookPath bp;
         bp.archiveName = m_stmtGetBookPath->ColumnText(0);
         bp.fileName = m_stmtGetBookPath->ColumnText(1);
+        m_stmtGetBookPath->Reset();
         return bp;
     }
+    m_stmtGetBookPath->Reset();
     return std::nullopt;
 }
 

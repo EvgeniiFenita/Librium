@@ -1,5 +1,5 @@
 {
-  "description": "Get Book Cover: retrieving cover path if it exists",
+  "description": "Get Book Cover: retrieving cover path if it exists, verifying file is on disk",
   "config": {
     "import": {
       "parseFb2": true
@@ -16,7 +16,8 @@
     { "args": ["import"] },
     { 
       "args": ["get-book", "--id", "1"], 
-      "expected_text": [ "cover.png" ]
+      "expected_text": [ "cover.png" ],
+      "expected_file_exists": "data.cover"
     }
   ]
 }

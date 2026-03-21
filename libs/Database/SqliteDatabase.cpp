@@ -24,6 +24,7 @@ CSqliteDatabase::CSqliteDatabase(const std::string& path, int64_t cacheSize, int
     Exec("PRAGMA page_size = 4096");
     Exec("PRAGMA temp_store = MEMORY");
     Exec("PRAGMA mmap_size = " + std::to_string(mmapSize));
+    Exec("PRAGMA busy_timeout = 5000");
 }
 
 CSqliteDatabase::~CSqliteDatabase()

@@ -85,6 +85,7 @@ python scripts/run.py --preset x64-debug --clean
 2.  **Stage 2: SCENARIO**: Behavioral tests. 
     - Uses `LibGen.py` to create a "miniature" realistic library.
     - Communicates with `Librium.exe` via **TCP sockets**.
+    - Covers 8 scenario categories: query filters, parsing, stats, upgrade/re-import, export, utility (covers), protocol error resilience.
     - Includes **Smoke (Real)** test if `--real-library` path is provided.
 
 ---
@@ -165,7 +166,7 @@ During long operations (`import`, `upgrade`), the engine emits periodic updates:
 | `query`  | `title`, `author`, `genre`, `series`, `limit`, `offset` | Search books in the database. |
 | `stats`  | *none* | Get database summary (books/authors count). |
 | `get-book` | `id` (int) | Get full metadata of a single book by ID. Includes `"cover"` path if available. |
-| `export` | `id` (int), `out` (path) | Extract a book from a ZIP archive. |
+| `export` | `id` (int), `out` (directory path) | Extract a book from a ZIP archive into the specified directory. Response includes `data.file` — absolute path to the extracted file. |
 
 ---
 
@@ -183,7 +184,7 @@ To ensure Windows compatibility with non-ASCII paths:
 ### High-Performance Import
 - **Archive-Aware Scheduling**: The indexer groups books by archive before processing. This ensures that each ZIP file is opened once and read linearly, minimizing HDD disk thrashing.
 - **Fast Upgrade**: The `upgrade` command automatically skips archives that are already marked as indexed in the database, reducing incremental update time from minutes to seconds.
-- **Index Management**: Search indexes are dropped before bulk imports and recreated afterward to maintain constant O(1) insertion speed.
+- **Index Management**: Search indexes are dropped before bulk imports and recreated afterward to maintain constant O(1) insertion speed. `DropIndexes()` and `CreateIndexes()` are simple DDL `Exec()` calls — no statement finalization or re-compilation is required. The prerequisite for safe DDL is that no prepared statement holds an open read cursor (i.e., has called `sqlite3_step()` returning `SQLITE_ROW` without a subsequent `sqlite3_reset()`). All `GetOrCreate*()` and `BookExists()` SELECT statements call `Reset()` immediately after reading the result of `Step()`, ensuring no open cursors remain at the time `DROP INDEX` is executed.
 - **Database Caching**: Internal memory caches for Authors, Genres, Series, and Publishers IDs minimize SQLite lookup overhead during mass indexing.
 - **Worker Parallelism**: Supports high thread counts (up to 32+ threads) for simultaneous FB2 parsing and XML processing.
 

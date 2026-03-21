@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import json
+import socket
 import subprocess
 import shutil
 import glob
@@ -68,23 +69,24 @@ class ScenarioRunner:
         self._write_config(data, config_path, db_path, lib_path)
         
         # 3. Start Engine
-        port = 50051
+        port = self._find_free_port()
         process = subprocess.Popen(
             [self.binary_path, "--config", config_path, "--port", str(port)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
         
-        # Connect to socket
-        import socket
-        sock = None
-        for i in range(20):
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.connect(('127.0.0.1', port))
-                break
-            except ConnectionRefusedError:
-                time.sleep(0.1)
+        def _connect_to_engine(attempts=30):
+            for _ in range(attempts):
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.connect(('127.0.0.1', port))
+                    return s
+                except ConnectionRefusedError:
+                    time.sleep(0.1)
+            return None
+
+        sock = _connect_to_engine()
         if not sock:
             process.terminate()
             return {"status": "FAIL", "error": "Failed to connect to engine"}
@@ -95,21 +97,37 @@ class ScenarioRunner:
         last_output = ""
         try:
             for step in data["steps"]:
-                success, output = self._execute_step_engine(process, sock_file, step, test_dir, db_path, lib_path, config_path)
+                # Reconnect before this step if requested (e.g. after a connection-closing step)
+                if step.get("reconnect"):
+                    try:
+                        sock_file.close()
+                        sock.close()
+                    except Exception:
+                        pass
+                    sock = _connect_to_engine()
+                    if not sock:
+                        process.terminate()
+                        print(f" FAIL\n--- Failed to reconnect to engine after step ---")
+                        return {"status": "FAIL", "error": "Failed to reconnect to engine"}
+                    sock_file = sock.makefile('rw', encoding='utf-8')
+
+                success, output = self._execute_step_engine(process, sock, sock_file, step, test_dir, db_path, lib_path, config_path)
                 if not success:
                     process.terminate()
                     return {"status": "FAIL"}
                 last_output = output
                 
                 # Per-step validation
-                if "expected" in step or "expected_text" in step:
-                    if not self._validate(step, last_output, inpx_count):
+                if "expected" in step or "expected_text" in step or \
+                   "expected_file_exists" in step or "expected_file_contains" in step:
+                    if not self._validate(step, last_output, inpx_count, lib_path, test_dir):
                         process.terminate()
                         return {"status": "FAIL"}
 
             # 5. Final Validation (backwards compatibility)
-            if "expected" in data or "expected_text" in data:
-                if not self._validate(data, last_output, inpx_count):
+            if "expected" in data or "expected_text" in data or \
+               "expected_file_exists" in data or "expected_file_contains" in data:
+                if not self._validate(data, last_output, inpx_count, lib_path, test_dir):
                     process.terminate()
                     return {"status": "FAIL"}
         finally:
@@ -118,10 +136,13 @@ class ScenarioRunner:
                     if sock_file:
                         sock_file.write("quit\n")
                         sock_file.flush()
-                except:
+                except Exception:
                     process.terminate()
                 finally:
-                    if sock: sock.close()
+                    try:
+                        if sock: sock.close()
+                    except Exception:
+                        pass
 
         duration = time.time() - start_time
         print(f"  --> OK ({duration:.2f}s)\n")
@@ -156,8 +177,10 @@ class ScenarioRunner:
         config = {
             "database": { "path": db_path },
             "library": { 
-                "inpxPath": os.path.join(lib_path, "library.inpx") if "library" in data else os.path.join(lib_path, "librusec_local_fb2.inpx"),
-                "archivesDir": lib_path if "library" in data else os.path.join(lib_path, "lib.rus.ec")
+                "inpxPath": os.path.join(lib_path, "library.inpx") if "library" in data else
+                            os.path.join(lib_path, "librusec_local_fb2.inpx") if lib_path else "",
+                "archivesDir": lib_path if "library" in data else
+                               os.path.join(lib_path, "lib.rus.ec") if lib_path else ""
             },
             "import": { "threadCount": 8, "parseFb2": False },
             "logging": { "level": "debug", "file": os.path.join(os.path.dirname(config_path), "librium.log") }
@@ -170,8 +193,14 @@ class ScenarioRunner:
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2)
 
-    def _execute_step_engine(self, process, sock_file, step, test_dir, db_path, lib_path, config_path):
+    def _execute_step_engine(self, process, sock, sock_file, step, test_dir, db_path, lib_path, config_path):
         action, params = self._map_args_to_json(step["args"], db_path, lib_path, config_path, test_dir)
+        expect_error = step.get("expect_error", False)
+
+        # Special action: send raw (unencoded) bytes — used for protocol error tests
+        if action == "send_raw":
+            return self._execute_raw_send(sock, params.get("data", ""), expect_error)
+
         cmd = {"action": action, "params": params}
         
         sock_file.write(self._b64_encode(json.dumps(cmd)) + "\n")
@@ -200,14 +229,19 @@ class ScenarioRunner:
                     
                 elif status == "ok":
                     if has_progress:
-                        print() 
+                        print()
+                    if expect_error:
+                        print(f" FAIL\n--- Expected error response but got ok ---")
+                        return False, ""
                     # For query, we expect data to be the actual result
                     if action == "query":
                         return True, json.dumps(resp.get("data"))
                     return True, json.dumps(resp)
                     
-                else: # error or unknown
+                else:  # error or unknown
                     if has_progress: print()
+                    if expect_error:
+                        return True, json.dumps(resp)
                     print(f" FAIL\n--- ACTION FAILED: {action} ---\nERROR: {resp.get('error', 'Unknown error')}")
                     return False, ""
                     
@@ -215,6 +249,55 @@ class ScenarioRunner:
                 if has_progress: print()
                 print(f" FAIL\n--- PROTOCOL ERROR: {e} ---\nLINE: {line}")
                 return False, ""
+
+    def _execute_raw_send(self, sock, raw_data, expect_close_or_error):
+        """Send raw (unencoded) bytes and accept an error response or connection close."""
+        try:
+            sock.sendall((raw_data + "\n").encode('utf-8'))
+        except OSError as e:
+            print(f" FAIL\n--- Could not send raw data: {e} ---")
+            return False, ""
+
+        # Try to read the response with a short timeout
+        old_timeout = sock.gettimeout()
+        sock.settimeout(5.0)
+        buf = b""
+        try:
+            while b"\n" not in buf:
+                chunk = sock.recv(4096)
+                if not chunk:
+                    # Server closed the connection — acceptable for malformed input
+                    if expect_close_or_error:
+                        return True, json.dumps({"status": "connection_closed"})
+                    print(f" FAIL\n--- Server closed connection unexpectedly ---")
+                    return False, ""
+                buf += chunk
+
+            line = buf.split(b"\n")[0].strip()
+            resp_str = self._b64_decode(line.decode('utf-8'))
+            resp = json.loads(resp_str)
+
+            if resp.get("status") == "error" and expect_close_or_error:
+                return True, json.dumps(resp)
+            if not expect_close_or_error:
+                return True, json.dumps(resp)
+            # Got ok when we expected an error — test failure
+            print(f" FAIL\n--- Expected error/close for raw send, got: {resp} ---")
+            return False, ""
+
+        except (socket.timeout, TimeoutError):
+            # No response — treat as connection closed
+            if expect_close_or_error:
+                return True, json.dumps({"status": "connection_closed"})
+            print(f" FAIL\n--- Timeout waiting for response to raw send ---")
+            return False, ""
+        except Exception as e:
+            if expect_close_or_error:
+                return True, json.dumps({"status": "connection_closed"})
+            print(f" FAIL\n--- Error reading raw send response: {e} ---")
+            return False, ""
+        finally:
+            sock.settimeout(old_timeout)
 
     def _map_args_to_json(self, args, db_path, lib_path, config_path, test_dir):
         action = args[0]
@@ -246,20 +329,15 @@ class ScenarioRunner:
 
         return action, params
 
-    def _validate(self, data, last_output, inpx_count):
+    def _validate(self, data, last_output, inpx_count, lib_path="", test_dir=""):
         if "expected" in data:
             expected_str = json.dumps(data["expected"]).replace("\"{INPX_COUNT}\"", str(inpx_count))
             expected = json.loads(expected_str)
             try:
                 actual = json.loads(last_output)
                 
-                # Decision: what to compare?
-                # If expected has "status", compare the whole root.
-                # If actual has "data" and expected matches keys in "data", compare data.
-                
                 to_compare = actual
                 if "status" not in expected and "data" in actual and not isinstance(actual["data"], list):
-                    # Check if expected keys are in actual["data"]
                     if all(k in actual["data"] for k in expected.keys()):
                         to_compare = actual["data"]
 
@@ -275,7 +353,68 @@ class ScenarioRunner:
                 if text not in last_output:
                     print(f" FAIL (Text not found: '{text}')\nRAW: {last_output}")
                     return False
+
+        if "expected_file_exists" in data:
+            # Extract a file path from a dot-separated JSON path in the response
+            # e.g. "expected_file_exists": "data.cover"
+            json_path = data["expected_file_exists"]
+            try:
+                actual = json.loads(last_output)
+                file_path = self._extract_json_path(actual, json_path)
+                if not file_path:
+                    print(f" FAIL (expected_file_exists: field '{json_path}' is empty or missing)\nRAW: {last_output}")
+                    return False
+                if not os.path.isfile(file_path):
+                    print(f" FAIL (expected_file_exists: file not found on disk: '{file_path}')")
+                    return False
+                if os.path.getsize(file_path) == 0:
+                    print(f" FAIL (expected_file_exists: file is empty: '{file_path}')")
+                    return False
+            except Exception as e:
+                print(f" FAIL (expected_file_exists error: {e})\nRAW: {last_output}")
+                return False
+
+        if "expected_file_contains" in data:
+            # Check that a file at a given path contains the specified text.
+            # "path"      — static path with {LIB}/{TEST_DIR} placeholders
+            # "path_from" — dot-notation JSON path into the response (e.g. "data.file")
+            spec = data["expected_file_contains"]
+            search_text = spec.get("text", "")
+            if "path_from" in spec:
+                try:
+                    actual = json.loads(last_output)
+                    file_path = self._extract_json_path(actual, spec["path_from"])
+                    if not file_path:
+                        print(f" FAIL (expected_file_contains: field '{spec['path_from']}' is empty)\nRAW: {last_output}")
+                        return False
+                except Exception as e:
+                    print(f" FAIL (expected_file_contains path_from error: {e})\nRAW: {last_output}")
+                    return False
+            else:
+                raw_path = spec.get("path", "")
+                file_path = raw_path.replace("{LIB}", lib_path).replace("{TEST_DIR}", test_dir)
+            try:
+                if not os.path.isfile(file_path):
+                    print(f" FAIL (expected_file_contains: file not found: '{file_path}')")
+                    return False
+                with open(file_path, 'r', encoding='utf-8', errors='replace') as fh:
+                    content = fh.read()
+                if search_text not in content:
+                    print(f" FAIL (expected_file_contains: '{search_text}' not found in '{file_path}')")
+                    return False
+            except Exception as e:
+                print(f" FAIL (expected_file_contains error: {e})")
+                return False
+
         return True
+
+    def _extract_json_path(self, obj, path):
+        """Extract a value from nested dict using dot-notation path (e.g. 'data.cover')."""
+        for key in path.split("."):
+            if not isinstance(obj, dict) or key not in obj:
+                return None
+            obj = obj[key]
+        return obj
 
     def _compare(self, actual, expected, key=None):
         if isinstance(expected, dict):
@@ -294,6 +433,14 @@ class ScenarioRunner:
             return delta <= (expected * 0.01) + 10
                 
         return actual == expected
+
+    @staticmethod
+    def _find_free_port():
+        """Find a free TCP port on localhost."""
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(('', 0))
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            return s.getsockname()[1]
 
     def _count_inpx_records(self, inpx_path):
         count = 0

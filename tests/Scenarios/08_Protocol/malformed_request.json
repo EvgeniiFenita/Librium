@@ -1,0 +1,17 @@
+{
+  "description": "Protocol: malformed Base64 input is handled gracefully, engine does not crash",
+  "library": [
+    { "title": "Resilience Book", "authors": ["Resilience, Test"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "args": ["send_raw", "--data", "THIS_IS_NOT_VALID_BASE64!!!@#$%"],
+      "expect_error": true
+    },
+    {
+      "args": ["stats"],
+      "expected": { "status": "ok" }
+    }
+  ]
+}

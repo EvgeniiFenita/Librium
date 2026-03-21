@@ -13,7 +13,7 @@ Scan ALL source files under:
 - `apps/Librium/` (Commands, Indexer, Main.cpp)
 - `tests/` (Unit, Integration)
 - `CMakeLists.txt`, `CMakePresets.json`, `vcpkg.json`
-- `Build.ps1`, `RunAllTests.ps1`
+- `scripts/run.py`, `scripts/ScenarioRunner.py`
 
 ---
 
@@ -35,6 +35,7 @@ Analyze every file for the following, in this priority order:
 - **Algorithm Correctness**: Incorrect or edge-case-prone implementation of algorithms.
 - **Undefined Behavior**: Signed overflows, invalid iterator use, uninitialized variables.
 - **SQLite Binding Errors**: Use of `SQLITE_STATIC` for temporary objects (ensure `SQLITE_TRANSIENT` is used where needed).
+- **SQLite Cursor Lifecycle**: Any `sqlite3_step()` returning `SQLITE_ROW` on a SELECT statement holds an open read cursor. **`sqlite3_reset()` MUST be called immediately after reading the result** — before the function returns. Failure to do so causes `SQLITE_LOCKED` on subsequent DDL statements (`DROP INDEX`, `CREATE INDEX`) in the same connection, even within the same transaction. INSERT statements (`SQLITE_DONE`) do NOT hold cursors.
 - **Exception Safety**: Exceptions thrown across boundaries without proper catching or RAII cleanup. **Guard Logic**: Use scope guards (like `CImportGuard`) to restore system state (indexes, PRAGMAs) after exceptions.
 
 ### 🟠 HIGH — Architecture & Modularity

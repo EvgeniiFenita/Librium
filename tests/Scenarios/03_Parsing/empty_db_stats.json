@@ -1,0 +1,9 @@
+{
+  "description": "Stats on empty database: engine starts without a library, stats returns zeros",
+  "steps": [
+    {
+      "args": ["stats"],
+      "expected": { "total_books": 0, "total_authors": 0 }
+    }
+  ]
+}

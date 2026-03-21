@@ -1,0 +1,20 @@
+{
+  "description": "Upgrade skip: re-importing the same library does not increase book/author counts",
+  "library": [
+    { "title": "Stable Book One",   "authors": ["Stable, Author"] },
+    { "title": "Stable Book Two",   "authors": ["Stable, Author"] },
+    { "title": "Stable Book Three", "authors": ["Other, Writer"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "args": ["stats"],
+      "expected": { "total_books": 3, "total_authors": 2 }
+    },
+    { "args": ["import"] },
+    {
+      "args": ["stats"],
+      "expected": { "total_books": 3, "total_authors": 2 }
+    }
+  ]
+}

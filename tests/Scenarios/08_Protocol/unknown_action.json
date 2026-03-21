@@ -1,0 +1,18 @@
+{
+  "description": "Protocol: unknown action returns status error, engine stays alive",
+  "library": [
+    { "title": "Probe Book", "authors": ["Probe, Author"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "args": ["nonexistent_action"],
+      "expect_error": true,
+      "expected": { "status": "error" }
+    },
+    {
+      "args": ["stats"],
+      "expected": { "status": "ok" }
+    }
+  ]
+}

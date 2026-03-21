@@ -1,10 +1,15 @@
 {
-  "description": "Basic Export: extracting a book from a ZIP archive by its database ID",
+  "description": "Basic Export: extracting a book from a ZIP archive by its database ID; verifying FB2 content",
   "library": [
     { "title": "Export Test Book", "authors": ["Exporter"], "lib_id": "99999" }
   ],
   "steps": [
     { "args": ["import"] },
-    { "args": ["export", "--id", "1", "--out", "{LIB}/exported"], "expected": { "status": "ok" } }
+    {
+      "args": ["export", "--id", "1", "--out", "{LIB}/exported"],
+      "expected": { "status": "ok" },
+      "expected_file_exists": "data.file",
+      "expected_file_contains": { "path_from": "data.file", "text": "<FictionBook" }
+    }
   ]
 }
