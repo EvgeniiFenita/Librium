@@ -8,9 +8,11 @@ target_include_directories(Librium PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(Librium PRIVATE
-    Service
-    Config
+target_link_libraries(Librium PRIVATE 
+    Service 
+    Transport
+    Protocol
+    Config 
     Database
     Log
     QueryLib

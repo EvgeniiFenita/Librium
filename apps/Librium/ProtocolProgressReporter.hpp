@@ -1,10 +1,7 @@
 #pragma once
 
 #include "Indexer/IProgressReporter.hpp"
-#include "Utils/Base64.hpp"
-#include <nlohmann/json.hpp>
-#include <iostream>
-#include <string>
+#include "Service/IResponse.hpp"
 
 namespace Librium::Apps
 {
@@ -12,17 +9,15 @@ namespace Librium::Apps
 class CProtocolProgressReporter : public Librium::Indexer::IProgressReporter
 {
 public:
+    explicit CProtocolProgressReporter(Librium::Service::IResponse& response) 
+        : m_response(response) {}
+
     void OnProgress(size_t processed, size_t total) override
     {
-        nlohmann::json progress_msg = {
-            {"status", "progress"},
-            {"data", {
-                {"processed", processed},
-                {"total", total}
-            }}
-        };
-        std::cout << Librium::Utils::CBase64::Encode(progress_msg.dump()) << std::endl;
+        m_response.SetProgress(processed, total);
     }
+private:
+    Librium::Service::IResponse& m_response;
 };
 
 } // namespace Librium::Apps

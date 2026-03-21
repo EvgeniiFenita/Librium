@@ -30,6 +30,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 find_package(pugixml CONFIG REQUIRED)
 find_package(libzip CONFIG REQUIRED)
 find_package(Catch2 CONFIG REQUIRED)
+find_package(asio CONFIG REQUIRED)
 
 FetchContent_Declare(sqlite3_src
     URL https://www.sqlite.org/2024/sqlite-amalgamation-3450200.zip
@@ -65,6 +66,8 @@ add_subdirectory(libs/Database)
 add_subdirectory(libs/Query)
 add_subdirectory(libs/Indexer)
 add_subdirectory(libs/Service)
+add_subdirectory(libs/Transport)
+add_subdirectory(libs/Protocol)
 
 # ------------------------------------------------------------------
 # Applications (bin)

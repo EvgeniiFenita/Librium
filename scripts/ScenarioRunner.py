@@ -68,22 +68,34 @@ class ScenarioRunner:
         self._write_config(data, config_path, db_path, lib_path)
         
         # 3. Start Engine
+        port = 50051
         process = subprocess.Popen(
-            [self.binary_path, "--config", config_path],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            encoding='utf-8',
-            errors='ignore',
-            bufsize=1
+            [self.binary_path, "--config", config_path, "--port", str(port)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
         )
+        
+        # Connect to socket
+        import socket
+        sock = None
+        for i in range(20):
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.connect(('127.0.0.1', port))
+                break
+            except ConnectionRefusedError:
+                time.sleep(0.1)
+        if not sock:
+            process.terminate()
+            return {"status": "FAIL", "error": "Failed to connect to engine"}
+            
+        sock_file = sock.makefile('rw', encoding='utf-8')
         
         # 4. Execute Steps
         last_output = ""
         try:
             for step in data["steps"]:
-                success, output = self._execute_step_engine(process, step, test_dir, db_path, lib_path, config_path)
+                success, output = self._execute_step_engine(process, sock_file, step, test_dir, db_path, lib_path, config_path)
                 if not success:
                     process.terminate()
                     return {"status": "FAIL"}
@@ -103,10 +115,13 @@ class ScenarioRunner:
         finally:
             if process.poll() is None:
                 try:
-                    process.stdin.write("quit\n")
-                    process.stdin.flush()
+                    if sock_file:
+                        sock_file.write("quit\n")
+                        sock_file.flush()
                 except:
                     process.terminate()
+                finally:
+                    if sock: sock.close()
 
         duration = time.time() - start_time
         print(f"  --> OK ({duration:.2f}s)\n")
@@ -155,16 +170,16 @@ class ScenarioRunner:
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2)
 
-    def _execute_step_engine(self, process, step, test_dir, db_path, lib_path, config_path):
+    def _execute_step_engine(self, process, sock_file, step, test_dir, db_path, lib_path, config_path):
         action, params = self._map_args_to_json(step["args"], db_path, lib_path, config_path, test_dir)
         cmd = {"action": action, "params": params}
         
-        process.stdin.write(self._b64_encode(json.dumps(cmd)) + "\n")
-        process.stdin.flush()
+        sock_file.write(self._b64_encode(json.dumps(cmd)) + "\n")
+        sock_file.flush()
         
         has_progress = False
         while True:
-            line = process.stdout.readline().strip()
+            line = sock_file.readline().strip()
             if not line:
                 return False, "Process exited prematurely"
                 

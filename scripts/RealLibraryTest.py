@@ -22,13 +22,13 @@ def b64_encode(data):
 def b64_decode(data):
     return base64.b64decode(data.encode('utf-8')).decode('utf-8')
 
-def send_command(process, action, params):
+def send_command(sock_file, action, params):
     cmd = {"action": action, "params": params}
-    process.stdin.write(b64_encode(json.dumps(cmd)) + "\n")
-    process.stdin.flush()
+    sock_file.write(b64_encode(json.dumps(cmd)) + "\n")
+    sock_file.flush()
 
-def read_response(process):
-    line = process.stdout.readline().strip()
+def read_response(sock_file):
+    line = sock_file.readline().strip()
     if not line:
         return None
     try:
@@ -99,26 +99,39 @@ def main():
         json.dump(config, f, indent=2)
 
     print_banner("REAL LIBRARY TEST: STARTING ENGINE (CLEAN RUN)")
+    port = 50052
     process = subprocess.Popen(
-        [str(binary_path), "--config", str(config_path)],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding='utf-8',
-        errors='ignore',
-        bufsize=1
+        [str(binary_path), "--config", str(config_path), "--port", str(port)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
     )
+
+    import socket
+    sock = None
+    for i in range(20):
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect(('127.0.0.1', port))
+            break
+        except ConnectionRefusedError:
+            time.sleep(0.1)
+    
+    if not sock:
+        print("Failed to connect to engine")
+        process.terminate()
+        sys.exit(1)
+        
+    sock_file = sock.makefile('rw', encoding='utf-8')
 
     try:
         # Step 1: Import
         print_banner("STEP 1: IMPORTING LIBRARY (CLEAN)")
-        send_command(process, "import", {})
+        send_command(sock_file, "import", {})
         start_time = time.time()
         last_print_time = 0
         
         while True:
-            resp = read_response(process)
+            resp = read_response(sock_file)
             if not resp: break
             status = resp.get("status")
             if status == "progress":
@@ -130,7 +143,7 @@ def main():
                 speed = processed / elapsed if elapsed > 0 else 0
                 pct = (processed * 100 // total) if total > 0 else 0
                 if now - last_print_time >= 0.5 or processed == total:
-                    print(f"\rProgress: {processed}/{total} ({pct}%) | Speed: {speed:.0f} books/sec", end="", flush=True)
+                    print(f"\rProgress: {processed}/{total} ({pct}%) | Speed: {speed:.0f} books/sec   ", end="", flush=True)
                     last_print_time = now
             elif status == "ok":
                 print("\nImport completed successfully.")
@@ -149,8 +162,8 @@ def main():
         total_annotated = 0
         all_retrieved_books = []
         for offset in [0, 50, 100]:
-            send_command(process, "query", {"limit": 50, "offset": offset})
-            resp = read_response(process)
+            send_command(sock_file, "query", {"limit": 50, "offset": offset})
+            resp = read_response(sock_file)
             if resp and resp.get("status") == "ok":
                 books = resp.get("data", {}).get("books", [])
                 all_retrieved_books.extend(books)
@@ -177,8 +190,8 @@ def main():
                         print(f"  {key:15}: {val}")
 
         print_banner("STEP 2.3: SEARCH AND DETAILS")
-        send_command(process, "query", {"author": "Стругацки", "limit": 10})
-        resp = read_response(process)
+        send_command(sock_file, "query", {"author": "Стругацки", "limit": 10})
+        resp = read_response(sock_file)
         books_for_export = []
         if resp and resp.get("status") == "ok":
             books = resp.get("data", {}).get("books", [])
@@ -196,8 +209,8 @@ def main():
         export_errors = 0
         for idx, book in enumerate(books_for_export, 1):
             book_id = book.get("id")
-            send_command(process, "export", {"id": book_id, "out": str(export_dir)})
-            resp = read_response(process)
+            send_command(sock_file, "export", {"id": book_id, "out": str(export_dir)})
+            resp = read_response(sock_file)
             if resp and resp.get("status") == "ok":
                 file_path = resp.get("data", {}).get("file")
                 if not file_path or not os.path.exists(file_path):
@@ -221,10 +234,10 @@ def main():
         # Step 4: Incremental Upgrade Check
         print_banner("STEP 4: INCREMENTAL UPGRADE (CACHE CHECK)")
         print("Sending 'upgrade' command. It should finish very quickly by skipping known archives.")
-        send_command(process, "upgrade", {})
+        send_command(sock_file, "upgrade", {})
         
         while True:
-            resp = read_response(process)
+            resp = read_response(sock_file)
             if not resp: break
             status = resp.get("status")
             if status == "progress":
@@ -303,11 +316,14 @@ def main():
         print_banner("SHUTDOWN")
         if process.poll() is None:
             try:
-                process.stdin.write("quit\n")
-                process.stdin.flush()
+                if sock_file:
+                    sock_file.write("quit\n")
+                    sock_file.flush()
                 process.wait(timeout=5)
             except:
                 process.terminate()
+            finally:
+                if sock: sock.close()
 
     print(f"\nTest passed! Logs: {log_path}")
 

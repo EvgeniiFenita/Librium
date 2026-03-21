@@ -1,7 +1,9 @@
 #pragma once
 
-#include <nlohmann/json.hpp>
+#include "IRequest.hpp"
+#include "IResponse.hpp"
 #include "Indexer/IProgressReporter.hpp"
+#include <string>
 
 namespace Librium::Service {
 
@@ -12,7 +14,7 @@ class IServiceAction
 public:
     virtual ~IServiceAction() = default;
     virtual std::string GetName() const = 0;
-    virtual nlohmann::json Execute(CAppService& service, const nlohmann::json& params, Indexer::IProgressReporter* reporter = nullptr) = 0;
+    virtual void Execute(CAppService& service, const IRequest& req, IResponse& res, Indexer::IProgressReporter* reporter = nullptr) = 0;
 };
 
 } // namespace Librium::Service

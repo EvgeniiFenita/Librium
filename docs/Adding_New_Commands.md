@@ -1,66 +1,94 @@
-# Guide: Adding New Actions to Librium Engine
+# Adding New Commands to Librium
 
-This document outlines the standard procedure for adding a new JSON-based action to the Librium Engine.
+Librium uses the **Command Pattern** implemented via the `IServiceAction` interface. Commands are isolated from the network and serialization logic.
 
-## 1. Define the Action Class
-Create a new class in `libs/Service/Actions/Actions.hpp` (or a separate file if it's large) that inherits from `IServiceAction`.
+## 1. Create the Action Class
 
+Add your new action class to `libs/Service/Actions/Actions.hpp` and implement it in `Actions.cpp`.
+
+### Interface: `IServiceAction`
 ```cpp
-// libs/Service/Actions/Actions.hpp
-class CMyNewAction : public IServiceAction 
+class CMyNewAction : public IServiceAction
 {
 public:
-    // 1. Define the command name (used for JSON dispatching)
-    std::string GetName() const override { return "my-new-action"; }
+    std::string GetName() const override { return "my-action"; }
+    
+    void Execute(CAppService& service, 
+                 const IRequest& req, 
+                 IResponse& res, 
+                 Indexer::IProgressReporter* reporter) override
+    {
+        // 1. Extract parameters
+        std::string name = req.GetString("name", "default");
+        int64_t count = req.GetInt("count", 0);
 
-    // 2. Declare the execution logic
-    nlohmann::json Execute(
-        CAppService& service, 
-        const nlohmann::json& params, 
-        Indexer::IProgressReporter* reporter = nullptr) override;
+        // 2. Business Logic (using service.GetApi())
+        try {
+            // ... logic here ...
+            
+            // 3. Set result data
+            // res.SetData(some_domain_struct);
+        } catch (const std::exception& e) {
+            res.SetError(e.what());
+        }
+    }
 };
 ```
 
-## 2. Implement the Logic
-Add the implementation in `libs/Service/Actions/Actions.cpp`.
+## 2. Parameter Extraction (`IRequest`)
+
+The `IRequest` interface provides safe access to request parameters without knowing about JSON:
+- `GetString(key, default)`
+- `GetInt(key, default)`
+- `GetBool(key, default)`
+- `HasParam(key)`
+
+## 3. Returning Data (`IResponse`)
+
+The `IResponse` interface is used to send the result back. It is overloaded for various domain structures:
+- `SetData(Db::SImportStats)`
+- `SetData(Query::SQueryResult)`
+- `SetData(SAppStats)`
+- `SetData(SBookDetails)`
+- `SetError(message)`
+- `SetProgress(processed, total)` — used for intermediate updates.
+
+## 4. Registration
+
+Register your new action in the `CAppService` constructor (`libs/Service/AppService.cpp`):
 
 ```cpp
-// libs/Service/Actions/Actions.cpp
-nlohmann::json CMyNewAction::Execute(CAppService& service, const nlohmann::json& params, Indexer::IProgressReporter* reporter)
+CAppService::CAppService(Config::SAppConfig cfg)
+    : m_config(std::move(cfg))
 {
-    // 1. Get resources from service
-    auto& api = service.GetApi();
-
-    // 2. Parse params
-    std::string someValue = params.value("my_param", "default");
-
-    // 3. Do work (optionally use reporter)
-    if (reporter) reporter->OnProgress(50, 100);
-
-    // 4. Return result
-    return {{"status", "ok"}, {"data", {{"result", "done"}}}};
-}
-```
-
-## 3. Register the Action
-Add the action to the `CAppService` constructor in `libs/Service/AppService.cpp`. Registration is now automatic via `GetName()`.
-
-```cpp
-CAppService::CAppService(Config::SAppConfig cfg) : m_config(std::move(cfg))
-{
-    RegisterAction(std::make_unique<CImportAction>());
-    RegisterAction(std::make_unique<CUpgradeAction>());
-    // ...
+    // ... existing actions ...
     RegisterAction(std::make_unique<CMyNewAction>());
 }
 ```
 
-## 4. Verification
-1.  **Add a Scenario**: Create a new `.json` file in `tests/Scenarios/` to test your action.
-2.  **Run Pipeline**: Execute `python scripts/run.py --preset x64-debug`.
-3.  **Check Audit**: Verify the command and response in `Librium.log`.
+## 5. Serialization (Protocol Layer)
 
-## 5. Implementation Rules
--   **No direct IO**: Never use `std::cin`, `std::cout`, or `printf`. The engine application uses `ICommandChannel` for input/output. Use `LOG_*` macros for logging and return data via JSON.
--   **Error Handling**: Wrap logic in `try-catch` (or let `CAppService::Run` handle it). Always return `{"status": "error", "error": "msg"}` for predictable failures.
--   **Paths**: Always use `service.GetConfig()` or `service.GetApi()` to interact with project resources.
+If you introduced a **new domain structure** that needs to be returned, you must update the `Protocol` layer to know how to serialize it.
+
+Update `CJsonResponse` in `libs/Protocol/JsonProtocol.cpp`:
+1. Add a new `SetData` overload to `IResponse.hpp`.
+2. Implement the serialization logic in `JsonProtocol.cpp` using `nlohmann::json`.
+
+## 6. Integration Test
+
+Create a new `.json` scenario in `tests/Scenarios/` to verify your command:
+
+```json
+{
+  "description": "Testing my new action",
+  "steps": [
+    {
+      "args": ["my-action", "--name", "test", "--count", "10"],
+      "expected": {
+        "status": "ok",
+        "data": { ... }
+      }
+    }
+  ]
+}
+```

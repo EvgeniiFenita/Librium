@@ -18,8 +18,10 @@ The project is organized into independent, reusable static libraries and a singl
 | **Inpx** | High-speed parser for `.inpx` collection indices. | **Zip**, **Config** |
 | **Config** | JSON-based configuration and cross-platform path helpers (`Utf8ToPath`). | **Inpx**, `nlohmann_json` |
 | **Database** | Abstraction layer for SQL databases. Generic logic is isolated from application logic via `ISqlDatabase` and `ISqlStatement` interfaces. | **Fb2**, **Inpx**, `sqlite3_lib` |
-| **QueryLib** | Search engine and JSON serialization for query results. | **Database**, `nlohmann_json` |
-| **Service** | Engine core using the Command pattern to dispatch JSON actions. Abstracts communication via `ICommandChannel`. | **Database**, **Indexer**, **QueryLib**, **Utils** |
+| **QueryLib** | Search engine and query logic. | **Database** |
+| **Service** | Engine core using the Command pattern. Abstracts communication via `IRequest`/`IResponse` interfaces. | **Database**, **Indexer**, **QueryLib**, **Utils** |
+| **Protocol** | Implementation of communication formats (e.g., JSON over Base64). | **Service**, **Utils**, `nlohmann_json` |
+| **Transport** | Network communication layer (Localhost TCP via **Asio**). | **Log**, `asio` |
 | **Utils** | Common technical utilities (Base64, Thread-safe queue, String helpers). | None |
 
 ---
@@ -40,8 +42,10 @@ Librium/
 │   ├── Indexer/            ← Multi-threaded indexing logic
 │   ├── Inpx/               ← Collection index parsing
 │   ├── Log/                ← Centralized logging with CLogger
+│   ├── Protocol/           ← JSON Serialization & Base64 protocol
 │   ├── Query/              ← Search logic (CMake target: QueryLib)
-│   ├── Service/            ← JSON Protocol & Action dispatching
+│   ├── Service/            ← Business logic & Action dispatching
+│   ├── Transport/          ← Asio-based TCP server
 │   ├── Utils/              ← Shared utilities (Base64, Queue, etc.)
 │   └── Zip/                ← Unicode-aware archive handling
 ├── scripts/                ← Unified Python automation pipeline
@@ -80,7 +84,7 @@ python scripts/run.py --preset x64-debug --clean
 1.  **Stage 1: UNIT**: Fast C++ unit tests (Catch2). Fully self-contained, no external scripts required.
 2.  **Stage 2: SCENARIO**: Behavioral tests. 
     - Uses `LibGen.py` to create a "miniature" realistic library.
-    - Communicates with `Librium.exe` via Base64-JSON protocol.
+    - Communicates with `Librium.exe` via **TCP sockets**.
     - Includes **Smoke (Real)** test if `--real-library` path is provided.
 
 ---
@@ -88,6 +92,7 @@ python scripts/run.py --preset x64-debug --clean
 ## 4. Dependencies
 
 Librium uses **vcpkg** in manifest mode for dependency management:
+-   `asio`: Cross-platform networking (standalone).
 -   `nlohmann-json`: JSON for modern C++.
 -   `pugixml`: Light-weight XML parser.
 -   `libzip`: Zip archive handling.
@@ -98,16 +103,21 @@ Librium uses **vcpkg** in manifest mode for dependency management:
 
 ## 5. Interface & Protocol (Engine Mode)
 
-Librium works as a persistent high-performance **Engine**. It must be started with a mandatory configuration file.
+Librium works as a persistent high-performance **Engine**. It must be started with a mandatory configuration file and a port number.
 
 ### Startup
 ```bash
-Librium.exe --config <path_to_config.json>
+Librium.exe --config <path_to_config.json> --port <number>
 ```
 
-### Protocol Specification
--   **Communication**: Abstracted via `ICommandChannel`. By default, uses `std::stdin` (requests) and `std::stdout` (responses) via `CStdIoChannel`.
--   **Format**: Every message is a single **Base64-encoded JSON** string ending with a newline (`\n`).
+### Inter-Process Communication (IPC)
+The engine uses a tiered IPC architecture:
+1.  **Transport Layer**: TCP Localhost server (127.0.0.1) using standalone **Asio**.
+2.  **Protocol Layer**: Base64-encoded JSON messages.
+3.  **Service Layer**: Abstract `IRequest` and `IResponse` interfaces.
+
+### Protocol Format
+-   **Communication**: Line-based. Every message is a single **Base64-encoded JSON** string ending with a newline (`\n`).
 -   **Logs**: Human-readable logs and audit trails are written to the file specified in the config (default: `Librium.log`).
 
 ### Message Types
@@ -206,5 +216,3 @@ Librium extracts cover images from FB2 files during the indexing process and sto
   - All whitespace within the Base64 block is automatically stripped during parsing.
 - **API Access**: The `get-book` action automatically searches for files starting with `cover.` in the book's meta directory and returns the absolute path if found.
 - **Error Handling**: If a cover cannot be written to disk (e.g., due to permissions), the error is logged, but the indexing of the book record itself continues.
-
-

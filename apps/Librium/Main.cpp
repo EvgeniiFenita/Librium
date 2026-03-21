@@ -1,7 +1,8 @@
 #include "Version.hpp"
 #include "ProtocolProgressReporter.hpp"
 #include "Service/AppService.hpp"
-#include "Service/StdIoChannel.hpp"
+#include "Protocol/JsonProtocol.hpp"
+#include "Transport/AsioTcpServer.hpp"
 #include "Utils/StringUtils.hpp"
 #include "Indexer/IProgressReporter.hpp"
 #include "Log/Logger.hpp"
@@ -10,6 +11,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <charconv>
 
 #ifdef _WIN32
 #ifndef NOMINMAX
@@ -21,6 +23,8 @@
 
 using namespace Librium::Apps;
 using namespace Librium::Service;
+using namespace Librium::Protocol;
+using namespace Librium::Transport;
 using namespace Librium::Utils;
 using namespace Librium::Log;
 
@@ -46,11 +50,12 @@ std::vector<std::string> GetUtf8Args()
     return args;
 }
 #endif
+
 void ShowUsage()
 {
     std::cout << "Librium Engine v" << VersionString << "\n\n";
-    std::cout << "Usage: Librium.exe --config <path_to_config.json>\n\n";
-    std::cout << "The engine will start and wait for Base64-encoded JSON commands on stdin.\n";
+    std::cout << "Usage: Librium.exe --config <path_to_config.json> --port <port_number>\n\n";
+    std::cout << "The engine will start a TCP server on 127.0.0.1:<port> and wait for a single connection.\n";
 }
 
 } // namespace
@@ -66,13 +71,31 @@ int main(int argc, char* argv[])
     for (int i = 0; i < argc; ++i) args.push_back(argv[i]);
 #endif
 
-    if (args.size() != 3 || args[1] != "--config")
+    std::string configPath;
+    uint16_t port = 0;
+
+    for (size_t i = 1; i < args.size(); ++i)
+    {
+        if (args[i] == "--config" && i + 1 < args.size())
+        {
+            configPath = args[++i];
+        }
+        else if (args[i] == "--port" && i + 1 < args.size())
+        {
+            try {
+                port = static_cast<uint16_t>(std::stoi(args[++i]));
+            } catch (...) {
+                std::cerr << "Invalid port number\n";
+                return 1;
+            }
+        }
+    }
+
+    if (configPath.empty() || port == 0)
     {
         ShowUsage();
         return 1;
     }
-
-    std::string configPath = args[2];
 
     try
     {
@@ -81,13 +104,28 @@ int main(int argc, char* argv[])
         // Use log file from config if possible, or default
         CLogger::Setup(CLogger::ParseLevel(cfg.logging.level, ELogLevel::Info), cfg.logging.file.empty() ? "Librium.log" : cfg.logging.file);
 
-        LOG_INFO("Librium Engine v{} started with config: {}", VersionString, configPath);
+        LOG_INFO("Librium Engine v{} started with config: {}, port: {}", VersionString, configPath, port);
 
-        CAppService engine(std::move(cfg));
-        CProtocolProgressReporter reporter;
+        // engine must live as long as the server
+        auto engine = std::make_shared<CAppService>(std::move(cfg));
 
-        CStdIoChannel channel;
-        engine.Run(channel, &reporter);
+        CAsioTcpServer::MessageHandlerFactory factory = [engine](CAsioTcpServer::SendCallback sendCallback) {
+            return [engine, sendCallback](const std::string& request) {
+                // Factory that creates a reporter bound to the current response
+                CJsonProtocol::ReporterFactory reporterFactory = [](Librium::Service::IResponse& res) {
+                    return std::make_unique<CProtocolProgressReporter>(res);
+                };
+                
+                // Process the request using the JSON protocol handler
+                std::string response = CJsonProtocol::Process(request, *engine, sendCallback, reporterFactory);
+                
+                // Send the final response
+                sendCallback(response);
+            };
+        };
+
+        CAsioTcpServer server(port, factory);
+        server.Run();
 
         LOG_INFO("Librium Engine stopped");
     }

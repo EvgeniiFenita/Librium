@@ -1,21 +1,15 @@
 #pragma once
 
 #include "Config/AppConfig.hpp"
-#include "LibraryApi.hpp"
-#include <nlohmann/json.hpp>
+#include "Service/LibraryApi.hpp"
+#include "Service/IServiceAction.hpp"
+#include <unordered_map>
 #include <memory>
 #include <string>
-#include <map>
 
-namespace Librium::Indexer {
-    class IProgressReporter;
-}
-
+namespace Librium::Indexer { class IProgressReporter; }
 
 namespace Librium::Service {
-
-class IServiceAction;
-class ICommandChannel;
 
 class CAppService
 {
@@ -23,19 +17,16 @@ public:
     explicit CAppService(Config::SAppConfig cfg);
     ~CAppService();
 
-    nlohmann::json Dispatch(const nlohmann::json& command, Indexer::IProgressReporter* reporter = nullptr);
-    void Run(ICommandChannel& channel, Indexer::IProgressReporter* reporter = nullptr);
+    void RegisterAction(std::unique_ptr<IServiceAction> action);
+    
+    void Dispatch(const IRequest& req, IResponse& res, Indexer::IProgressReporter* reporter = nullptr);
 
-
-    // Helpers for actions
-    [[nodiscard]] CLibraryApi& GetApi();
+    CLibraryApi& GetApi();
 
 private:
-    void RegisterAction(std::unique_ptr<IServiceAction> action);
-
-    Config::SAppConfig                                   m_config;
-    std::unique_ptr<CLibraryApi>                         m_api;
-    std::map<std::string, std::unique_ptr<IServiceAction>> m_actions;
+    Config::SAppConfig m_config;
+    std::unique_ptr<CLibraryApi> m_api;
+    std::unordered_map<std::string, std::unique_ptr<IServiceAction>> m_actions;
 };
 
 } // namespace Librium::Service
