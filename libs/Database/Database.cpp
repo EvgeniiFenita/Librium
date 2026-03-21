@@ -2,7 +2,7 @@
 #include "DatabaseSchema.hpp"
 #include "SqlQueries.hpp"
 #include "Log/Logger.hpp"
-#include "CSqliteDatabase.hpp"
+#include "SqliteDatabase.hpp"
 
 #include <filesystem>
 #include <sstream>

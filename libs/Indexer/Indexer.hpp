@@ -5,7 +5,7 @@
 #include "Fb2/Fb2Parser.hpp"
 #include "Inpx/BookRecord.hpp"
 #include "Utils/ThreadSafeQueue.hpp"
-#include "IProgressReporter.hpp"
+#include "ProgressReporter.hpp"
 
 #include <atomic>
 #include <string>

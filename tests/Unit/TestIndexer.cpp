@@ -3,7 +3,6 @@
 #include "Database/Database.hpp"
 #include "TestUtils.hpp"
 
-#include <sqlite3.h>
 #include <filesystem>
 #include <string>
 
@@ -79,24 +78,17 @@ TEST_CASE("Indexer handles 0 new books gracefully (Index Preservation)", "[index
     cfg.library.inpxPath = inpxPath;
     cfg.import.mode = "upgrade";
 
-    auto countIndexes = [](const std::string& path) {
-        sqlite3* db = nullptr;
-        if (sqlite3_open(path.c_str(), &db) != SQLITE_OK) return -1;
-        
-        int count = 0;
-        sqlite3_stmt* stmt = nullptr;
-        const char* sql = "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name LIKE 'idx_books_%'";
-        if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) == SQLITE_OK) {
-            if (sqlite3_step(stmt) == SQLITE_ROW) count = sqlite3_column_int(stmt, 0);
-            sqlite3_finalize(stmt);
-        }
-        sqlite3_close(db);
-        return count;
+    auto countIndexes = [](Librium::Db::CDatabase& database) -> int
+    {
+        const std::string sql = "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name LIKE 'idx_books_%'";
+        auto stmt = database.Handle()->Prepare(sql);
+        stmt->Step();
+        return stmt->IsRow() ? stmt->ColumnInt(0) : -1;
     };
 
     // 1. Initialize DB and verify indexes exist
     CDatabase db(dbPath);
-    REQUIRE(countIndexes(dbPath) > 0);
+    REQUIRE(countIndexes(db) > 0);
     
     // Mark archive as indexed so upgrade mode has 0 work
     db.MarkArchiveIndexed("archive1");
@@ -106,6 +98,5 @@ TEST_CASE("Indexer handles 0 new books gracefully (Index Preservation)", "[index
     (void)indexer.Run(db, nullptr);
 
     // 3. Verify indexes STILL exist (they shouldn't have been dropped)
-    // We check via raw sqlite to avoid CDatabase constructor's "auto-fix"
-    REQUIRE(countIndexes(dbPath) > 0);
+    REQUIRE(countIndexes(db) > 0);
 }

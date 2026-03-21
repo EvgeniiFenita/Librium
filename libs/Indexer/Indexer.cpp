@@ -30,7 +30,8 @@ std::vector<std::string> CIndexer::GetNewArchives(Db::CDatabase& db, const std::
             entry.name.substr(entry.name.size()-4) == ".inp") 
         {
             fs::path p(entry.name);
-            allArchives.push_back(p.stem().string());
+            auto u8stem = p.stem().u8string();
+            allArchives.push_back(std::string(u8stem.begin(), u8stem.end()));
         }
         return true;
     });
@@ -240,7 +241,7 @@ Db::SImportStats CIndexer::WriterThread(Db::CDatabase& db, size_t batchSize, IPr
     catch (const std::exception& e) 
     { 
         LOG_ERROR("Final commit failed during import: {}. Rolling back.", e.what());
-        try { db.Rollback(); } catch (...) {} 
+        try { db.Rollback(); } catch (const std::exception& rollbackEx) { LOG_ERROR("Rollback failed: {}", rollbackEx.what()); }
     }
     
     processed = stats.booksInserted + stats.booksSkipped;

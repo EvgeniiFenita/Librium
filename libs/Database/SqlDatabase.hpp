@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ISqlStatement.hpp"
+#include "SqlStatement.hpp"
 #include <memory>
 #include <string>
 

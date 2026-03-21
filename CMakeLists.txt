@@ -37,11 +37,11 @@ FetchContent_Declare(sqlite3_src
 )
 FetchContent_MakeAvailable(sqlite3_src)
 
-add_library(sqlite3_lib STATIC
+add_library(Sqlite3Lib STATIC
     ${sqlite3_src_SOURCE_DIR}/sqlite3.c
 )
-target_include_directories(sqlite3_lib PUBLIC ${sqlite3_src_SOURCE_DIR})
-target_compile_definitions(sqlite3_lib PRIVATE
+target_include_directories(Sqlite3Lib PUBLIC ${sqlite3_src_SOURCE_DIR})
+target_compile_definitions(Sqlite3Lib PRIVATE
     SQLITE_THREADSAFE=2
     SQLITE_DEFAULT_MEMSTATUS=0
     SQLITE_DEFAULT_WAL_SYNCHRONOUS=1

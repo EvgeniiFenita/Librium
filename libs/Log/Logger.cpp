@@ -121,7 +121,8 @@ void CLogger::Log(ELogLevel level, const std::string& message, std::source_locat
         case ELogLevel::Error: levelStr = "ERROR"; break;
     }
 
-    std::string fileName = std::filesystem::path(loc.file_name()).filename().string();
+    auto u8name = std::filesystem::path(loc.file_name()).filename().u8string();
+    std::string fileName(u8name.begin(), u8name.end());
     
     std::stringstream ss;
     ss << "[" << ts << "." << std::setfill('0') << std::setw(3) << ms.count() << "] "

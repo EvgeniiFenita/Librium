@@ -1,8 +1,8 @@
 #pragma once
 
-#include "IRequest.hpp"
-#include "IResponse.hpp"
-#include "Indexer/IProgressReporter.hpp"
+#include "Request.hpp"
+#include "Response.hpp"
+#include "Indexer/ProgressReporter.hpp"
 #include <string>
 
 namespace Librium::Service {

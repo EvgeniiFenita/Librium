@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Service/IServiceAction.hpp"
+#include "Service/ServiceAction.hpp"
 
 namespace Librium::Service {
 

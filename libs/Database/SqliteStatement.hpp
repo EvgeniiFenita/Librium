@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ISqlStatement.hpp"
+#include "SqlStatement.hpp"
 #include <string>
 
 struct sqlite3_stmt;

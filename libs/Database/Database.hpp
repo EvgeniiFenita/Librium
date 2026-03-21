@@ -4,8 +4,8 @@
 #include "Inpx/BookRecord.hpp"
 #include "Log/Logger.hpp"
 #include "Config/AppConfig.hpp"
-#include "ISqlDatabase.hpp"
-#include "ISqlStatement.hpp"
+#include "SqlDatabase.hpp"
+#include "SqlStatement.hpp"
 #include "QueryTypes.hpp"
 
 #include <cstdint>

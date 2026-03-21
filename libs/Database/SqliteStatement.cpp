@@ -1,4 +1,4 @@
-#include "CSqliteStatement.hpp"
+#include "SqliteStatement.hpp"
 #include "Database.hpp" // For CDbError
 #include <sqlite3.h>
 #include <stdexcept>

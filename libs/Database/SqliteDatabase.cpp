@@ -1,5 +1,5 @@
-#include "CSqliteDatabase.hpp"
-#include "CSqliteStatement.hpp"
+#include "SqliteDatabase.hpp"
+#include "SqliteStatement.hpp"
 #include "Database.hpp" // For CDbError
 #include "Log/Logger.hpp"
 

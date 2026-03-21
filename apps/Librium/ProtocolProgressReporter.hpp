@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Indexer/IProgressReporter.hpp"
-#include "Service/IResponse.hpp"
+#include "Indexer/ProgressReporter.hpp"
+#include "Service/Response.hpp"
 
 namespace Librium::Apps
 {

@@ -4,7 +4,7 @@
 #include "Protocol/JsonProtocol.hpp"
 #include "Transport/AsioTcpServer.hpp"
 #include "Utils/StringUtils.hpp"
-#include "Indexer/IProgressReporter.hpp"
+#include "Indexer/ProgressReporter.hpp"
 #include "Log/Logger.hpp"
 
 #include <iostream>
@@ -84,8 +84,8 @@ int main(int argc, char* argv[])
         {
             try {
                 port = static_cast<uint16_t>(std::stoi(args[++i]));
-            } catch (const std::exception&) {
-                std::cerr << "Invalid port number\n";
+            } catch (const std::exception& e) {
+                LOG_ERROR("Invalid port number: {}", e.what());
                 return 1;
             }
         }
@@ -131,7 +131,7 @@ int main(int argc, char* argv[])
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Fatal error: " << e.what() << "\n";
+        LOG_ERROR("Fatal error: : {}", e.what());
         return 1;
     }
 

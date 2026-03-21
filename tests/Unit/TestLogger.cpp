@@ -68,7 +68,7 @@ TEST_CASE("Thread-safe under concurrent writes", "[logger]")
     CLogger::Instance().ClearOutputs();
     CLogger::Instance().AddFileOutput(tmp);
     
-    std::vector<std::thread> threads;
+    std::vector<std::jthread> threads;
     for (int i = 0; i < 8; ++i)
     {
         threads.emplace_back([i]()
@@ -79,7 +79,7 @@ TEST_CASE("Thread-safe under concurrent writes", "[logger]")
             }
         });
     }
-    for (auto& t : threads) t.join();
+    threads.clear(); // join all threads before clearing outputs
     
     CLogger::Instance().ClearOutputs();
     std::filesystem::remove(tmp);

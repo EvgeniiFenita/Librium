@@ -1,8 +1,8 @@
 add_library(Database STATIC
     Database.cpp
     DatabaseSchema.cpp
-    CSqliteDatabase.cpp
-    CSqliteStatement.cpp
+    SqliteDatabase.cpp
+    SqliteStatement.cpp
 )
 
 target_include_directories(Database PUBLIC
@@ -12,7 +12,7 @@ target_include_directories(Database PUBLIC
 target_link_libraries(Database PUBLIC
     Fb2
     Inpx
-    sqlite3_lib
+    Sqlite3Lib
     Log
 )
 

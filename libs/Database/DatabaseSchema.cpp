@@ -1,7 +1,7 @@
 #include "DatabaseSchema.hpp"
 #include "SqlQueries.hpp"
 #include "Log/Logger.hpp"
-#include "ISqlDatabase.hpp"
+#include "SqlDatabase.hpp"
 #include "Database.hpp"
 
 namespace Librium::Db {

@@ -1,7 +1,7 @@
 #include "JsonProtocol.hpp"
 #include "Service/AppService.hpp"
-#include "Service/IRequest.hpp"
-#include "Service/IResponse.hpp"
+#include "Service/Request.hpp"
+#include "Service/Response.hpp"
 #include "Utils/Base64.hpp"
 #include "Log/Logger.hpp"
 #include <nlohmann/json.hpp>
