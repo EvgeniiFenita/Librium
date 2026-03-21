@@ -18,7 +18,7 @@
 - **Namespaces**: Use C++20 nested namespace syntax (`namespace Librium::Db { ... }`).
 - **Unicode**: ALWAYS use `Librium::Config::Utf8ToPath()` when creating paths from strings. NEVER use `path.string()` on Windows; use `path.u8string()` if conversion is needed.
 - **Thread Safety**: ALWAYS use `std::jthread` for thread lifecycle. Wrap thread entry functions in `try-catch` blocks to prevent `std::terminate`.
-- **Error Handling**: AVOID `catch (...)`. ALWAYS catch specific exceptions (at least `const std::exception&`) and LOG the error message using `LOG_*` macros before handling or skipping.
+- **Error Handling**: AVOID `catch (...)`. ALWAYS catch specific exceptions (at least `const std::exception&`) and **LOG the error message** using `LOG_*` macros before handling or skipping. **Silent ignoring of exceptions is strictly forbidden.**
 - **RAII Compliance**: ALWAYS wrap third-party handles (sqlite3, zip_t, etc.) in RAII containers (like `std::unique_ptr` with custom deleters) immediately upon acquisition. Manual resource management is forbidden.
 
 ## Build & Environment
@@ -44,13 +44,13 @@
 
 ## Safety & Precision Rules
 - **Database Architecture**: SQL queries must be stored as `constexpr std::string_view` constants in `SqlQueries.hpp`. Database schema creation must be handled by the `CDatabaseSchema` class.
-- **Database Abstraction**: Logic for specific SMTD (SQLite, etc.) MUST be isolated in `CSqliteDatabase`/`CSqliteStatement` classes. All application-level components (Indexer, Query) MUST interact with the database via `ISqlDatabase` and `ISqlStatement` interfaces to ensure loose coupling.
+- **Database Abstraction**: Logic for specific SMTD (SQLite, etc.) MUST be isolated in `CSqliteDatabase`/`CSqliteStatement` classes. All application-level components (Indexer, Service) MUST interact with the database via `ISqlDatabase` and `ISqlStatement` interfaces OR via the `CDatabase` public API which encapsulates these interfaces.
 - **FB2 Parsing**: Only text metadata (annotations, keywords, etc.) and cover images are supported. Covers must be extracted and saved to disk next to the database in a `meta/` folder, using the database row `id` as the subfolder name.
 - **Clean Console**: Libraries (`libs/`) must NEVER use `std::cout`/`std::cerr`. Use `LOG_*` macros instead.
 - **IPC Architecture**: 
     - **Transport Layer**: Only `libs/Transport` (Asio). Must remain format-agnostic.
     - **Protocol Layer**: Only `libs/Protocol` (JSON/Base64). Must be the ONLY place for `nlohmann/json` dependency.
-    - **Service Layer**: Clean business logic. Must ONLY use `IRequest` and `IResponse` interfaces for communication.
+    - **Service Layer**: Clean business logic. Must ONLY use `IRequest` and `IResponse` interfaces for communication. Interacts with `Database` to fulfill requests.
 - **Ownership**: Use `std::unique_ptr` for managing object ownership. Raw pointers are allowed only for non-owning access (observers).
 - **Performance Integrity**: Bulk operations (like indexing) MUST use Archive-Aware scheduling to minimize disk thrashing. Always utilize memory caches for frequently accessed database IDs (Authors, Genres).
 - **Encoding Robustness**: All text parsers MUST prioritize UTF-8 validation before attempting legacy encoding conversions (e.g., CP1251).

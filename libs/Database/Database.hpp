@@ -6,6 +6,7 @@
 #include "Config/AppConfig.hpp"
 #include "ISqlDatabase.hpp"
 #include "ISqlStatement.hpp"
+#include "QueryTypes.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -81,6 +82,9 @@ public:
 
     [[nodiscard]] int64_t CountBooks() const;
     [[nodiscard]] int64_t CountAuthors() const;
+
+    [[nodiscard]] SQueryResult ExecuteQuery(const SQueryParams& params);
+    [[nodiscard]] std::optional<SBookResult> GetBookById(int64_t id);
 
     ISqlDatabase* Handle() 
     { 

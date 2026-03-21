@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
         {
             try {
                 port = static_cast<uint16_t>(std::stoi(args[++i]));
-            } catch (...) {
+            } catch (const std::exception&) {
                 std::cerr << "Invalid port number\n";
                 return 1;
             }

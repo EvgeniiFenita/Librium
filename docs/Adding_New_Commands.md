@@ -47,7 +47,7 @@ The `IRequest` interface provides safe access to request parameters without know
 
 The `IResponse` interface is used to send the result back. It is overloaded for various domain structures:
 - `SetData(Db::SImportStats)`
-- `SetData(Query::SQueryResult)`
+- `SetData(Db::SQueryResult)`
 - `SetData(SAppStats)`
 - `SetData(SBookDetails)`
 - `SetError(message)`

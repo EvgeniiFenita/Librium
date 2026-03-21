@@ -7,7 +7,7 @@ add_executable(UnitTests
     TestInpx.cpp
     TestFb2.cpp
     TestDb.cpp
-    TestQuery.cpp
+    TestDatabaseQuery.cpp
     TestConfig.cpp
     TestLogger.cpp
     TestIndexer.cpp
@@ -21,7 +21,6 @@ target_link_libraries(UnitTests PRIVATE
     Config
     Database
     Log
-    QueryLib
     Indexer
     Catch2::Catch2
 )

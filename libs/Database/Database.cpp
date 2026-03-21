@@ -321,4 +321,177 @@ void CDatabase::CreateIndexes()
     Exec(std::string(Sql::CreateIndexBooksLang));
 }
 
+namespace {
+
+std::vector<SAuthorInfo> FetchAuthors(ISqlDatabase* db, int64_t bookId)
+{
+    std::vector<SAuthorInfo> result;
+    auto stmt = db->Prepare(std::string(Sql::FetchBookAuthors));
+    stmt->BindInt64(1, bookId);
+    stmt->Step();
+    while (stmt->IsRow())
+    {
+        SAuthorInfo ai;
+        ai.lastName = stmt->ColumnText(0);
+        ai.firstName = stmt->ColumnText(1);
+        ai.middleName = stmt->ColumnText(2);
+        result.push_back(std::move(ai));
+        stmt->Step();
+    }
+    return result;
+}
+
+std::vector<std::string> FetchGenres(ISqlDatabase* db, int64_t bookId)
+{
+    std::vector<std::string> result;
+    auto stmt = db->Prepare(std::string(Sql::FetchBookGenres));
+    stmt->BindInt64(1, bookId);
+    stmt->Step();
+    while (stmt->IsRow())
+    {
+        std::string code = stmt->ColumnText(0);
+        if (!code.empty()) result.push_back(code);
+        stmt->Step();
+    }
+    return result;
+}
+
+void BindQueryParams(ISqlStatement* stmt, const SQueryParams& params)
+{
+    int idx = 1;
+    if (!params.title.empty()) stmt->BindText(idx++, params.title + "%");
+    if (!params.author.empty()) 
+    {
+        stmt->BindText(idx++, params.author + "%");
+        stmt->BindText(idx++, params.author + "%");
+    }
+    if (!params.genre.empty()) stmt->BindText(idx++, params.genre);
+    if (!params.series.empty()) stmt->BindText(idx++, params.series + "%");
+    if (!params.language.empty()) stmt->BindText(idx++, params.language);
+    if (!params.libId.empty()) stmt->BindText(idx++, params.libId);
+    if (!params.archiveName.empty()) stmt->BindText(idx++, params.archiveName);
+    if (!params.dateFrom.empty()) stmt->BindText(idx++, params.dateFrom);
+    if (!params.dateTo.empty()) stmt->BindText(idx++, params.dateTo);
+    if (params.ratingMin > 0) stmt->BindInt(idx++, params.ratingMin);
+}
+
+SBookResult ReadBookRow(ISqlStatement* stmt, ISqlDatabase* db)
+{
+    SBookResult br;
+    br.id = stmt->ColumnInt64(0);
+    
+    br.libId        = stmt->ColumnText(1);
+    br.title        = stmt->ColumnText(2);
+    br.series       = stmt->ColumnText(3);
+    br.seriesNumber = stmt->ColumnInt(4); 
+    br.fileName     = stmt->ColumnText(5);
+    br.fileSize     = stmt->ColumnInt64(6);
+    br.fileExt      = stmt->ColumnText(7);
+    br.dateAdded    = stmt->ColumnText(8);
+    br.language     = stmt->ColumnText(9);
+    br.rating       = stmt->ColumnInt(10);
+    br.keywords     = stmt->ColumnText(11);
+    br.annotation   = stmt->ColumnText(12);
+    br.archiveName  = stmt->ColumnText(13);
+    br.publisher    = stmt->ColumnText(14);
+    br.isbn         = stmt->ColumnText(15);
+    br.publishYear  = stmt->ColumnText(16);
+
+    br.authors = FetchAuthors(db, br.id);
+    br.genres = FetchGenres(db, br.id);
+    return br;
+}
+
+} // namespace
+
+SQueryResult CDatabase::ExecuteQuery(const SQueryParams& params)
+{
+    SQueryResult result;
+    result.params = params;
+
+    std::string selectSql{Sql::QuerySelectBooksBase};
+    std::string countSql{Sql::QueryCountBooksBase};
+
+    std::string joinSql;
+    if (!params.author.empty()) joinSql += Sql::QueryJoinAuthors;
+    if (!params.genre.empty()) joinSql += Sql::QueryJoinGenres;
+
+    std::string whereSql{Sql::QueryWhere1};
+    if (!params.title.empty()) whereSql += Sql::QueryWhereTitle;
+    if (!params.author.empty()) whereSql += Sql::QueryWhereAuthor;
+    if (!params.genre.empty()) whereSql += Sql::QueryWhereGenre;
+    if (!params.series.empty()) whereSql += Sql::QueryWhereSeries;
+    if (!params.language.empty()) whereSql += Sql::QueryWhereLanguage;
+    if (!params.libId.empty()) whereSql += Sql::QueryWhereLibId;
+    if (!params.archiveName.empty()) whereSql += Sql::QueryWhereArchiveName;
+    if (!params.dateFrom.empty()) whereSql += Sql::QueryWhereDateFrom;
+    if (!params.dateTo.empty()) whereSql += Sql::QueryWhereDateTo;
+    if (params.ratingMin > 0) whereSql += Sql::QueryWhereRatingMin;
+    if (params.withAnnotation) whereSql += Sql::QueryWhereWithAnnotation;
+
+    // Count total matches
+    try
+    {
+        std::string fullCountSql = countSql + joinSql + whereSql;
+        auto cstmt = m_db->Prepare(fullCountSql);
+        BindQueryParams(cstmt.get(), params);
+        cstmt->Step();
+        if (cstmt->IsRow())
+            result.totalFound = cstmt->ColumnInt64(0);
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("Failed to count books for query: {}", e.what());
+    }
+
+    // Fetch books
+    std::string orderLimitSql{Sql::QueryOrderTitle};
+    if (params.limit > 0) 
+    {
+        orderLimitSql += "LIMIT " + std::to_string(params.limit) + " OFFSET " + std::to_string(params.offset);
+    }
+
+    try
+    {
+        std::string fullSelectSql = selectSql + joinSql + whereSql + orderLimitSql;
+        auto stmt = m_db->Prepare(fullSelectSql);
+        BindQueryParams(stmt.get(), params);
+
+        stmt->Step();
+        while (stmt->IsRow())
+        {
+            result.books.push_back(ReadBookRow(stmt.get(), m_db.get()));
+            stmt->Step();
+        }
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("Failed to execute book query: {}", e.what());
+    }
+
+    return result;
+}
+
+std::optional<SBookResult> CDatabase::GetBookById(int64_t id)
+{
+    std::string fullSql = std::string(Sql::QuerySelectBooksBase) + std::string(Sql::QueryWhereId);
+
+    try
+    {
+        auto stmt = m_db->Prepare(fullSql);
+        stmt->BindInt64(1, id);
+        stmt->Step();
+        if (stmt->IsRow())
+        {
+            return ReadBookRow(stmt.get(), m_db.get());
+        }
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("Failed to get book by id {}: {}", id, e.what());
+    }
+    
+    return std::nullopt;
+}
+
 } // namespace Librium::Db

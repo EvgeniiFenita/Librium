@@ -105,7 +105,6 @@ void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2)
 
             if (parseFb2) 
             {
-                auto tStart = std::chrono::high_resolution_clock::now();
                 fs::path archivePath;
                 auto it = archivePathCache.find(result.record.archiveName);
                 if (it != archivePathCache.end()) archivePath = it->second;
@@ -234,7 +233,15 @@ Db::SImportStats CIndexer::WriterThread(Db::CDatabase& db, size_t batchSize, IPr
         }
     }
 
-    try { db.Commit(); } catch (...) { db.Rollback(); }
+    try 
+    { 
+        db.Commit(); 
+    } 
+    catch (const std::exception& e) 
+    { 
+        LOG_ERROR("Final commit failed during import: {}. Rolling back.", e.what());
+        try { db.Rollback(); } catch (...) {} 
+    }
     
     processed = stats.booksInserted + stats.booksSkipped;
     if (reporter && processed > 0) reporter->OnProgress(processed, totalBooks);

@@ -32,10 +32,19 @@ public:
     {
         if (m_json.contains("params") && m_json["params"].contains(key))
         {
-            if (m_json["params"][key].is_number_integer()) return m_json["params"][key].get<int64_t>();
+            if (m_json["params"][key].is_number_integer()) 
+                return m_json["params"][key].get<int64_t>();
+
             if (m_json["params"][key].is_string()) 
             {
-                try { return std::stoll(m_json["params"][key].get<std::string>()); } catch (...) {}
+                try 
+                { 
+                    return std::stoll(m_json["params"][key].get<std::string>()); 
+                } 
+                catch (const std::exception& e) 
+                {
+                    LOG_DEBUG("Failed to parse integer parameter '{}': {}", key, e.what());
+                }
             }
         }
         return def;
@@ -98,7 +107,7 @@ public:
         };
     }
 
-    void SetData(const Query::SQueryResult& result) override
+    void SetData(const Db::SQueryResult& result) override
     {
         nlohmann::json jsonResult = nlohmann::json::object();
         jsonResult["totalFound"] = result.totalFound;
@@ -169,7 +178,7 @@ public:
 
     void SetData(const Service::SBookDetails& book) override
     {
-        Query::SQueryResult temp;
+        Db::SQueryResult temp;
         temp.books.push_back(book.book);
         temp.totalFound = 1;
         

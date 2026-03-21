@@ -2,7 +2,7 @@
 
 #include "Config/AppConfig.hpp"
 #include "Indexer/Indexer.hpp"
-#include "Query/BookQuery.hpp"
+#include "Database/QueryTypes.hpp"
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -18,7 +18,7 @@ struct SAppStats {
 };
 
 struct SBookDetails {
-    Query::SBookResult book;
+    Db::SBookResult book;
     std::u8string coverPath; // Empty if no cover
 };
 
@@ -31,7 +31,7 @@ public:
     Db::SImportStats Import(Indexer::IProgressReporter* reporter);
     Db::SImportStats Upgrade(Indexer::IProgressReporter* reporter);
 
-    Query::SQueryResult SearchBooks(const Query::SQueryParams& params);
+    Db::SQueryResult SearchBooks(const Db::SQueryParams& params);
 
     std::filesystem::path ExportBook(int64_t id, const std::filesystem::path& outDir);
 

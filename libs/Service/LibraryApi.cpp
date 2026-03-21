@@ -38,9 +38,9 @@ Db::SImportStats CLibraryApi::Upgrade(Indexer::IProgressReporter* reporter)
     return indexer.Run(GetDatabase(), reporter);
 }
 
-Query::SQueryResult CLibraryApi::SearchBooks(const Query::SQueryParams& params)
+Db::SQueryResult CLibraryApi::SearchBooks(const Db::SQueryParams& params)
 {
-    return Query::CBookQuery::Execute(GetDatabase(), params);
+    return GetDatabase().ExecuteQuery(params);
 }
 
 std::filesystem::path CLibraryApi::ExportBook(int64_t id, const std::filesystem::path& outDir)
@@ -74,7 +74,7 @@ SAppStats CLibraryApi::GetStats()
 std::optional<SBookDetails> CLibraryApi::GetBook(int64_t id)
 {
     auto& db = GetDatabase();
-    auto book = Query::CBookQuery::GetBookById(db, id);
+    auto book = db.GetBookById(id);
     if (!book) return std::nullopt;
 
     SBookDetails details;

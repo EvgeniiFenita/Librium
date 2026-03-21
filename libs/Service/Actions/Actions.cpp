@@ -31,7 +31,7 @@ void CUpgradeAction::Execute(CAppService& service, const IRequest& req, IRespons
 void CQueryAction::Execute(CAppService& service, const IRequest& req, IResponse& res, Indexer::IProgressReporter* reporter)
 {
     (void)reporter;
-    Query::SQueryParams qp;
+    Db::SQueryParams qp;
     
     if (req.HasParam("title"))    qp.title = req.GetString("title");
     if (req.HasParam("author"))   qp.author = req.GetString("author");

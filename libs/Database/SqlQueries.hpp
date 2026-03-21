@@ -196,7 +196,7 @@ constexpr std::string_view CountBooks = "SELECT COUNT(*) FROM books";
 constexpr std::string_view CountAuthors = "SELECT COUNT(*) FROM authors";
 
 
-// --- Querying (BookQuery) ---
+// --- Querying ---
 
 // Fetch all authors for a specific book
 constexpr std::string_view FetchBookAuthors = R"(
@@ -213,5 +213,43 @@ constexpr std::string_view FetchBookGenres = R"(
     JOIN book_genres bg ON g.id = bg.genre_id
     WHERE bg.book_id = ?
 )";
+
+// Base SELECT for books
+constexpr std::string_view QuerySelectBooksBase = 
+    "SELECT b.id, b.lib_id, b.title, ser.name, b.series_no, b.file_name, b.file_size, b.file_ext, "
+    "b.date_added, b.language, b.rating, b.keywords, b.annotation, arch.name, pub.name, b.isbn, b.publish_date "
+    "FROM books b "
+    "JOIN archives arch ON b.archive_id = arch.id "
+    "LEFT JOIN series ser ON b.series_id = ser.id "
+    "LEFT JOIN publishers pub ON b.publisher_id = pub.id ";
+
+// Base COUNT for books
+constexpr std::string_view QueryCountBooksBase = 
+    "SELECT COUNT(*) FROM books b "
+    "JOIN archives arch ON b.archive_id = arch.id "
+    "LEFT JOIN series ser ON b.series_id = ser.id "
+    "LEFT JOIN publishers pub ON b.publisher_id = pub.id ";
+
+// Dynamic JOINs
+constexpr std::string_view QueryJoinAuthors = "JOIN book_authors ba ON b.id = ba.book_id JOIN authors a ON ba.author_id = a.id ";
+constexpr std::string_view QueryJoinGenres = "JOIN book_genres bg ON b.id = bg.book_id JOIN genres g ON bg.genre_id = g.id ";
+
+// Dynamic WHERE clauses
+constexpr std::string_view QueryWhere1 = "WHERE 1=1 ";
+constexpr std::string_view QueryWhereTitle = "AND b.title LIKE ? ";
+constexpr std::string_view QueryWhereAuthor = "AND (a.last_name LIKE ? OR a.first_name LIKE ?) ";
+constexpr std::string_view QueryWhereGenre = "AND g.code = ? ";
+constexpr std::string_view QueryWhereSeries = "AND ser.name LIKE ? ";
+constexpr std::string_view QueryWhereLanguage = "AND b.language = ? ";
+constexpr std::string_view QueryWhereLibId = "AND b.lib_id = ? ";
+constexpr std::string_view QueryWhereArchiveName = "AND arch.name = ? ";
+constexpr std::string_view QueryWhereDateFrom = "AND b.date_added >= ? ";
+constexpr std::string_view QueryWhereDateTo = "AND b.date_added <= ? ";
+constexpr std::string_view QueryWhereRatingMin = "AND b.rating >= ? ";
+constexpr std::string_view QueryWhereWithAnnotation = "AND b.annotation IS NOT NULL AND b.annotation != '' ";
+constexpr std::string_view QueryWhereId = "WHERE b.id = ? ";
+
+// Order and Limit
+constexpr std::string_view QueryOrderTitle = "ORDER BY b.title ";
 
 } // namespace Librium::Db::Sql

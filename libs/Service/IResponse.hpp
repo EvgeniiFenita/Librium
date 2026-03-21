@@ -2,7 +2,7 @@
 
 #include <string>
 #include <filesystem>
-#include "Query/QueryResult.hpp"
+#include "Database/QueryTypes.hpp"
 #include "Database/Database.hpp"
 #include "Service/LibraryApi.hpp"
 
@@ -16,7 +16,7 @@ public:
     virtual void SetError(const std::string& message) = 0;
     
     virtual void SetData(const Db::SImportStats& stats) = 0;
-    virtual void SetData(const Query::SQueryResult& result) = 0;
+    virtual void SetData(const Db::SQueryResult& result) = 0;
     virtual void SetData(const SAppStats& stats) = 0;
     virtual void SetData(const SBookDetails& book) = 0;
     virtual void SetDataExport(const std::filesystem::path& path) = 0;

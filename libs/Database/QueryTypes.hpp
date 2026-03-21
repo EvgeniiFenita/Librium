@@ -1,12 +1,28 @@
 #pragma once
 
-#include "QueryParams.hpp"
-
 #include <cstdint>
 #include <string>
 #include <vector>
 
-namespace Librium::Query {
+namespace Librium::Db {
+
+struct SQueryParams
+{
+    std::string title;
+    std::string author;
+    std::string series;
+    std::string genre;
+    std::string language;
+    std::string libId;
+    std::string archiveName;
+    std::string yearFrom;
+    std::string dateFrom;
+    std::string dateTo;
+    int         ratingMin{0};
+    bool        withAnnotation{false};
+    int64_t     limit{100};
+    int64_t     offset{0};
+};
 
 struct SAuthorInfo
 {
@@ -45,4 +61,4 @@ struct SQueryResult
     SQueryParams             params;
 };
 
-} // namespace Librium::Query
+} // namespace Librium::Db

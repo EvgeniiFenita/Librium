@@ -15,7 +15,6 @@ target_link_libraries(Librium PRIVATE
     Config 
     Database
     Log
-    QueryLib
     Utils
 )
 

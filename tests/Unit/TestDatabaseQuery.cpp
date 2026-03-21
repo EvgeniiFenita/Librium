@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include "Query/BookQuery.hpp"
+#include "Database/QueryTypes.hpp"
 #include "Database/Database.hpp"
 #include <filesystem>
 
@@ -51,75 +51,75 @@ TEST_CASE("BookQuery basic execution", "[query]")
 
         SECTION("Filter by language")
         {
-            Query::SQueryParams p; 
+            Db::SQueryParams p; 
             p.language = "ru";
-            auto res = Query::CBookQuery::Execute(db, p);
+            auto res = db.ExecuteQuery(p);
             REQUIRE(res.totalFound == 3); // 1, 2, 4
             REQUIRE(res.books.size() == 3);
         }
 
         SECTION("Filter by genre")
         {
-            Query::SQueryParams p; 
+            Db::SQueryParams p; 
             p.genre = "sf";
-            auto res = Query::CBookQuery::Execute(db, p);
+            auto res = db.ExecuteQuery(p);
             REQUIRE(res.totalFound == 2);
         }
 
         SECTION("Filter by author")
         {
-            Query::SQueryParams p; 
+            Db::SQueryParams p; 
             p.author = "Tolstoy";
-            auto res = Query::CBookQuery::Execute(db, p);
+            auto res = db.ExecuteQuery(p);
             REQUIRE(res.totalFound == 1);
             REQUIRE(res.books[0].libId == "4");
         }
 
         SECTION("Filter by title")
         {
-            Query::SQueryParams p; 
+            Db::SQueryParams p; 
             p.title = "War"; // Partial match
-            auto res = Query::CBookQuery::Execute(db, p);
+            auto res = db.ExecuteQuery(p);
             REQUIRE(res.totalFound == 1);
             REQUIRE(res.books[0].title == "War and Peace");
         }
 
         SECTION("Filter by series")
         {
-            Query::SQueryParams p; 
+            Db::SQueryParams p; 
             p.series = "Classics";
-            auto res = Query::CBookQuery::Execute(db, p);
+            auto res = db.ExecuteQuery(p);
             REQUIRE(res.totalFound == 1);
             REQUIRE(res.books[0].series == "Classics");
         }
 
         SECTION("Combined filter (author + genre)")
         {
-            Query::SQueryParams p; 
+            Db::SQueryParams p; 
             p.author = "Tolstoy";
             p.genre = "prose";
-            auto res = Query::CBookQuery::Execute(db, p);
+            auto res = db.ExecuteQuery(p);
             REQUIRE(res.totalFound == 1);
             
             p.genre = "sf"; // Tolstoy didn't write sf here
-            res = Query::CBookQuery::Execute(db, p);
+            res = db.ExecuteQuery(p);
             REQUIRE(res.totalFound == 0);
         }
 
         SECTION("Filter with annotation")
         {
-            Query::SQueryParams p; 
+            Db::SQueryParams p; 
             p.withAnnotation = true;
-            auto res = Query::CBookQuery::Execute(db, p);
+            auto res = db.ExecuteQuery(p);
             REQUIRE(res.totalFound == 1);
             REQUIRE(res.books[0].libId == "3");
         }
 
         SECTION("Limit and offset")
         {
-            Query::SQueryParams p; 
+            Db::SQueryParams p; 
             p.limit = 2;
-            auto res = Query::CBookQuery::Execute(db, p);
+            auto res = db.ExecuteQuery(p);
             REQUIRE(res.totalFound == 4);
             REQUIRE(res.books.size() == 2);
         }
