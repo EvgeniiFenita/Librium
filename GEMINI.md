@@ -41,6 +41,7 @@
 - **[Code Style & Unicode](docs/Code_Style_Guidelines.md)**: Strict naming, formatting, and Unicode path handling rules.
 - **[Code Review Checklist](docs/CodeReviewInstructions.md)**: List of common pitfalls and quality standards.
 - **[CLI Extensibility](docs/Adding_New_Commands.md)**: Guide for adding new subcommands to the application.
+- **[Git Commit Guidelines](docs/Commit_Message_Guidelines.md)**: Rules for writing descriptive and high-signal commit messages.
 
 ## Safety & Precision Rules
 - **Database Architecture**: SQL queries must be stored as `constexpr std::string_view` constants in `SqlQueries.hpp`. Database schema creation must be handled by the `CDatabaseSchema` class.
