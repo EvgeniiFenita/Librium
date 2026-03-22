@@ -19,7 +19,7 @@ public:
     virtual void SetData(const Db::SQueryResult& result) = 0;
     virtual void SetData(const SAppStats& stats) = 0;
     virtual void SetData(const SBookDetails& book) = 0;
-    virtual void SetDataExport(const std::filesystem::path& path) = 0;
+    virtual void SetDataExport(const std::filesystem::path& path, const std::string& filename) = 0;
     virtual void SetProgress(size_t processed, size_t total) = 0;
 };
 

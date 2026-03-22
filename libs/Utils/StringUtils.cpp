@@ -64,4 +64,17 @@ bool CStringUtils::IsUtf8(const std::string& str)
     return true;
 }
 
+std::string CStringUtils::SanitizeFilename(const std::string& filename)
+{
+    std::string result = filename;
+    for (char& c : result)
+    {
+        if (c == '\\' || c == '/' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|')
+        {
+            c = '_';
+        }
+    }
+    return result;
+}
+
 } // namespace Librium::Utils

@@ -195,9 +195,12 @@ public:
         }
     }
 
-    void SetDataExport(const std::filesystem::path& path) override
+    void SetDataExport(const std::filesystem::path& path, const std::string& filename) override
     {
-        m_data = {{"file", path.u8string()}};
+        m_data = {
+            {"file", path.u8string()},
+            {"filename", filename}
+        };
     }
 
     nlohmann::json ToJson() const
