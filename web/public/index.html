@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Librium</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- IMPORT OVERLAY -->
+  <div id="import-overlay" class="overlay hidden">
+    <div class="overlay-content">
+      <div class="overlay-icon">📚</div>
+      <h2 id="overlay-title">Импорт библиотеки...</h2>
+      <div class="progress-bar-wrap">
+        <div id="progress-bar" class="progress-bar"></div>
+      </div>
+      <div id="progress-text" class="progress-text">Подготовка...</div>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <span class="logo">📚 Librium</span>
+    </div>
+    <div class="header-center">
+      <div class="search-wrap">
+        <input id="search-input" type="text" placeholder="Поиск по названию..." autocomplete="off">
+        <div class="search-filters">
+          <button class="filter-btn active" data-field="title">Название</button>
+          <button class="filter-btn" data-field="author">Автор</button>
+          <button class="filter-btn" data-field="series">Серия</button>
+          <button class="filter-btn" data-field="genre">Жанр</button>
+          <button class="filter-btn" data-field="language">Язык</button>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span id="stats-badge" class="stats-badge" title="Книг в библиотеке"></span>
+      <button id="upgrade-btn" class="btn-secondary" title="Обновить библиотеку">Обновить</button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+    <div id="book-grid" class="book-grid"></div>
+    <div id="sentinel" class="sentinel"></div>
+    <div id="loading-more" class="loading-more hidden">Загрузка...</div>
+    <div id="empty-state" class="empty-state hidden">Книги не найдены</div>
+  </main>
+
+  <!-- BOOK MODAL -->
+  <div id="book-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <button class="modal-close" id="modal-close">✕</button>
+      <div class="modal-body">
+        <div class="modal-cover-wrap">
+          <img id="modal-cover" src="" alt="">
+          <div id="modal-cover-placeholder" class="cover-placeholder hidden"></div>
+        </div>
+        <div class="modal-info">
+          <h2 id="modal-title">Загрузка...</h2>
+          <div id="modal-authors" class="modal-field"></div>
+          <div id="modal-series" class="modal-field hidden"></div>
+          <div id="modal-genre" class="modal-field hidden"></div>
+          <div id="modal-details" class="modal-details"></div>
+          <div id="modal-annotation" class="modal-annotation hidden"></div>
+          <div class="modal-actions">
+            <button id="download-btn" class="btn-primary">📥 Скачать</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

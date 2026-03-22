@@ -15,7 +15,7 @@ When rules in different files appear to conflict, this order decides which file 
 
 ## Project Identity
 - **Project Name**: Librium (C++20 Indexing Library)
-- **Architecture**: Modular. Standalone static libraries in `libs/`.
+- **Architecture**: Modular. Persistent C++ Engine + Node.js Web Proxy.
 
 ## Workflow for New Tasks
 
@@ -168,6 +168,7 @@ class CUserService
 
 ## Reference Documentation
 - **[Project Overview](docs/Project_Documentation.md)**: Architecture, directory layout, and CLI usage.
+- **[Web Interface](docs/Web_Interface.md)**: Node.js proxy, LRU caching, and frontend details.
 - **[Code Style & Unicode](docs/Code_Style_Guidelines.md)**: Strict naming, formatting, and Unicode path handling rules.
 - **[Code Review Checklist](docs/CodeReviewInstructions.md)**: List of common pitfalls and quality standards.
 - **[CLI Extensibility](docs/Adding_New_Commands.md)**: Guide for adding new subcommands to the application.

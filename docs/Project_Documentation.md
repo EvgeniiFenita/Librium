@@ -48,6 +48,7 @@ Librium/
 │   └── Zip/                ← Unicode-aware archive handling
 ├── scripts/                ← Unified Python automation pipeline
 │   ├── Run.py              ← Master entry point (orchestrator)
+│   ├── RunWeb.py           ← Web UI automation script
 │   ├── Core.py             ← Shared core logic & paths
 │   ├── LibraryGenerator.py ← Synthetic data generator
 │   ├── ScenarioTester.py   ← JSON scenario runner
@@ -57,6 +58,9 @@ Librium/
 ├── tests/
 │   ├── Scenarios/          ← Data-driven E2E scenarios (.json)
 │   └── Unit/               ← Catch2 test suite (self-contained)
+├── web/                    ← Web Interface (Node.js & Vanilla JS)
+│   ├── public/             ← Static frontend files
+│   └── server.js           ← Web Proxy & LRU Cache
 ├── Dockerfile.linux        ← Linux build environment
 ├── CMakeLists.txt          ← Root build configuration
 └── CMakePresets.json       ← Cross-platform build presets
@@ -233,3 +237,22 @@ Librium extracts cover images from FB2 files during the indexing process and sto
   - All whitespace within the Base64 block is automatically stripped during parsing.
 - **API Access**: The `get-book` action automatically searches for files starting with `cover.` in the book's meta directory and returns the absolute path if found.
 - **Error Handling**: If a cover cannot be written to disk (e.g., due to permissions), the error is logged, but the indexing of the book record itself continues.
+
+---
+
+## 9. Web Interface
+
+Librium includes a modern, dark-themed web interface for browsing and downloading books within a local network.
+
+- **Technology**: Node.js (Proxy) + Vanilla JS/CSS (Frontend).
+- **Key Features**:
+  - Responsive book grid with covers.
+  - Infinite scroll and advanced search.
+  - One-click downloads with descriptive filenames.
+  - In-memory LRU caching for performance.
+- **Detailed Docs**: See **[Web Interface Documentation](Web_Interface.md)**.
+- **Quick Start**:
+  ```powershell
+  python scripts/RunWeb.py --preset x64-release --library "C:/Path/To/Library"
+  ```
+

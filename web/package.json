@@ -1,0 +1,12 @@
+{
+  "name": "librium-web",
+  "version": "1.0.0",
+  "description": "Web interface for Librium C++ Engine",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
