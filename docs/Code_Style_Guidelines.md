@@ -404,18 +404,14 @@ Generated code that violates these rules must be considered **invalid** and must
 
 ---
 
-# 31. Console Output in Libraries
+# 32. Python Scripting Style
 
-Files under `libs/` must NEVER use `std::cout`, `std::cerr`, or `printf` for any output — including temporary debug output. Use `LOG_*` macros from `Log/Logger.hpp` exclusively. This rule has no exceptions.
+Automation scripts in `scripts/` must follow these rules to maintain consistency with the main C++ codebase:
 
-Wrong (forbidden in every file under libs/):
-```cpp
-std::cout << "Processing file: " << path << std::endl;
-std::cerr << "Error: " << e.what() << std::endl;
-```
-
-Right:
-```cpp
-LOG_INFO("Processing file: {}", path.u8string());
-LOG_ERROR("Error: {}", e.what());
-```
+1.  **File Naming**: Use **PascalCase** (`Run.py`, `LibraryGenerator.py`).
+2.  **Class Naming**: Prefix with `C` (`CLibraryGenerator`, `CSmokeTester`).
+3.  **Method Naming**: Use **PascalCase** (`GenerateLibrary`, `RunTests`).
+4.  **Variable Naming**: Use **snake_case** for local variables and **camelCase** for function parameters.
+5.  **Path Handling**: Use `pathlib.Path` objects for all filesystem operations.
+6.  **Bytecode Prevention**: Always include `sys.dont_write_bytecode = True` and `os.environ["PYTHONDONTWRITEBYTECODE"] = "1"` at the very top of entry-point scripts.
+7.  **Shared Logic**: Common paths and UI utilities must be imported from `Core.py`.

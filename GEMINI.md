@@ -25,13 +25,13 @@ Follow these steps **in order** before writing any code:
 2. Identify which `libs/` module is affected and check its layer boundaries.
 3. Write code following all rules in this file.
 4. Cross-check your output against `docs/CodeReviewInstructions.md` before finishing.
-5. Run `python scripts/run.py --preset x64-debug` to confirm nothing is broken.
+5. Run `python scripts/Run.py --preset x64-debug` to confirm nothing is broken.
 6. Propose a commit message draft — **NEVER commit without explicit user approval**.
 
 ---
 
 ## Critical Naming Rules
-- **File Naming**: ALWAYS use **PascalCase** for all project-specific files (`ThisIsFile.cpp`, `run.py`). Files should NOT include the `C` or `I` prefix, even if the primary class/interface inside does.
+- **File Naming**: ALWAYS use **PascalCase** for all project-specific files (`ThisIsFile.cpp`, `Run.py`). Files should NOT include the `C` or `I` prefix, even if the primary class/interface inside does.
 - **CMake Targets**: ALWAYS use **PascalCase** for targets (`Database`, `Librium`).
 - **Classes**: Prefix with `C` (`CDatabase`).
 - **Interfaces**: Prefix with `I` (`IDatabase`).
@@ -153,18 +153,18 @@ class CUserService
 
 ## Build & Environment
 - **Generator**: Ninja (preferred) or Visual Studio 18 2026.
-- **Master Pipeline**: `python scripts/run.py --preset <preset> [--real-library <path>]`. ALWAYS use this script for building and testing. DO NOT use `build.py` or `test.py` directly.
+- **Master Pipeline**: `python scripts/Run.py --preset <preset> [--real-library <path>]`. ALWAYS use this script for building and testing. DO NOT use `Build.py` or `Test.py` directly.
 - **Presets**: `x64-debug`, `x64-release`, `linux-debug`, `linux-release`.
 - **Dependencies**: `vcpkg` in manifest mode. Requires `VCPKG_ROOT` env var.
 
 ## Testing Standards
-- **Unified Runner**: ALWAYS verify changes using `python scripts/run.py`.
+- **Unified Runner**: ALWAYS verify changes using `python scripts/Run.py`.
 - **Stages**: 
   1. **Unit**: Fast C++ tests via Catch2.
-  2. **Scenarios**: Data-driven behavioral tests using `LibGen` (synthetic data) and `ScenarioRunner`.
+  2. **Scenarios**: Data-driven behavioral tests using `LibraryGenerator` (synthetic data) and `ScenarioTester`.
   3. **Smoke (Real)**: Optional full-scale import test on real `Lib.rus.ec` data (triggered by `--real-library`).
 - **New Features**: Every new CLI command, search parameter, or SQLite function MUST have corresponding tests (Unit or Scenario).
-- **Artifacts**: All temporary data must stay in `out/build/<preset>/`. NEVER create files in `libs/`, `apps/`, or `tests/`.
+- **Artifacts**: All temporary data must stay in `out/artifacts/<preset>/`. NEVER create files in `libs/`, `apps/`, or `tests/`.
 
 ## Reference Documentation
 - **[Project Overview](docs/Project_Documentation.md)**: Architecture, directory layout, and CLI usage.
@@ -207,9 +207,10 @@ class CUserService
 - **No-Touch Zones**: NEVER modify anything in `vcpkg_installed/` or `out/` — these are fully auto-generated and will be overwritten by the build system. Do NOT edit `vcpkg.json` or `CMakePresets.json` unless the task explicitly requires a dependency or preset change. Touching these files without cause silently breaks the build for all platforms.
 
 ### Verification
-- **Verification Workflow**: After any structural change, run `python scripts/run.py --preset x64-debug`.
+- **Verification Workflow**: After any structural change, run `python scripts/Run.py --preset x64-debug`.
 
 ## Communication
-- **English Only**: ALL comments, docs, and messages must be in English.
+- **Technical Content**: ALL code, comments, documentation, and git commit messages must be in **English**.
+- **Chat Language**: ALWAYS respond to the user in **Russian** within the chat interface.
 - **No Transliteration**: Strictly forbidden.
 - **Maintenance**: Check documentation in `docs/` during research. Update relevant files if architecture or rules change.

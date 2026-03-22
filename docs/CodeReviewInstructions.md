@@ -13,7 +13,7 @@ Scan ALL source files under:
 - `apps/Librium/` (Commands, Indexer, Main.cpp)
 - `tests/` (Unit, Integration)
 - `CMakeLists.txt`, `CMakePresets.json`, `vcpkg.json`
-- `scripts/run.py`, `scripts/ScenarioRunner.py`
+- `scripts/Run.py`, `scripts/ScenarioTester.py`
 
 ---
 

@@ -107,4 +107,4 @@ Before considering a new command complete, verify ALL of the following items. Do
 - [ ] If a new domain struct is returned: `SetData` overload added to `libs/Service/Response.hpp`
 - [ ] If a new domain struct is returned: serialization implemented in `libs/Protocol/JsonProtocol.cpp`
 - [ ] `.json` scenario created in `tests/Scenarios/` covering at least one success case
-- [ ] `python scripts/run.py --preset x64-debug` passes without errors
+- [ ] `python scripts/Run.py --preset x64-debug` passes without errors

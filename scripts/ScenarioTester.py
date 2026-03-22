@@ -1,38 +1,44 @@
 #!/usr/bin/env python3
 import os
+import sys
+
+# Prevent creation of __pycache__ folders
+sys.dont_write_bytecode = True
+os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+
 import json
 import socket
 import subprocess
 import shutil
-import glob
 import zipfile
-import sys
 import time
 import base64
+from pathlib import Path
 
-# Prevent creation of __pycache__ folders in source directories
-sys.dont_write_bytecode = True
+# Add the scripts directory to path to import Core and LibraryGenerator
+sys.path.append(str(Path(__file__).parent))
+from Core import CUI, CPaths, CRunner
+from LibraryGenerator import CLibraryGenerator
 
-from LibGen import LibGen
-
-class ScenarioRunner:
+class CScenarioTester:
     """Test scenario runner with step-by-step execution and validation."""
     
     def __init__(self, binary_path, output_root, real_lib_path=None):
-        self.binary_path = binary_path
-        self.output_root = os.path.abspath(output_root)
-        self.real_lib_path = real_lib_path
-        os.makedirs(self.output_root, exist_ok=True)
+        self.binary_path = Path(binary_path)
+        self.output_root = Path(output_root).resolve()
+        self.real_lib_path = Path(real_lib_path).resolve() if real_lib_path else None
+        self.output_root.mkdir(parents=True, exist_ok=True)
 
     def run_all(self, scenarios_dir):
         """Runs all scenarios from the specified directory."""
-        scenario_files = glob.glob(os.path.join(scenarios_dir, "**/*.json"), recursive=True)
+        scenarios_dir = Path(scenarios_dir)
+        scenario_files = sorted(list(scenarios_dir.rglob("*.json")))
         results = []
         skipped = 0
         
-        for sf in sorted(scenario_files):
-            if "smoke_real" in sf and not self.real_lib_path:
-                print(f"Skipping {sf} (Real library path not provided)")
+        for sf in scenario_files:
+            if "smoke_real" in str(sf) and not self.real_lib_path:
+                CUI.info(f"Skipping {sf.name} (Real library path not provided)")
                 skipped += 1
                 continue
                 
@@ -56,20 +62,21 @@ class ScenarioRunner:
 
     def run_scenario(self, scenario_file):
         """Executes a single scenario workflow."""
-        name = os.path.basename(scenario_file).replace(".json", "")
+        scenario_file = Path(scenario_file)
+        name = scenario_file.stem
         
         with open(scenario_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
             
         description = data.get("description", "No description provided")
-        print(f"Running scenario: {name} ({description})...")
+        CUI.info(f"Running scenario: {name} ({description})...")
         
         start_time = time.time()
         test_dir = self._prepare_test_dir(name)
         
         # Paths
-        db_path = os.path.join(test_dir, "test.db")
-        config_path = os.path.join(test_dir, "config.json")
+        db_path = test_dir / "test.db"
+        config_path = test_dir / "config.json"
         
         # 1. Setup Data
         lib_path, inpx_count = self._setup_library(data, test_dir)
@@ -80,7 +87,7 @@ class ScenarioRunner:
         # 3. Start Engine
         port = self._find_free_port()
         process = subprocess.Popen(
-            [self.binary_path, "--config", config_path, "--port", str(port)],
+            [str(self.binary_path), "--config", str(config_path), "--port", str(port)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
@@ -98,6 +105,7 @@ class ScenarioRunner:
         sock = _connect_to_engine()
         if not sock:
             process.terminate()
+            CUI.error(f"Failed to connect to engine for scenario {name}")
             return {"status": "FAIL", "error": "Failed to connect to engine"}
             
         sock_file = sock.makefile('rw', encoding='utf-8')
@@ -106,7 +114,7 @@ class ScenarioRunner:
         last_output = ""
         try:
             for step in data["steps"]:
-                # Reconnect before this step if requested (e.g. after a connection-closing step)
+                # Reconnect before this step if requested
                 if step.get("reconnect"):
                     try:
                         sock_file.close()
@@ -158,15 +166,15 @@ class ScenarioRunner:
         return {"status": "PASS"}
 
     def _prepare_test_dir(self, name):
-        test_dir = os.path.join(self.output_root, name)
-        if os.path.exists(test_dir):
+        test_dir = self.output_root / name
+        if test_dir.exists():
             try: shutil.rmtree(test_dir)
             except: pass
-        os.makedirs(test_dir, exist_ok=True)
+        test_dir.mkdir(parents=True, exist_ok=True)
         return test_dir
 
     def _setup_library(self, data, test_dir):
-        lib_gen = LibGen(test_dir)
+        lib_gen = CLibraryGenerator(test_dir)
         lib_path = ""
         inpx_count = 0
         
@@ -176,23 +184,24 @@ class ScenarioRunner:
             lib_path = lib_gen.generate()
             inpx_count = len(data["library"])
         elif "real_library" in data:
-            lib_path = self.real_lib_path
-            inpx_file = os.path.join(lib_path, "librusec_local_fb2.inpx")
+            lib_path = str(self.real_lib_path)
+            inpx_file = Path(lib_path) / "librusec_local_fb2.inpx"
             inpx_count = self._count_inpx_records(inpx_file)
             
         return lib_path, inpx_count
 
     def _write_config(self, data, config_path, db_path, lib_path):
+        lib_path_obj = Path(lib_path)
         config = {
-            "database": { "path": db_path },
+            "database": { "path": str(db_path) },
             "library": { 
-                "inpxPath": os.path.join(lib_path, "library.inpx") if "library" in data else
-                            os.path.join(lib_path, "librusec_local_fb2.inpx") if lib_path else "",
-                "archivesDir": lib_path if "library" in data else
-                               os.path.join(lib_path, "lib.rus.ec") if lib_path else ""
+                "inpxPath": str(lib_path_obj / "library.inpx") if "library" in data else
+                            str(lib_path_obj / "librusec_local_fb2.inpx") if lib_path else "",
+                "archivesDir": str(lib_path_obj) if "library" in data else
+                               str(lib_path_obj / "lib.rus.ec") if lib_path else ""
             },
             "import": { "threadCount": 8, "parseFb2": False },
-            "logging": { "level": "debug", "file": os.path.join(os.path.dirname(config_path), "librium.log") }
+            "logging": { "level": "debug", "file": str(Path(config_path).parent / "librium.log") }
         }
         if "config" in data:
             for section, settings in data["config"].items():
@@ -206,7 +215,6 @@ class ScenarioRunner:
         action, params = self._map_args_to_json(step["args"], db_path, lib_path, config_path, test_dir)
         expect_error = step.get("expect_error", False)
 
-        # Special action: send raw (unencoded) bytes — used for protocol error tests
         if action == "send_raw":
             return self._execute_raw_send(sock, params.get("data", ""), expect_error)
 
@@ -237,12 +245,10 @@ class ScenarioRunner:
                     continue
                     
                 elif status == "ok":
-                    if has_progress:
-                        print()
+                    if has_progress: print()
                     if expect_error:
                         print(f" FAIL\n--- Expected error response but got ok ---")
                         return False, ""
-                    # For query, we expect data to be the actual result
                     if action == "query":
                         return True, json.dumps(resp.get("data"))
                     return True, json.dumps(resp)
@@ -260,14 +266,12 @@ class ScenarioRunner:
                 return False, ""
 
     def _execute_raw_send(self, sock, raw_data, expect_close_or_error):
-        """Send raw (unencoded) bytes and accept an error response or connection close."""
         try:
             sock.sendall((raw_data + "\n").encode('utf-8'))
         except OSError as e:
             print(f" FAIL\n--- Could not send raw data: {e} ---")
             return False, ""
 
-        # Try to read the response with a short timeout
         old_timeout = sock.gettimeout()
         sock.settimeout(5.0)
         buf = b""
@@ -275,7 +279,6 @@ class ScenarioRunner:
             while b"\n" not in buf:
                 chunk = sock.recv(4096)
                 if not chunk:
-                    # Server closed the connection — acceptable for malformed input
                     if expect_close_or_error:
                         return True, json.dumps({"status": "connection_closed"})
                     print(f" FAIL\n--- Server closed connection unexpectedly ---")
@@ -290,12 +293,10 @@ class ScenarioRunner:
                 return True, json.dumps(resp)
             if not expect_close_or_error:
                 return True, json.dumps(resp)
-            # Got ok when we expected an error — test failure
             print(f" FAIL\n--- Expected error/close for raw send, got: {resp} ---")
             return False, ""
 
         except (socket.timeout, TimeoutError):
-            # No response — treat as connection closed
             if expect_close_or_error:
                 return True, json.dumps({"status": "connection_closed"})
             print(f" FAIL\n--- Timeout waiting for response to raw send ---")
@@ -326,11 +327,9 @@ class ScenarioRunner:
             else:
                 i += 1
 
-        # Replace placeholders and convert types
         for k, v in params.items():
             if isinstance(v, str):
-                v = v.replace("{LIB}", lib_path).replace("{DB}", db_path).replace("{CONFIG}", config_path)
-                # Try to convert to int if it looks like a number
+                v = v.replace("{LIB}", str(lib_path)).replace("{DB}", str(db_path)).replace("{CONFIG}", str(config_path)).replace("{TEST_DIR}", str(test_dir))
                 if v.isdigit():
                     params[k] = int(v)
                 else:
@@ -344,7 +343,6 @@ class ScenarioRunner:
             expected = json.loads(expected_str)
             try:
                 actual = json.loads(last_output)
-                
                 to_compare = actual
                 if "status" not in expected and "data" in actual and not isinstance(actual["data"], list):
                     if all(k in actual["data"] for k in expected.keys()):
@@ -364,8 +362,6 @@ class ScenarioRunner:
                     return False
 
         if "expected_file_exists" in data:
-            # Extract a file path from a dot-separated JSON path in the response
-            # e.g. "expected_file_exists": "data.cover"
             json_path = data["expected_file_exists"]
             try:
                 actual = json.loads(last_output)
@@ -384,9 +380,6 @@ class ScenarioRunner:
                 return False
 
         if "expected_file_contains" in data:
-            # Check that a file at a given path contains the specified text.
-            # "path"      — static path with {LIB}/{TEST_DIR} placeholders
-            # "path_from" — dot-notation JSON path into the response (e.g. "data.file")
             spec = data["expected_file_contains"]
             search_text = spec.get("text", "")
             if "path_from" in spec:
@@ -401,7 +394,7 @@ class ScenarioRunner:
                     return False
             else:
                 raw_path = spec.get("path", "")
-                file_path = raw_path.replace("{LIB}", lib_path).replace("{TEST_DIR}", test_dir)
+                file_path = raw_path.replace("{LIB}", str(lib_path)).replace("{TEST_DIR}", str(test_dir))
             try:
                 if not os.path.isfile(file_path):
                     print(f" FAIL (expected_file_contains: file not found: '{file_path}')")
@@ -418,7 +411,6 @@ class ScenarioRunner:
         return True
 
     def _extract_json_path(self, obj, path):
-        """Extract a value from nested dict using dot-notation path (e.g. 'data.cover')."""
         for key in path.split("."):
             if not isinstance(obj, dict) or key not in obj:
                 return None
@@ -445,7 +437,6 @@ class ScenarioRunner:
 
     @staticmethod
     def _find_free_port():
-        """Find a free TCP port on localhost."""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind(('', 0))
             s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -467,11 +458,21 @@ class ScenarioRunner:
                                     if len(fields) > 8 and fields[8] == "0": count += 1
                                 except: continue
         except Exception as e:
-            print(f" WARN (Could not count INPX records: {e})")
+            CUI.info(f"WARN: Could not count INPX records: {e}")
         return count
 
-if __name__ == "__main__":
-    import sys
-    runner = ScenarioRunner(sys.argv[1], sys.argv[2], sys.argv[4] if len(sys.argv) > 4 else None)
-    results = runner.run_all(sys.argv[3])
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Librium Scenario Tester")
+    parser.add_argument("binary", help="Path to Librium binary")
+    parser.add_argument("output", help="Output root directory")
+    parser.add_argument("scenarios", help="Scenarios directory")
+    parser.add_argument("real_lib", nargs="?", help="Path to real library (optional)")
+    args = parser.parse_args()
+
+    runner = CScenarioTester(args.binary, args.output, args.real_lib)
+    results = runner.run_all(args.scenarios)
     sys.exit(1 if any(r["status"] == "FAIL" for r in results) else 0)
+
+if __name__ == "__main__":
+    main()

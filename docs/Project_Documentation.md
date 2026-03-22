@@ -47,9 +47,13 @@ Librium/
 │   ├── Utils/              ← Shared utilities (Base64, Queue, etc.)
 │   └── Zip/                ← Unicode-aware archive handling
 ├── scripts/                ← Unified Python automation pipeline
-│   ├── run.py              ← Master entry point (orchestrator)
-│   ├── build.py            ← Build automation script
-│   └── test.py             ← Multi-stage test runner
+│   ├── Run.py              ← Master entry point (orchestrator)
+│   ├── Core.py             ← Shared core logic & paths
+│   ├── LibraryGenerator.py ← Synthetic data generator
+│   ├── ScenarioTester.py   ← JSON scenario runner
+│   ├── SmokeTester.py      ← End-to-end validation
+│   ├── Build.py            ← Build shortcut wrapper
+│   └── Test.py             ← Test shortcut wrapper
 ├── tests/
 │   ├── Scenarios/          ← Data-driven E2E scenarios (.json)
 │   └── Unit/               ← Catch2 test suite (self-contained)
@@ -62,28 +66,28 @@ Librium/
 
 ## 3. Automation Pipeline (Python)
 
-The project uses a unified Python-based pipeline for all platforms. **All temporary artifacts (DBs, logs, configs) are stored in `out/build/<preset>/`**, keeping the source tree clean.
+The project uses a unified Python-based pipeline for all platforms. **All temporary artifacts (DBs, logs, configs) are stored in `out/artifacts/<preset>/`**, keeping the source tree clean.
 
-### Master Entry Point: `scripts/run.py`
+### Master Entry Point: `scripts/Run.py`
 This is the recommended way to work with the project. It automatically handles build and all test stages.
 
 ```powershell
 # Build and run all tests (Unit + Integration) on Windows
-python scripts/run.py --preset x64-release
+python scripts/Run.py --preset x64-release
 
 # Full pipeline on Linux (via Docker) including Real Library tests
-python scripts/run.py --preset linux-release --real-library "C:/Path/To/Library"
+python scripts/Run.py --preset linux-release --real-library "C:/Path/To/Library"
 
 # Clean build
-python scripts/run.py --preset x64-debug --clean
+python scripts/Run.py --preset x64-debug --clean
 ```
 
-### Test Stages in `scripts/test.py`
+### Test Stages in `scripts/Test.py`
 1.  **Stage 1: UNIT**: Fast C++ unit tests (Catch2). Fully self-contained, no external scripts required.
     - **Coverage**: Filters (genres/size/authors/keywords), string encoding (UTF-8/CP1251/UTF-16), Base64, thread-safe concurrency, database transactions, INPX streaming, ZIP RAII, logger configuration, query edge cases, config utilities.
     - **Crash Diagnostics**: `TestMain.cpp` writes `unit_tests.log` next to `UnitTests.exe` on every run for post-mortem analysis.
 2.  **Stage 2: SCENARIO**: Behavioral tests. 
-    - Uses `LibGen.py` to create a "miniature" realistic library.
+    - Uses `LibraryGenerator.py` to create a "miniature" realistic library.
     - Communicates with `Librium.exe` via **TCP sockets**.
     - Covers 8 scenario categories: query filters, parsing, stats, upgrade/re-import, export, utility (covers), protocol error resilience.
     - Includes **Smoke (Real)** test if `--real-library` path is provided.
@@ -206,7 +210,7 @@ To ensure Windows compatibility with non-ASCII paths:
 - **Safe JSON Protocol**: Outgoing JSON messages use a byte-replacement strategy for invalid UTF-8 sequences to prevent engine crashes on "dirty" library data.
 
 ### Comprehensive Validation
-The `RealLibraryTest.py` script performs multi-stage validation:
+The `SmokeTester.py` script performs multi-stage validation:
 1. **Clean Import**: Verifies progress reporting and 100% completion.
 2. **Data Integrity**: Randomly samples 10 books and inspects every database field for completeness and correct encoding.
 3. **Incremental Logic**: Verifies that a secondary `upgrade` command correctly skips all existing archives.
