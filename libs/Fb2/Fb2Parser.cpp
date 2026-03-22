@@ -48,13 +48,13 @@ std::string GetChildText(const pugi::xml_node& parent, const char* name)
 
 } // namespace
 
-SFb2Data CFb2Parser::Parse(const std::string& xmlText)
+SFb2Data CFb2Parser::Parse(const std::string& xmlText, const std::string& context)
 {
     if (xmlText.empty()) return {};
 
     std::string utf8Xml;
-    
-    // 1. Check if it's already valid UTF-8. 
+
+    // 1. Check if it's already valid UTF-8.
     // If it's valid UTF-8, we use it AS IS, regardless of what the XML header says.
     // This is the most robust way to handle "liar" headers in Russian libraries.
     if (CStringUtils::IsUtf8(xmlText))
@@ -69,7 +69,7 @@ SFb2Data CFb2Parser::Parse(const std::string& xmlText)
     {
         // 2. Not valid UTF-8. It's likely Windows-1251 (legacy Russian).
         utf8Xml = CStringUtils::Cp1251ToUtf8(xmlText);
-        
+
         // Patch XML declaration if it points to legacy encoding
         size_t pos = utf8Xml.find("windows-1251");
         if (pos != std::string::npos) utf8Xml.replace(pos, 12, "utf-8");
@@ -85,15 +85,14 @@ SFb2Data CFb2Parser::Parse(const std::string& xmlText)
 
     SFb2Data res;
     pugi::xml_document doc;
-    
+
     auto result = doc.load_string(utf8Xml.c_str(), pugi::parse_default | pugi::parse_declaration);
     if (!result)
     {
-        LOG_DEBUG("FB2 XML parse error: {} (offset {})", result.description(), result.offset);
+        LOG_DEBUG("FB2 XML parse error in [{}]: {} (offset {})", context.empty() ? "unknown" : context, result.description(), result.offset);
         res.parseError = result.description();
         return res;
     }
-
     auto root = FindChildIgnoreCase(doc, "FictionBook");
     if (!root) root = doc.first_child(); 
 
@@ -199,11 +198,11 @@ SFb2Data CFb2Parser::Parse(const std::string& xmlText)
     return res;
 }
 
-SFb2Data CFb2Parser::Parse(const std::vector<uint8_t>& data)
+SFb2Data CFb2Parser::Parse(const std::vector<uint8_t>& data, const std::string& context)
 {
     if (data.empty()) return {};
     std::string xml(reinterpret_cast<const char*>(data.data()), data.size());
-    return Parse(xml);
+    return Parse(xml, context);
 }
 
 } // namespace Librium::Fb2

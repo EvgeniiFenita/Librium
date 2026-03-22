@@ -26,8 +26,8 @@ struct SFb2Data
 class CFb2Parser
 {
 public:
-    [[nodiscard]] SFb2Data Parse(const std::vector<uint8_t>& data);
-    [[nodiscard]] SFb2Data Parse(const std::string& xmlText);
+    [[nodiscard]] SFb2Data Parse(const std::vector<uint8_t>& data, const std::string& context = "");
+    [[nodiscard]] SFb2Data Parse(const std::string& xmlText, const std::string& context = "");
 };
 
 } // namespace Librium::Fb2

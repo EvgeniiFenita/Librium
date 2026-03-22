@@ -48,6 +48,7 @@ void CSqliteDatabase::Exec(const std::string& sql)
 
 std::unique_ptr<ISqlStatement> CSqliteDatabase::Prepare(const std::string& sql)
 {
+    LOG_DEBUG("Preparing SQL: {}", sql);
     sqlite3_stmt* raw = nullptr;
     if (sqlite3_prepare_v2(m_db.get(), sql.c_str(), -1, &raw, nullptr) != SQLITE_OK)
     {

@@ -104,8 +104,9 @@ void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2)
                     {
                         try
                         {
-                            auto data = zip->ReadEntry(result.record.FilePath());
-                            result.fb2 = fb2Parser.Parse(data);
+                            auto filePath = result.record.FilePath();
+                            auto data = zip->ReadEntry(filePath);
+                            result.fb2 = fb2Parser.Parse(data, filePath);
                         }
                         catch (const std::exception& e)
                         {
@@ -354,10 +355,14 @@ Db::SImportStats CIndexer::Run(Db::CDatabase& db, EImportMode mode, IProgressRep
 
     std::jthread closer([&]() { for (auto& w : workers) w.join(); m_resultQueue.Close(); });
 
+    auto startTime = std::chrono::high_resolution_clock::now();
     Db::SImportStats stats = WriterThread(db, m_cfg.import.transactionBatchSize, reporter, totalToProcess);
 
     if (producer.joinable()) producer.join();
     if (closer.joinable()) closer.join();
+
+    auto endTime = std::chrono::high_resolution_clock::now();
+    stats.totalTimeMs = (double)std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 
     guard.MarkFinished();
 

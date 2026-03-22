@@ -40,16 +40,22 @@ struct SImportStats
     size_t fb2Parsed{0};
     size_t fb2Errors{0};
     size_t archivesProcessed{0};
+    double totalTimeMs{0};
 
     void PrintSummary() const
     {
+        double seconds = totalTimeMs / 1000.0;
+        double speed = seconds > 0 ? (booksInserted + booksUpdated) / seconds : 0;
+
         LOG_INFO("=== Import Summary ===");
         LOG_INFO("  Archives processed : {}", archivesProcessed);
-        LOG_INFO("  Books inserted     : {}", booksInserted);
+        LOG_INFO("  Books handled      : {}", booksInserted + booksUpdated);
         LOG_INFO("  Books skipped      : {}", booksSkipped);
         LOG_INFO("  Books filtered     : {}", booksFiltered);
         LOG_INFO("  FB2 parsed         : {}", fb2Parsed);
         LOG_INFO("  FB2 errors         : {}", fb2Errors);
+        LOG_INFO("  Total time         : {:.2f}s", seconds);
+        LOG_INFO("  Average speed      : {:.0f} books/sec", speed);
         LOG_INFO("======================");
     }
 };
