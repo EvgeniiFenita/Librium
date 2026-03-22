@@ -2,6 +2,7 @@
 
 #include "SqlDatabase.hpp"
 #include <string>
+#include <memory>
 
 struct sqlite3;
 
@@ -27,7 +28,8 @@ public:
     [[nodiscard]] int64_t LastInsertRowId() const override;
 
 private:
-    sqlite3* m_db;
+    using SqlitePtr = std::unique_ptr<sqlite3, void(*)(sqlite3*)>;
+    SqlitePtr m_db;
 };
 
 } // namespace Librium::Db

@@ -45,7 +45,7 @@ Follow these steps **in order** before writing any code:
 - **Unicode**: ALWAYS use `Librium::Config::Utf8ToPath()` when creating paths from strings. NEVER use `path.string()` on Windows; use `path.u8string()` if conversion is needed.
 - **Thread Safety**: ALWAYS use `std::jthread` for thread lifecycle. Wrap thread entry functions in `try-catch` blocks to prevent `std::terminate`.
 - **Error Handling**: NEVER use `catch (...)`. ALWAYS catch at minimum `const std::exception&` and log the error using `LOG_ERROR` before handling or skipping. Silent exception swallowing is a build-breaking violation.
-- **RAII Compliance**: ALWAYS wrap third-party handles (sqlite3, zip_t, etc.) in RAII containers (like `std::unique_ptr` with custom deleters) immediately upon acquisition. Manual resource management is forbidden.
+- **RAII Compliance**: ALWAYS wrap third-party handles (sqlite3, sqlite3_stmt, zip_t, etc.) in RAII containers (like `std::unique_ptr` with custom deleters) IMMEDIATELY upon acquisition. Manual resource management (manual `close`/`finalize`) is strictly forbidden. Ownership must be established in the same scope as acquisition.
 
 ## Common LLM Mistakes — DO NOT DO THIS
 
@@ -62,15 +62,17 @@ Right:
 void GetUserById(int id);
 ```
 
-### Mistake 2 — Direct sqlite3 API calls outside CSqliteDatabase
+### Mistake 2 — Raw SQLite handles or direct API calls outside CSqliteDatabase
 
 Wrong (forbidden in Indexer.cpp, Service.cpp, Query.cpp, or any apps/ file):
 ```cpp
 sqlite3_exec(m_db, query, nullptr, nullptr, nullptr);
+sqlite3_finalize(stmt); // Manual resource management
 ```
 Right:
 ```cpp
 m_database->Execute(SqlQueries::kSelectBookById, params);
+// In CSqliteDatabase: Use std::unique_ptr with custom deleters
 ```
 
 ### Mistake 3 — Creating a filesystem path directly from a UTF-8 string
@@ -100,7 +102,19 @@ constexpr std::string_view kSelectBookById = "SELECT * FROM books WHERE id = ?";
 m_db->Execute(SqlQueries::kSelectBookById, params);
 ```
 
-### Mistake 5 — Silent or catch-all exception handlers
+### Mistake 5 — Using standard UPPER() instead of librium_upper()
+
+Standard `UPPER()` in SQLite does not support Unicode (Cyrillic). 
+Wrong:
+```sql
+WHERE title LIKE UPPER(?)
+```
+Right:
+```sql
+WHERE search_title LIKE librium_upper(?)
+```
+
+### Mistake 6 — Silent or catch-all exception handlers
 
 Wrong:
 ```cpp
@@ -114,19 +128,6 @@ catch (const std::exception& e)
     LOG_ERROR("Operation failed: {}", e.what());
     // then handle or re-throw
 }
-```
-
-### Mistake 6 — Using std::cout or std::cerr anywhere inside libs/
-
-Wrong (forbidden in every .cpp and .hpp under libs/):
-```cpp
-std::cout << "Processing..." << std::endl;
-std::cerr << "Error: " << msg << std::endl;
-```
-Right:
-```cpp
-LOG_INFO_S("Processing...");
-LOG_ERROR("Error: {}", msg);
 ```
 
 ### Mistake 7 — K&R brace style instead of Allman
@@ -162,7 +163,7 @@ class CUserService
   1. **Unit**: Fast C++ tests via Catch2.
   2. **Scenarios**: Data-driven behavioral tests using `LibGen` (synthetic data) and `ScenarioRunner`.
   3. **Smoke (Real)**: Optional full-scale import test on real `Lib.rus.ec` data (triggered by `--real-library`).
-- **New Features**: Every new CLI command or search parameter MUST have a corresponding `.json` scenario in `tests/Scenarios/`.
+- **New Features**: Every new CLI command, search parameter, or SQLite function MUST have corresponding tests (Unit or Scenario).
 - **Artifacts**: All temporary data must stay in `out/build/<preset>/`. NEVER create files in `libs/`, `apps/`, or `tests/`.
 
 ## Reference Documentation
@@ -181,7 +182,8 @@ class CUserService
 - **Database Architecture**: ALL SQL strings must be defined as `constexpr std::string_view` constants in `SqlQueries.hpp`. Inline SQL strings anywhere else in the codebase are **forbidden**. Database schema creation must be handled by the `CDatabaseSchema` class. Correct pattern:
   - In `SqlQueries.hpp`: `constexpr std::string_view kSelectBookById = "SELECT * FROM books WHERE id = ?";`
   - In the caller: `m_db->Execute(SqlQueries::kSelectBookById, params);`
-- **Database Layer Isolation**: Files in `libs/Indexer/`, `libs/Service/`, `libs/Query/`, and all files under `apps/` MUST NEVER include `<sqlite3.h>` directly. If you find yourself writing `sqlite3_` anywhere outside of `CSqliteDatabase` or `CSqliteStatement`, stop — you are in the wrong layer. All database interaction MUST go through `ISqlDatabase` and `ISqlStatement` interfaces, or through the `CDatabase` public API. The only files permitted to call the raw SQLite C API are `CSqliteDatabase.cpp` and `CSqliteStatement.cpp`.
+- **Database Layer Isolation**: Files in `libs/Indexer/`, `libs/Service/`, `libs/Query/`, and all files under `apps/` MUST NEVER include `<sqlite3.h>` directly. If you find yourself writing `sqlite3_` anywhere outside of `CSqliteDatabase` or `CSqliteStatement`, stop — you are in the wrong layer. All database interaction MUST go through `ISqlDatabase` and `ISqlStatement` interfaces, or through the `CDatabase` public API. The only files permitted to call the raw SQLite C API are `CSqliteDatabase.cpp`, `CSqliteStatement.cpp`, and `SqliteFunctions.cpp`.
+- **Unicode Search**: All text searches MUST be case-insensitive for Cyrillic. This is achieved by using the `librium_upper()` custom SQLite function and searching against denormalized `search_title` or `search_name` columns. Never use `LIKE` on raw `title` or `name` columns for user queries.
 
 ### IPC Architecture Rules
 - **IPC Architecture**:
@@ -191,7 +193,7 @@ class CUserService
 
 ### Threading & Performance Rules
 - **Ownership**: Use `std::unique_ptr` for managing object ownership. Raw pointers are allowed only for non-owning access (observers).
-- **Performance Integrity**: Bulk operations (like indexing) MUST use Archive-Aware scheduling to minimize disk thrashing. Always utilize memory caches for frequently accessed database IDs (Authors, Genres).
+- **Performance Integrity**: Bulk operations (like indexing) MUST use Archive-Aware scheduling to minimize disk thrashing. Utilize `BeginBulkImport()`/`EndBulkImport()` to toggle SQLite pragmas (`journal_mode=OFF`) for maximum throughput. Always utilize memory caches for frequently accessed database IDs (Authors, Genres).
 
 ### File System & Encoding Rules
 - **FB2 Parsing**: Only text metadata (annotations, keywords, etc.) and cover images are supported. Covers must be extracted and saved to disk next to the database in a `meta/` folder, using the database row `id` as the subfolder name.

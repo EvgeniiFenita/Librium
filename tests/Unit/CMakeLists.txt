@@ -21,6 +21,8 @@ add_executable(UnitTests
     TestStringUtils.cpp
     TestBase64.cpp
     TestThreadSafeQueue.cpp
+    TestSearchQueryParser.cpp
+    TestSqliteFunctions.cpp
 )
 
 target_include_directories(UnitTests PRIVATE

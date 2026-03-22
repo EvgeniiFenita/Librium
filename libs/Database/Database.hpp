@@ -93,6 +93,8 @@ public:
 
     void DropIndexes();
     void CreateIndexes();
+    void BeginBulkImport();
+    void EndBulkImport();
     void Exec(const std::string& sql);
 
 private:

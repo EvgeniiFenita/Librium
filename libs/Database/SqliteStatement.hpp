@@ -2,6 +2,7 @@
 
 #include "SqlStatement.hpp"
 #include <string>
+#include <memory>
 
 struct sqlite3_stmt;
 
@@ -33,7 +34,8 @@ public:
     [[nodiscard]] bool IsDone() const override;
 
 private:
-    sqlite3_stmt* m_stmt;
+    using StmtPtr = std::unique_ptr<sqlite3_stmt, void(*)(sqlite3_stmt*)>;
+    StmtPtr m_stmt;
     int m_lastRc;
 
     void Check(int rc, const char* context) const;

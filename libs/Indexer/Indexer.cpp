@@ -239,18 +239,24 @@ namespace {
 class CImportGuard
 {
 public:
-    explicit CImportGuard(Db::CDatabase& db) : m_db(db) {}
+    explicit CImportGuard(Db::CDatabase& db) : m_db(db) 
+    {
+        m_db.BeginBulkImport();
+        m_db.DropIndexes();
+    }
+
     ~CImportGuard()
     {
         if (!m_finished)
         {
             LOG_WARN("Import interrupted! Attempting to restore database state...");
-            try { m_db.CreateIndexes(); }
-            catch (const std::exception& e) { LOG_ERROR("Failed to restore indexes: {}", e.what()); }
-
-            try { m_db.Exec("PRAGMA synchronous = NORMAL"); }
-            catch (const std::exception& e) { LOG_ERROR("Failed to restore synchronous mode: {}", e.what()); }
         }
+
+        try { m_db.CreateIndexes(); }
+        catch (const std::exception& e) { LOG_ERROR("Failed to restore indexes: {}", e.what()); }
+
+        try { m_db.EndBulkImport(); }
+        catch (const std::exception& e) { LOG_ERROR("Failed to restore pragma: {}", e.what()); }
     }
 
     void MarkFinished() { m_finished = true; }
@@ -329,9 +335,6 @@ Db::SImportStats CIndexer::Run(Db::CDatabase& db, EImportMode mode, IProgressRep
 
     CImportGuard guard(db);
 
-    db.Exec("PRAGMA synchronous = OFF");
-    db.DropIndexes();
-
     int workerCount = std::max(1, m_cfg.import.threadCount);
     LOG_INFO("Starting import: {} worker threads, mode={}, total to process={}", workerCount, mode == EImportMode::Upgrade ? "upgrade" : "full", totalToProcess);
 
@@ -355,9 +358,6 @@ Db::SImportStats CIndexer::Run(Db::CDatabase& db, EImportMode mode, IProgressRep
 
     if (producer.joinable()) producer.join();
     if (closer.joinable()) closer.join();
-
-    db.CreateIndexes();
-    db.Exec("PRAGMA synchronous = NORMAL");
 
     guard.MarkFinished();
 

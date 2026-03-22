@@ -12,6 +12,13 @@ constexpr std::string_view PragmaWal = "PRAGMA journal_mode = WAL";
 // Set synchronous mode to NORMAL for a balance between speed and reliability
 constexpr std::string_view PragmaSyncNormal = "PRAGMA synchronous = NORMAL";
 
+// Bulk import mode — maximum write speed
+constexpr std::string_view PragmaJournalOff = "PRAGMA journal_mode = OFF";
+constexpr std::string_view PragmaSyncOff = "PRAGMA synchronous = OFF";
+
+// Initial page size for new databases
+constexpr std::string_view PragmaPageSize = "PRAGMA page_size = 16384";
+
 // Create archives table
 constexpr std::string_view CreateTableArchives = R"(
     CREATE TABLE IF NOT EXISTS archives (
@@ -28,6 +35,7 @@ constexpr std::string_view CreateTableAuthors = R"(
         last_name TEXT,
         first_name TEXT,
         middle_name TEXT,
+        search_name TEXT,
         UNIQUE(last_name, first_name, middle_name)
     )
 )";
@@ -63,6 +71,7 @@ constexpr std::string_view CreateTableBooks = R"(
         lib_id TEXT,
         archive_id INTEGER,
         title TEXT,
+        search_title TEXT,
         series_id INTEGER,
         series_no INTEGER,
         file_name TEXT,
@@ -111,15 +120,21 @@ constexpr std::string_view CreateIndexBooksTitle = "CREATE INDEX IF NOT EXISTS i
 // Index for faster language filtering
 constexpr std::string_view CreateIndexBooksLang = "CREATE INDEX IF NOT EXISTS idx_books_lang ON books(language)";
 
+// Search columns indexes
+constexpr std::string_view CreateIndexBooksSearchTitle = "CREATE INDEX IF NOT EXISTS idx_books_search_title ON books(search_title)";
+constexpr std::string_view CreateIndexAuthorsSearchName = "CREATE INDEX IF NOT EXISTS idx_authors_search_name ON authors(search_name)";
+
 // Drop indexes for bulk import
 constexpr std::string_view DropIndexBooksTitle = "DROP INDEX IF EXISTS idx_books_title";
 constexpr std::string_view DropIndexBooksLang = "DROP INDEX IF EXISTS idx_books_lang";
+constexpr std::string_view DropIndexBooksSearchTitle = "DROP INDEX IF EXISTS idx_books_search_title";
+constexpr std::string_view DropIndexAuthorsSearchName = "DROP INDEX IF EXISTS idx_authors_search_name";
 
 
 // --- Data Operations ---
 
 // Insert an author (if not exists)
-constexpr std::string_view InsertAuthor = "INSERT OR IGNORE INTO authors (last_name, first_name, middle_name) VALUES (?, ?, ?)";
+constexpr std::string_view InsertAuthor = "INSERT OR IGNORE INTO authors (last_name, first_name, middle_name, search_name) VALUES (?, ?, ?, librium_upper(?))";
 
 // Get author ID by full name
 constexpr std::string_view GetAuthorId = "SELECT id FROM authors WHERE last_name=? AND first_name=? AND middle_name=?";
@@ -151,11 +166,11 @@ constexpr std::string_view GetArchiveId = "SELECT id FROM archives WHERE name=?"
 // Insert a new book (no cover)
 constexpr std::string_view InsertBook = R"(
     INSERT INTO books (
-        lib_id, archive_id, title, series_id, series_no,
+        lib_id, archive_id, title, search_title, series_id, series_no,
         file_name, file_size, file_ext, date_added, language,
         rating, keywords, annotation, publisher_id, isbn,
         publish_date
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, librium_upper(?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 )";
 
 // Link an author to a book
@@ -249,6 +264,7 @@ constexpr std::string_view QueryWhereArchiveName = "AND arch.name = ? ";
 constexpr std::string_view QueryWhereDateFrom = "AND b.date_added >= ? ";
 constexpr std::string_view QueryWhereDateTo = "AND b.date_added <= ? ";
 constexpr std::string_view QueryWhereRatingMin = "AND b.rating >= ? ";
+constexpr std::string_view QueryWhereRatingMax = "AND b.rating <= ? ";
 constexpr std::string_view QueryWhereWithAnnotation = "AND b.annotation IS NOT NULL AND b.annotation != '' ";
 constexpr std::string_view QueryWhereId = "WHERE b.id = ? ";
 

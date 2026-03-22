@@ -1,0 +1,17 @@
+{
+  "description": "Search Operators: testing prefix (default), exact (=), and contains (*) operators",
+  "library": [
+    { "title": "Foundation", "authors": ["Isaac Asimov"], "genres": ["sf"] },
+    { "title": "Foundation and Empire", "authors": ["Isaac Asimov"], "genres": ["sf"] },
+    { "title": "The Robots of Dawn", "authors": ["Isaac Asimov"], "genres": ["sf"] },
+    { "title": "I, Robot", "authors": ["Isaac Asimov"], "genres": ["sf"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { "description": "Default prefix search for 'Foundation'", "args": ["query", "--title", "Foundation"], "expected": { "totalFound": 2 } },
+    { "description": "Exact match for 'Foundation'", "args": ["query", "--title", "=Foundation"], "expected": { "totalFound": 1 } },
+    { "description": "Contains search for 'Robot'", "args": ["query", "--title", "*Robot"], "expected": { "totalFound": 2 } },
+    { "description": "Exact match for author", "args": ["query", "--author", "=Isaac Asimov"], "expected": { "totalFound": 4 } },
+    { "description": "Partial author search (default prefix)", "args": ["query", "--author", "Isaac"], "expected": { "totalFound": 4 } }
+  ]
+}

@@ -10,6 +10,8 @@ void CDatabaseSchema::Create(ISqlDatabase& db)
 {
     LOG_INFO("Initializing database schema...");
 
+    // IMPORTANT: page_size MUST be the first pragma, before any writes
+    Exec(db, Sql::PragmaPageSize.data());
     Exec(db, Sql::PragmaWal.data());
     Exec(db, Sql::PragmaSyncNormal.data());
 
@@ -24,6 +26,8 @@ void CDatabaseSchema::Create(ISqlDatabase& db)
 
     Exec(db, Sql::CreateIndexBooksTitle.data());
     Exec(db, Sql::CreateIndexBooksLang.data());
+    Exec(db, Sql::CreateIndexBooksSearchTitle.data());
+    Exec(db, Sql::CreateIndexAuthorsSearchName.data());
     
     LOG_INFO("Database schema is ready.");
 }

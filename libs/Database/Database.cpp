@@ -3,6 +3,7 @@
 #include "SqlQueries.hpp"
 #include "Log/Logger.hpp"
 #include "SqliteDatabase.hpp"
+#include "SearchQueryParser.hpp"
 
 #include <filesystem>
 #include <sstream>
@@ -30,6 +31,34 @@ void CDatabase::Commit()
 void CDatabase::Rollback()
 {
     m_db->Rollback();
+}
+
+void CDatabase::BeginBulkImport()
+{
+    try
+    {
+        m_db->Exec(std::string(Sql::PragmaJournalOff));
+        m_db->Exec(std::string(Sql::PragmaSyncOff));
+        LOG_INFO("Database switched to bulk import mode (journal=OFF, sync=OFF)");
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("BeginBulkImport failed: {}", e.what());
+    }
+}
+
+void CDatabase::EndBulkImport()
+{
+    try
+    {
+        m_db->Exec(std::string(Sql::PragmaWal));
+        m_db->Exec(std::string(Sql::PragmaSyncNormal));
+        LOG_INFO("Database restored to WAL mode after bulk import");
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("EndBulkImport failed: {}", e.what());
+    }
 }
 
 void CDatabase::Exec(const std::string& sql)
@@ -74,6 +103,12 @@ int64_t CDatabase::GetOrCreateAuthor(const Inpx::SAuthor& author)
     m_stmtInsertAuthor->BindText(1, author.lastName);
     m_stmtInsertAuthor->BindText(2, author.firstName);
     m_stmtInsertAuthor->BindText(3, author.middleName);
+    
+    std::string searchName = author.lastName;
+    if (!author.firstName.empty()) searchName += " " + author.firstName;
+    if (!author.middleName.empty()) searchName += " " + author.middleName;
+    m_stmtInsertAuthor->BindText(4, searchName);
+    
     m_stmtInsertAuthor->Step();
 
     m_stmtGetAuthor->Reset();
@@ -191,26 +226,27 @@ int64_t CDatabase::InsertBook(const Inpx::SBookRecord& rec, const Fb2::SFb2Data&
     m_stmtInsertBook->BindText(1, rec.libId);
     m_stmtInsertBook->BindInt64(2, archId);
     m_stmtInsertBook->BindText(3, rec.title);
+    m_stmtInsertBook->BindText(4, rec.title); // search_title
     
-    if (seriesId > 0) m_stmtInsertBook->BindInt64(4, seriesId);
-    else              m_stmtInsertBook->BindNull(4);
+    if (seriesId > 0) m_stmtInsertBook->BindInt64(5, seriesId);
+    else              m_stmtInsertBook->BindNull(5);
 
-    m_stmtInsertBook->BindInt(5, rec.seriesNumber);
-    m_stmtInsertBook->BindText(6, rec.fileName);
-    m_stmtInsertBook->BindInt64(7, rec.fileSize);
-    m_stmtInsertBook->BindText(8, rec.fileExt);
-    m_stmtInsertBook->BindText(9, rec.dateAdded);
-    m_stmtInsertBook->BindText(10, rec.language);
-    m_stmtInsertBook->BindInt(11, rec.rating);
-    m_stmtInsertBook->BindText(12, rec.keywords);
+    m_stmtInsertBook->BindInt(6, rec.seriesNumber);
+    m_stmtInsertBook->BindText(7, rec.fileName);
+    m_stmtInsertBook->BindInt64(8, rec.fileSize);
+    m_stmtInsertBook->BindText(9, rec.fileExt);
+    m_stmtInsertBook->BindText(10, rec.dateAdded);
+    m_stmtInsertBook->BindText(11, rec.language);
+    m_stmtInsertBook->BindInt(12, rec.rating);
+    m_stmtInsertBook->BindText(13, rec.keywords);
 
-    m_stmtInsertBook->BindText(13, fb2.annotation);
+    m_stmtInsertBook->BindText(14, fb2.annotation);
     
-    if (pubId > 0) m_stmtInsertBook->BindInt64(14, pubId);
-    else           m_stmtInsertBook->BindNull(14);
+    if (pubId > 0) m_stmtInsertBook->BindInt64(15, pubId);
+    else           m_stmtInsertBook->BindNull(15);
 
-    m_stmtInsertBook->BindText(15, fb2.isbn);
-    m_stmtInsertBook->BindText(16, fb2.publishYear);
+    m_stmtInsertBook->BindText(16, fb2.isbn);
+    m_stmtInsertBook->BindText(17, fb2.publishYear);
     
     m_stmtInsertBook->Step();
     if (!m_stmtInsertBook->IsDone())
@@ -364,23 +400,27 @@ std::vector<std::string> FetchGenres(ISqlDatabase* db, int64_t bookId)
     return result;
 }
 
-void BindQueryParams(ISqlStatement* stmt, const SQueryParams& params)
+struct SQueryBindValues
+{
+    std::string title;
+    std::string author;
+    std::string series;
+};
+
+void BindQueryParamsCustom(ISqlStatement* stmt, const SQueryParams& params, const SQueryBindValues& binds)
 {
     int idx = 1;
-    if (!params.title.empty()) stmt->BindText(idx++, params.title + "%");
-    if (!params.author.empty()) 
-    {
-        stmt->BindText(idx++, params.author + "%");
-        stmt->BindText(idx++, params.author + "%");
-    }
+    if (!binds.title.empty()) stmt->BindText(idx++, binds.title);
+    if (!binds.author.empty()) stmt->BindText(idx++, binds.author);
+    if (!binds.series.empty()) stmt->BindText(idx++, binds.series);
     if (!params.genre.empty()) stmt->BindText(idx++, params.genre);
-    if (!params.series.empty()) stmt->BindText(idx++, params.series + "%");
     if (!params.language.empty()) stmt->BindText(idx++, params.language);
     if (!params.libId.empty()) stmt->BindText(idx++, params.libId);
     if (!params.archiveName.empty()) stmt->BindText(idx++, params.archiveName);
     if (!params.dateFrom.empty()) stmt->BindText(idx++, params.dateFrom);
     if (!params.dateTo.empty()) stmt->BindText(idx++, params.dateTo);
     if (params.ratingMin > 0) stmt->BindInt(idx++, params.ratingMin);
+    if (params.ratingMax > 0) stmt->BindInt(idx++, params.ratingMax);
 }
 
 SBookResult ReadBookRow(ISqlStatement* stmt, ISqlDatabase* db)
@@ -425,16 +465,38 @@ SQueryResult CDatabase::ExecuteQuery(const SQueryParams& params)
     if (!params.genre.empty()) joinSql += Sql::QueryJoinGenres;
 
     std::string whereSql{Sql::QueryWhere1};
-    if (!params.title.empty()) whereSql += Sql::QueryWhereTitle;
-    if (!params.author.empty()) whereSql += Sql::QueryWhereAuthor;
+    SQueryBindValues binds;
+
+    if (!params.title.empty())
+    {
+        auto token = ParseSearchQuery(params.title);
+        std::string frag;
+        BuildSearchSql(token, "b.search_title", frag, binds.title);
+        whereSql += frag;
+    }
+    if (!params.author.empty())
+    {
+        auto token = ParseSearchQuery(params.author);
+        std::string frag;
+        BuildSearchSql(token, "a.search_name", frag, binds.author);
+        whereSql += frag;
+    }
+    if (!params.series.empty())
+    {
+        auto token = ParseSearchQuery(params.series);
+        std::string frag;
+        BuildSearchSql(token, "ser.name", frag, binds.series);
+        whereSql += frag;
+    }
+
     if (!params.genre.empty()) whereSql += Sql::QueryWhereGenre;
-    if (!params.series.empty()) whereSql += Sql::QueryWhereSeries;
     if (!params.language.empty()) whereSql += Sql::QueryWhereLanguage;
     if (!params.libId.empty()) whereSql += Sql::QueryWhereLibId;
     if (!params.archiveName.empty()) whereSql += Sql::QueryWhereArchiveName;
     if (!params.dateFrom.empty()) whereSql += Sql::QueryWhereDateFrom;
     if (!params.dateTo.empty()) whereSql += Sql::QueryWhereDateTo;
     if (params.ratingMin > 0) whereSql += Sql::QueryWhereRatingMin;
+    if (params.ratingMax > 0) whereSql += Sql::QueryWhereRatingMax;
     if (params.withAnnotation) whereSql += Sql::QueryWhereWithAnnotation;
 
     // Count total matches
@@ -442,7 +504,7 @@ SQueryResult CDatabase::ExecuteQuery(const SQueryParams& params)
     {
         std::string fullCountSql = countSql + joinSql + whereSql;
         auto cstmt = m_db->Prepare(fullCountSql);
-        BindQueryParams(cstmt.get(), params);
+        BindQueryParamsCustom(cstmt.get(), params, binds);
         cstmt->Step();
         CSqlStmtResetGuard countGuard(*cstmt);
         result.totalFound = cstmt->IsRow() ? cstmt->ColumnInt64(0) : 0;
@@ -463,7 +525,7 @@ SQueryResult CDatabase::ExecuteQuery(const SQueryParams& params)
     {
         std::string fullSelectSql = selectSql + joinSql + whereSql + orderLimitSql;
         auto stmt = m_db->Prepare(fullSelectSql);
-        BindQueryParams(stmt.get(), params);
+        BindQueryParamsCustom(stmt.get(), params, binds);
 
         stmt->Step();
         CSqlStmtResetGuard selectGuard(*stmt);

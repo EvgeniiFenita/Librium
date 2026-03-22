@@ -1,0 +1,20 @@
+{
+  "description": "Cyrillic Search: testing case-insensitive search for Russian and Ukrainian characters",
+  "library": [
+    { "title": "Евгений Онегин", "authors": ["Александр Пушкин"], "genres": ["prose"] },
+    { "title": "ТЕСТОВАЯ КНИГА", "authors": ["ИВАН ИВАНОВ"], "genres": ["sf"] },
+    { "title": "Ёжик в тумане", "authors": ["Сергей Козлов"], "genres": ["child"] },
+    { "title": "Київська Русь", "authors": ["Михайло Грушевський"], "genres": ["history"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { "description": "Lower case search for UPPER case title", "args": ["query", "--title", "тестовая"], "expected": { "totalFound": 1 } },
+    { "description": "UPPER case search for lower case title", "args": ["query", "--title", "ЕВГЕНИЙ"], "expected": { "totalFound": 1 } },
+    { "description": "Search with 'ё'", "args": ["query", "--title", "ёжик"], "expected": { "totalFound": 1 } },
+    { "description": "Search with 'Ё' (upper)", "args": ["query", "--title", "ЁЖИК"], "expected": { "totalFound": 1 } },
+    { "description": "Search Ukrainian 'і'", "args": ["query", "--title", "київська"], "expected": { "totalFound": 1 } },
+    { "description": "Search Ukrainian 'І' (upper)", "args": ["query", "--title", "КИЇВСЬКА"], "expected": { "totalFound": 1 } },
+    { "description": "Search author case-insensitive", "args": ["query", "--author", "пушкин"], "expected": { "totalFound": 1 } },
+    { "description": "Search author UPPER", "args": ["query", "--author", "ПУШКИН"], "expected": { "totalFound": 1 } }
+  ]
+}

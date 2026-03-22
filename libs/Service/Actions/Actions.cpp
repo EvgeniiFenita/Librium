@@ -38,6 +38,15 @@ void CQueryAction::Execute(CAppService& service, const IRequest& req, IResponse&
     if (req.HasParam("genre"))    qp.genre = req.GetString("genre");
     if (req.HasParam("series"))   qp.series = req.GetString("series");
     if (req.HasParam("language")) qp.language = req.GetString("language");
+    if (req.HasParam("libId"))    qp.libId = req.GetString("libId");
+    if (req.HasParam("archiveName")) qp.archiveName = req.GetString("archiveName");
+    if (req.HasParam("yearFrom")) qp.yearFrom = req.GetString("yearFrom");
+    if (req.HasParam("dateFrom")) qp.dateFrom = req.GetString("dateFrom");
+    if (req.HasParam("dateTo"))   qp.dateTo = req.GetString("dateTo");
+    
+    if (req.HasParam("ratingMin")) qp.ratingMin = static_cast<int>(req.GetInt("ratingMin"));
+    if (req.HasParam("ratingMax")) qp.ratingMax = static_cast<int>(req.GetInt("ratingMax"));
+    if (req.HasParam("withAnnotation")) qp.withAnnotation = req.GetBool("withAnnotation");
     
     if (req.HasParam("limit"))    qp.limit = req.GetInt("limit");
     if (req.HasParam("offset"))   qp.offset = req.GetInt("offset");

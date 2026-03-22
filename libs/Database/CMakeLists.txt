@@ -1,7 +1,9 @@
 add_library(Database STATIC
     Database.cpp
     DatabaseSchema.cpp
+    SearchQueryParser.cpp
     SqliteDatabase.cpp
+    SqliteFunctions.cpp
     SqliteStatement.cpp
 )
 

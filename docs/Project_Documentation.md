@@ -163,10 +163,19 @@ During long operations (`import`, `upgrade`), the engine emits periodic updates:
 | :--- | :--- | :--- |
 | `import` | *none* | Full library re-indexing using paths from config. |
 | `upgrade`| *none* | Incremental update (add only new archives). |
-| `query`  | `title`, `author`, `genre`, `series`, `language`, `lib-id`, `archive`, `date-from`, `date-to`, `rating-min`, `with-annotation`, `limit`, `offset` | Search books in the database. |
+| `query`  | `title`, `author`, `genre`, `series`, `language`, `lib-id`, `archive`, `date-from`, `date-to`, `rating-min`, `rating-max`, `with-annotation`, `limit`, `offset` | Search books in the database. Supports search operators in `title`, `author`, and `series`. |
 | `stats`  | *none* | Get database summary (books/authors count). |
 | `get-book` | `id` (int) | Get full metadata of a single book by ID. Includes `"cover"` path if available. |
 | `export` | `id` (int), `out` (directory path) | Extract a book from a ZIP archive into the specified directory. Response includes `data.file` — absolute path to the extracted file. |
+
+### Search Syntax
+The `query` action supports extended operators for the `title`, `author`, and `series` parameters:
+- **Prefix (Default)**: `Push` finds "Pushkin". (Generates `LIKE 'Push%'`)
+- **Exact Match**: `=Pushkin` finds exactly "Pushkin". (Generates `= 'Pushkin'`)
+- **Contains**: `*robot` finds "I, Robot" and "The Robots of Dawn". (Generates `LIKE '%robot%'`)
+
+All searches are **Unicode-aware and case-insensitive** for Cyrillic characters using the internal `librium_upper()` function.
+
 
 ---
 
@@ -182,9 +191,12 @@ To ensure Windows compatibility with non-ASCII paths:
 ## 7. Performance & Robustness
 
 ### High-Performance Import
+- **Bulk Write Mode**: During mass indexing, the database toggles `PRAGMA journal_mode = OFF` and `PRAGMA synchronous = OFF` via `BeginBulkImport()`. This provides a 30-50% speed boost. The `CImportGuard` RAII object ensures WAL mode and synchronous=NORMAL are restored even if the process crashes.
+- **Optimized Page Size**: New databases are initialized with `PRAGMA page_size = 16384` to reduce B-Tree depth and improve disk I/O for millions of records.
 - **Archive-Aware Scheduling**: The indexer groups all books by archive during pre-scan. Each `SWorkItem` in the work queue represents a complete archive batch — all books from one ZIP. A worker thread picks up an entire batch, opens the ZIP exactly once, processes all books sequentially, then closes it. This eliminates redundant ZIP opens caused by multiple threads competing for the same archive.
 - **Fast Upgrade**: The `upgrade` command automatically skips archives that are already marked as indexed in the database, reducing incremental update time from minutes to seconds.
-- **Index Management**: Search indexes are dropped before bulk imports and recreated afterward to maintain constant O(1) insertion speed. `DropIndexes()` and `CreateIndexes()` are simple DDL `Exec()` calls — no statement finalization or re-compilation is required. The prerequisite for safe DDL is that no prepared statement holds an open read cursor (i.e., has called `sqlite3_step()` returning `SQLITE_ROW` without a subsequent `sqlite3_reset()`). All SELECT statements in `CDatabase` — including `GetOrCreate*()`, `BookExists()`, `CountBooks()`, `CountAuthors()`, `GetIndexedArchives()`, `FetchAuthors()`, `FetchGenres()`, `ExecuteQuery()`, and `GetBookById()` — call `Reset()` immediately after reading the result of `Step()`, ensuring no open cursors remain at the time `DROP INDEX` is executed.
+- **Index Management**: Search indexes are dropped before bulk imports and recreated afterward to maintain constant O(1) insertion speed. `CImportGuard` manages this lifecycle automatically.
+- **Search Optimizations**: Fast case-insensitive search is achieved through denormalized columns (`search_title` in `books`, `search_name` in `authors`) indexed for prefix searching. This avoids expensive function calls in `WHERE` clauses.
 - **Database Caching**: Internal memory caches for Authors, Genres, Series, and Publishers IDs minimize SQLite lookup overhead during mass indexing.
 - **Worker Parallelism**: Supports high thread counts (up to 32+ threads) for simultaneous FB2 parsing and XML processing.
 

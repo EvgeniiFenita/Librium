@@ -1,0 +1,47 @@
+{
+  "description": "Rating filter: ratingMin and ratingMax range filtering",
+  "library": [
+    { "title": "Unrated Book",    "authors": ["Author,A,"], "rating": 0 },
+    { "title": "Low Rated Book",  "authors": ["Author,B,"], "rating": 2 },
+    { "title": "Mid Rated Book",  "authors": ["Author,C,"], "rating": 5 },
+    { "title": "High Rated Book", "authors": ["Author,D,"], "rating": 8 },
+    { "title": "Top Rated Book",  "authors": ["Author,E,"], "rating": 10 }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "Filter by ratingMin only",
+      "args": ["query", "--ratingMin", "5", "--limit", "10"],
+      "expected": {
+        "totalFound": 3,
+        "books": [
+          { "title": "Mid Rated Book" },
+          { "title": "High Rated Book" },
+          { "title": "Top Rated Book" }
+        ]
+      }
+    },
+    {
+      "description": "Filter by ratingMax only",
+      "args": ["query", "--ratingMax", "5", "--limit", "10"],
+      "expected": {
+        "totalFound": 2,
+        "books": [
+          { "title": "Low Rated Book" },
+          { "title": "Mid Rated Book" }
+        ]
+      }
+    },
+    {
+      "description": "Filter by ratingMin and ratingMax range",
+      "args": ["query", "--ratingMin", "5", "--ratingMax", "8", "--limit", "10"],
+      "expected": {
+        "totalFound": 2,
+        "books": [
+          { "title": "Mid Rated Book" },
+          { "title": "High Rated Book" }
+        ]
+      }
+    }
+  ]
+}

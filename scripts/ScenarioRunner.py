@@ -28,14 +28,23 @@ class ScenarioRunner:
         """Runs all scenarios from the specified directory."""
         scenario_files = glob.glob(os.path.join(scenarios_dir, "**/*.json"), recursive=True)
         results = []
+        skipped = 0
         
         for sf in sorted(scenario_files):
             if "smoke_real" in sf and not self.real_lib_path:
                 print(f"Skipping {sf} (Real library path not provided)")
+                skipped += 1
                 continue
                 
             res = self.run_scenario(sf)
             results.append(res)
+            
+        passed = sum(1 for r in results if r["status"] == "PASS")
+        failed = sum(1 for r in results if r["status"] == "FAIL")
+        
+        print("=" * 80)
+        print(f"  SCENARIO SUMMARY: {passed} passed, {failed} failed, {skipped} skipped (Total: {len(scenario_files)})")
+        print("=" * 80)
             
         return results
 
