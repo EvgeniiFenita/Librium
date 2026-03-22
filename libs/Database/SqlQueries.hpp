@@ -195,6 +195,9 @@ constexpr std::string_view CountBooks = "SELECT COUNT(*) FROM books";
 // Total count of authors in DB
 constexpr std::string_view CountAuthors = "SELECT COUNT(*) FROM authors";
 
+// Count of book-related indexes (used by tests to verify index lifecycle)
+constexpr std::string_view CountBookIndexes = "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name LIKE 'idx_books_%'";
+
 
 // --- Querying ---
 

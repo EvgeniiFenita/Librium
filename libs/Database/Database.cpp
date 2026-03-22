@@ -80,12 +80,12 @@ int64_t CDatabase::GetOrCreateAuthor(const Inpx::SAuthor& author)
     m_stmtGetAuthor->BindText(1, author.lastName);
     m_stmtGetAuthor->BindText(2, author.firstName);
     m_stmtGetAuthor->BindText(3, author.middleName);
-    
-    int64_t id = 0;
     m_stmtGetAuthor->Step();
+    CSqlStmtResetGuard authorGuard(*m_stmtGetAuthor);
+
+    int64_t id = 0;
     if (m_stmtGetAuthor->IsRow())
         id = m_stmtGetAuthor->ColumnInt64(0);
-    m_stmtGetAuthor->Reset();
 
     if (id > 0) m_cacheAuthors[key] = id;
     return id;
@@ -102,12 +102,12 @@ int64_t CDatabase::GetOrCreateGenre(const std::string& genre)
 
     m_stmtGetGenre->Reset();
     m_stmtGetGenre->BindText(1, genre);
-    
-    int64_t id = 0;
     m_stmtGetGenre->Step();
+    CSqlStmtResetGuard genreGuard(*m_stmtGetGenre);
+
+    int64_t id = 0;
     if (m_stmtGetGenre->IsRow())
         id = m_stmtGetGenre->ColumnInt64(0);
-    m_stmtGetGenre->Reset();
 
     if (id > 0) m_cacheGenres[genre] = id;
     return id;
@@ -125,12 +125,12 @@ int64_t CDatabase::GetOrCreateSeries(const std::string& series)
 
     m_stmtGetSeries->Reset();
     m_stmtGetSeries->BindText(1, series);
-    
-    int64_t id = 0;
     m_stmtGetSeries->Step();
+    CSqlStmtResetGuard seriesGuard(*m_stmtGetSeries);
+
+    int64_t id = 0;
     if (m_stmtGetSeries->IsRow())
         id = m_stmtGetSeries->ColumnInt64(0);
-    m_stmtGetSeries->Reset();
 
     if (id > 0) m_cacheSeries[series] = id;
     return id;
@@ -148,12 +148,12 @@ int64_t CDatabase::GetOrCreatePublisher(const std::string& pub)
 
     m_stmtGetPublisher->Reset();
     m_stmtGetPublisher->BindText(1, pub);
-    
-    int64_t id = 0;
     m_stmtGetPublisher->Step();
+    CSqlStmtResetGuard publisherGuard(*m_stmtGetPublisher);
+
+    int64_t id = 0;
     if (m_stmtGetPublisher->IsRow())
         id = m_stmtGetPublisher->ColumnInt64(0);
-    m_stmtGetPublisher->Reset();
 
     if (id > 0) m_cachePublishers[pub] = id;
     return id;
@@ -170,12 +170,12 @@ int64_t CDatabase::GetOrCreateArchive(const std::string& name)
 
     m_stmtGetArchive->Reset();
     m_stmtGetArchive->BindText(1, name);
-    
-    int64_t id = 0;
     m_stmtGetArchive->Step();
+    CSqlStmtResetGuard archiveGuard(*m_stmtGetArchive);
+
+    int64_t id = 0;
     if (m_stmtGetArchive->IsRow())
         id = m_stmtGetArchive->ColumnInt64(0);
-    m_stmtGetArchive->Reset();
 
     if (id > 0) m_cacheArchives[name] = id;
     return id;
@@ -246,9 +246,8 @@ bool CDatabase::BookExists(const std::string& libId, const std::string& archiveN
     m_stmtBookExists->BindText(1, libId);
     m_stmtBookExists->BindInt64(2, archId);
     m_stmtBookExists->Step();
-    bool exists = m_stmtBookExists->IsRow();
-    m_stmtBookExists->Reset();
-    return exists;
+    CSqlStmtResetGuard guard(*m_stmtBookExists);
+    return m_stmtBookExists->IsRow();
 }
 
 std::vector<std::string> CDatabase::GetIndexedArchives()
@@ -257,6 +256,7 @@ std::vector<std::string> CDatabase::GetIndexedArchives()
     auto stmt = m_db->Prepare(std::string(Sql::GetIndexedArchives));
 
     stmt->Step();
+    CSqlStmtResetGuard guard(*stmt);
     while (stmt->IsRow())
     {
         std::string text = stmt->ColumnText(0);
@@ -279,18 +279,16 @@ int64_t CDatabase::CountBooks() const
 {
     auto stmt = m_db->Prepare(std::string(Sql::CountBooks));
     stmt->Step();
-    if (stmt->IsRow())
-        return stmt->ColumnInt64(0);
-    return 0;
+    CSqlStmtResetGuard guard(*stmt);
+    return stmt->IsRow() ? stmt->ColumnInt64(0) : 0;
 }
 
 int64_t CDatabase::CountAuthors() const
 {
     auto stmt = m_db->Prepare(std::string(Sql::CountAuthors));
     stmt->Step();
-    if (stmt->IsRow())
-        return stmt->ColumnInt64(0);
-    return 0;
+    CSqlStmtResetGuard guard(*stmt);
+    return stmt->IsRow() ? stmt->ColumnInt64(0) : 0;
 }
 
 int64_t CDatabase::LastInsertRowId() const
@@ -303,16 +301,15 @@ std::optional<SBookPath> CDatabase::GetBookPath(int64_t bookId)
     m_stmtGetBookPath->Reset();
     m_stmtGetBookPath->BindInt64(1, bookId);
     m_stmtGetBookPath->Step();
-    
+    CSqlStmtResetGuard guard(*m_stmtGetBookPath);
+
     if (m_stmtGetBookPath->IsRow())
     {
         SBookPath bp;
         bp.archiveName = m_stmtGetBookPath->ColumnText(0);
-        bp.fileName = m_stmtGetBookPath->ColumnText(1);
-        m_stmtGetBookPath->Reset();
+        bp.fileName    = m_stmtGetBookPath->ColumnText(1);
         return bp;
     }
-    m_stmtGetBookPath->Reset();
     return std::nullopt;
 }
 
@@ -338,11 +335,12 @@ std::vector<SAuthorInfo> FetchAuthors(ISqlDatabase* db, int64_t bookId)
     auto stmt = db->Prepare(std::string(Sql::FetchBookAuthors));
     stmt->BindInt64(1, bookId);
     stmt->Step();
+    CSqlStmtResetGuard guard(*stmt);
     while (stmt->IsRow())
     {
         SAuthorInfo ai;
-        ai.lastName = stmt->ColumnText(0);
-        ai.firstName = stmt->ColumnText(1);
+        ai.lastName   = stmt->ColumnText(0);
+        ai.firstName  = stmt->ColumnText(1);
         ai.middleName = stmt->ColumnText(2);
         result.push_back(std::move(ai));
         stmt->Step();
@@ -356,6 +354,7 @@ std::vector<std::string> FetchGenres(ISqlDatabase* db, int64_t bookId)
     auto stmt = db->Prepare(std::string(Sql::FetchBookGenres));
     stmt->BindInt64(1, bookId);
     stmt->Step();
+    CSqlStmtResetGuard guard(*stmt);
     while (stmt->IsRow())
     {
         std::string code = stmt->ColumnText(0);
@@ -445,8 +444,8 @@ SQueryResult CDatabase::ExecuteQuery(const SQueryParams& params)
         auto cstmt = m_db->Prepare(fullCountSql);
         BindQueryParams(cstmt.get(), params);
         cstmt->Step();
-        if (cstmt->IsRow())
-            result.totalFound = cstmt->ColumnInt64(0);
+        CSqlStmtResetGuard countGuard(*cstmt);
+        result.totalFound = cstmt->IsRow() ? cstmt->ColumnInt64(0) : 0;
     }
     catch (const std::exception& e)
     {
@@ -467,6 +466,7 @@ SQueryResult CDatabase::ExecuteQuery(const SQueryParams& params)
         BindQueryParams(stmt.get(), params);
 
         stmt->Step();
+        CSqlStmtResetGuard selectGuard(*stmt);
         while (stmt->IsRow())
         {
             result.books.push_back(ReadBookRow(stmt.get(), m_db.get()));
@@ -490,10 +490,12 @@ std::optional<SBookResult> CDatabase::GetBookById(int64_t id)
         auto stmt = m_db->Prepare(fullSql);
         stmt->BindInt64(1, id);
         stmt->Step();
+        CSqlStmtResetGuard guard(*stmt);
+
+        std::optional<SBookResult> result;
         if (stmt->IsRow())
-        {
-            return ReadBookRow(stmt.get(), m_db.get());
-        }
+            result = ReadBookRow(stmt.get(), m_db.get());
+        return result;
     }
     catch (const std::exception& e)
     {

@@ -80,7 +80,7 @@ python scripts/run.py --preset x64-debug --clean
 
 ### Test Stages in `scripts/test.py`
 1.  **Stage 1: UNIT**: Fast C++ unit tests (Catch2). Fully self-contained, no external scripts required.
-    - **Coverage**: Filters (genres/size/authors), string encoding (UTF-8/CP1251/UTF-16), Base64, thread-safe concurrency, database transactions, INPX streaming, ZIP RAII, logger configuration, query edge cases, config utilities.
+    - **Coverage**: Filters (genres/size/authors/keywords), string encoding (UTF-8/CP1251/UTF-16), Base64, thread-safe concurrency, database transactions, INPX streaming, ZIP RAII, logger configuration, query edge cases, config utilities.
     - **Crash Diagnostics**: `TestMain.cpp` writes `unit_tests.log` next to `UnitTests.exe` on every run for post-mortem analysis.
 2.  **Stage 2: SCENARIO**: Behavioral tests. 
     - Uses `LibGen.py` to create a "miniature" realistic library.
@@ -182,9 +182,9 @@ To ensure Windows compatibility with non-ASCII paths:
 ## 7. Performance & Robustness
 
 ### High-Performance Import
-- **Archive-Aware Scheduling**: The indexer groups books by archive before processing. This ensures that each ZIP file is opened once and read linearly, minimizing HDD disk thrashing.
+- **Archive-Aware Scheduling**: The indexer groups all books by archive during pre-scan. Each `SWorkItem` in the work queue represents a complete archive batch — all books from one ZIP. A worker thread picks up an entire batch, opens the ZIP exactly once, processes all books sequentially, then closes it. This eliminates redundant ZIP opens caused by multiple threads competing for the same archive.
 - **Fast Upgrade**: The `upgrade` command automatically skips archives that are already marked as indexed in the database, reducing incremental update time from minutes to seconds.
-- **Index Management**: Search indexes are dropped before bulk imports and recreated afterward to maintain constant O(1) insertion speed. `DropIndexes()` and `CreateIndexes()` are simple DDL `Exec()` calls — no statement finalization or re-compilation is required. The prerequisite for safe DDL is that no prepared statement holds an open read cursor (i.e., has called `sqlite3_step()` returning `SQLITE_ROW` without a subsequent `sqlite3_reset()`). All `GetOrCreate*()` and `BookExists()` SELECT statements call `Reset()` immediately after reading the result of `Step()`, ensuring no open cursors remain at the time `DROP INDEX` is executed.
+- **Index Management**: Search indexes are dropped before bulk imports and recreated afterward to maintain constant O(1) insertion speed. `DropIndexes()` and `CreateIndexes()` are simple DDL `Exec()` calls — no statement finalization or re-compilation is required. The prerequisite for safe DDL is that no prepared statement holds an open read cursor (i.e., has called `sqlite3_step()` returning `SQLITE_ROW` without a subsequent `sqlite3_reset()`). All SELECT statements in `CDatabase` — including `GetOrCreate*()`, `BookExists()`, `CountBooks()`, `CountAuthors()`, `GetIndexedArchives()`, `FetchAuthors()`, `FetchGenres()`, `ExecuteQuery()`, and `GetBookById()` — call `Reset()` immediately after reading the result of `Step()`, ensuring no open cursors remain at the time `DROP INDEX` is executed.
 - **Database Caching**: Internal memory caches for Authors, Genres, Series, and Publishers IDs minimize SQLite lookup overhead during mass indexing.
 - **Worker Parallelism**: Supports high thread counts (up to 32+ threads) for simultaneous FB2 parsing and XML processing.
 
@@ -200,12 +200,6 @@ The `RealLibraryTest.py` script performs multi-stage validation:
 3. **Incremental Logic**: Verifies that a secondary `upgrade` command correctly skips all existing archives.
 4. **Export Integrity**: Validates exported books by checking file size and searching for valid XML signatures (`<FictionBook`) in the content.
 5. **Cover Extraction**: Verifies that cover images are correctly extracted from FB2 and saved to disk.
-
----
-
-## 9. Known Gaps
-
-- **Keyword Filtering**: `SFiltersConfig::excludeKeywords` is parsed from config and serialized correctly, but is never read inside `CBookFilter::ShouldInclude()`. Books with excluded keywords are not filtered out. Any implementation must be accompanied by unit tests in `tests/Unit/TestBookFilter.cpp`.
 
 ---
 

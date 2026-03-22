@@ -26,4 +26,18 @@ public:
     [[nodiscard]] virtual bool IsDone() const = 0;
 };
 
+// RAII guard that calls Reset() on a statement when it goes out of scope.
+// Use immediately after Step() to guarantee cursor release on all exit paths,
+// including exceptions thrown during column reading.
+class CSqlStmtResetGuard
+{
+public:
+    explicit CSqlStmtResetGuard(ISqlStatement& stmt) noexcept : m_stmt(stmt) {}
+    ~CSqlStmtResetGuard() noexcept { m_stmt.Reset(); }
+    CSqlStmtResetGuard(const CSqlStmtResetGuard&)            = delete;
+    CSqlStmtResetGuard& operator=(const CSqlStmtResetGuard&) = delete;
+private:
+    ISqlStatement& m_stmt;
+};
+
 } // namespace Librium::Db

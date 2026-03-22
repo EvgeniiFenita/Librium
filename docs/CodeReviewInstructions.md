@@ -4,12 +4,12 @@ You are a senior C++ software engineer performing a thorough code review of the 
 
 ## Your task
 
-Perform a comprehensive, read-only audit of the entire codebase. Do NOT modify any files. Do NOT fix anything. Your sole deliverable is a structured review report saved to `ReviewReport.md`.
+Perform a comprehensive, read-only audit of the entire codebase. Do NOT modify any files. Do NOT fix anything.
 
 ## What to audit
 
 Scan ALL source files under:
-- `libs/` (Config, Database, Fb2, Inpx, Log, Query, Zip)
+- `libs/` (Config, Database, Fb2, Indexer, Inpx, Log, Protocol, Service, Transport, Utils, Zip)
 - `apps/Librium/` (Commands, Indexer, Main.cpp)
 - `tests/` (Unit, Integration)
 - `CMakeLists.txt`, `CMakePresets.json`, `vcpkg.json`
@@ -67,7 +67,7 @@ For EVERY violation found, cite the file, line number, and the offending code sn
 
 ### 🟡 MEDIUM — Maintainability
 - **Algorithm Efficiency**: Inefficient data structures or O(N^2) complexity where O(N log N) or better is expected.
-- **Dead Code**: Unused functions, variables, or commented-out code.
+- **Dead Code**: Unused functions, variables, or commented-out code. **Search strategy**: look for private or free functions/methods that are never called anywhere in the codebase; methods declared in a header but with no callers (grep for the method name across all `.cpp` files).
 - **Complexity**: Overly long functions (e.g., in `Indexer.cpp` or `Database.cpp`) that should be refactored.
 - **Logging**: Use logging macros (`LOG_INFO`, `LOG_ERROR`, etc.) instead of direct `CLogger` calls.
 - **Single Responsibility**: Classes or functions doing too many unrelated things.
@@ -89,18 +89,7 @@ For EVERY violation found, cite the file, line number, and the offending code sn
 - **Test Gaps**: Modules with no negative tests (e.g., corrupted ZIP or malformed INPX).
 - **Scenario Coverage**: Every new feature or fix should have a new `.json` scenario in `tests/Scenarios/`.
 - **Unit Test Coverage**: `tests/Unit/` covers filters (genres/size/authors), string encoding (UTF-8/CP1251/UTF-16), Base64, thread-safe concurrency, database transactions, INPX streaming, ZIP RAII, logger configuration, query edge cases, and config utilities. New modules should have matching unit tests.
-- **Known Gap**: `SFiltersConfig::excludeKeywords` is parsed and serialized but never applied in `CBookFilter::ShouldInclude()`. Any implementation of keyword filtering must be accompanied by unit tests.
-
----
-
-## Output format
-
-Write the report to `ReviewReport.md` with this exact structure:
-```markdown
-# Librium — Code Review Report
-**Date:** <date>
-**Reviewer:** AI Assistant
-**Scope:** Full codebase audit (libs/, apps/, tests/, build system)
+- **Keyword Filtering**: `SFiltersConfig::excludeKeywords` is parsed, serialized, and applied in `CBookFilter::ShouldInclude()` via substring matching against `rec.keywords`. Unit tests covering positive matches, partial matches, empty-keywords passthrough, and exclusion reason are in `tests/Unit/TestBookFilter.cpp`.
 
 ---
 

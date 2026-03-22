@@ -177,6 +177,18 @@ SFilterResult CBookFilter::ShouldInclude(const Inpx::SBookRecord& rec) const
         return { false, "file too large" }; 
     }
 
+    // keywords
+    if (!m_cfg.excludeKeywords.empty() && !rec.keywords.empty())
+    {
+        for (const auto& kw : m_cfg.excludeKeywords)
+        {
+            if (!kw.empty() && rec.keywords.find(kw) != std::string::npos)
+            {
+                return { false, "excluded keyword: " + kw };
+            }
+        }
+    }
+
     return { true, "" };
 }
 

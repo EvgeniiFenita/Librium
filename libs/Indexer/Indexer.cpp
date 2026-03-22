@@ -48,50 +48,9 @@ std::vector<std::string> CIndexer::GetNewArchives(Db::CDatabase& db, const std::
     return newArchives;
 }
 
-void CIndexer::ProducerThread(const std::string& inpxPath, const Config::CBookFilter& filter) 
-{
-    try
-    {
-        Inpx::CInpParser parser;
-        std::unordered_map<std::string, std::vector<Inpx::SBookRecord>> archiveGroups;
-        
-        LOG_INFO("Producer: pre-scanning INPX to group by archive...");
-        parser.ParseStreaming(inpxPath, [&](Inpx::SBookRecord&& rec) 
-        {
-            if (m_stopRequested) return false;
-            
-            if (!m_skipArchives.empty() && m_skipArchives.count(rec.archiveName))
-                return true;
-
-            auto filterRes = filter.ShouldInclude(rec);
-            if (!filterRes) { ++m_filteredCount; return true; }
-            
-            archiveGroups[rec.archiveName].push_back(std::move(rec));
-            
-            if (archiveGroups[rec.archiveName].size() >= 5000)
-            {
-                for (auto& r : archiveGroups[rec.archiveName])
-                    m_workQueue.Push(SWorkItem{std::move(r)});
-                archiveGroups[rec.archiveName].clear();
-            }
-            return true;
-        });
-
-        for (auto& group : archiveGroups)
-            for (auto& r : group.second)
-                m_workQueue.Push(SWorkItem{std::move(r)});
-    }
-    catch (const std::exception& e) 
-    {
-        LOG_ERROR("Producer error: {}", e.what());
-    }
-    m_workQueue.Close();
-}
-
 void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2) 
 {
     std::unordered_map<std::string, fs::path> archivePathCache;
-    std::unique_ptr<Zip::CZipReader> currentZip;
     Fb2::CFb2Parser fb2Parser;
 
     while (!m_stopRequested) 
@@ -101,46 +60,69 @@ void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2)
             auto item = m_workQueue.Pop();
             if (!item) break;
 
-            SResultItem result;
-            result.record = std::move(item->record);
-
-            if (parseFb2) 
+            // Resolve archive path once per batch.
+            fs::path archivePath;
+            auto it = archivePathCache.find(item->archiveName);
+            if (it != archivePathCache.end())
             {
-                fs::path archivePath;
-                auto it = archivePathCache.find(result.record.archiveName);
-                if (it != archivePathCache.end()) archivePath = it->second;
-                else
+                archivePath = it->second;
+            }
+            else
+            {
+                for (const auto& suffix : {std::string(".zip"), std::string("")}) 
                 {
-                    for (const auto& suffix : {std::string(".zip"), std::string("")}) 
-                    {
-                        fs::path p = Utf8ToPath(archivesDir) / Utf8ToPath(result.record.archiveName + suffix);
-                        if (fs::exists(p)) { archivePath = p; break; }
-                    }
-                    archivePathCache[result.record.archiveName] = archivePath;
+                    fs::path p = Utf8ToPath(archivesDir) / Utf8ToPath(item->archiveName + suffix);
+                    if (fs::exists(p)) { archivePath = p; break; }
                 }
+                archivePathCache[item->archiveName] = archivePath;
+            }
 
-                if (!archivePath.empty()) 
+            // Open ZIP once for the entire archive batch.
+            std::unique_ptr<Zip::CZipReader> zip;
+            if (parseFb2 && !archivePath.empty())
+            {
+                try
                 {
-                    try
-                    {
-                        if (!currentZip || currentZip->Path() != archivePath)
-                        {
-                            currentZip = std::make_unique<Zip::CZipReader>(archivePath);
-                        }
-
-                        auto data = currentZip->ReadEntry(result.record.FilePath());
-                        result.fb2 = fb2Parser.Parse(data);
-                    }
-                    catch (const std::exception& e) 
-                    {
-                        LOG_DEBUG("FB2 read error [{}]: {}", result.record.FilePath(), e.what());
-                        ++m_errorCount;
-                    }
+                    zip = std::make_unique<Zip::CZipReader>(archivePath);
+                }
+                catch (const std::exception& e)
+                {
+                    LOG_ERROR("Failed to open archive [{}]: {}", item->archiveName, e.what());
                 }
             }
 
-            ++m_parsedCount;
-            m_resultQueue.Push(std::move(result));
+            for (auto& rec : item->records)
+            {
+                if (m_stopRequested) break;
+
+                try
+                {
+                    SResultItem result;
+                    result.record = std::move(rec);
+
+                    if (zip)
+                    {
+                        try
+                        {
+                            auto data = zip->ReadEntry(result.record.FilePath());
+                            result.fb2 = fb2Parser.Parse(data);
+                        }
+                        catch (const std::exception& e)
+                        {
+                            LOG_DEBUG("FB2 read error [{}]: {}", result.record.FilePath(), e.what());
+                            ++m_errorCount;
+                        }
+                    }
+
+                    ++m_parsedCount;
+                    m_resultQueue.Push(std::move(result));
+                }
+                catch (const std::exception& e)
+                {
+                    LOG_ERROR("Worker record error: {}", e.what());
+                    ++m_errorCount;
+                }
+            }
         }
         catch (const std::exception& e)
         {
@@ -355,14 +337,10 @@ Db::SImportStats CIndexer::Run(Db::CDatabase& db, EImportMode mode, IProgressRep
 
     std::jthread producer([this, work = std::move(preparedWork)]() mutable
     {
-        for (auto& group : work)
+        for (auto& [archiveName, records] : work)
         {
-            for (auto& r : group.second)
-            {
-                if (m_stopRequested) break;
-                m_workQueue.Push(SWorkItem{std::move(r)});
-            }
             if (m_stopRequested) break;
+            m_workQueue.Push(SWorkItem{archiveName, std::move(records)});
         }
         m_workQueue.Close();
     });

@@ -44,7 +44,8 @@ private:
 
     struct SWorkItem
     {
-        Inpx::SBookRecord record;
+        std::string                    archiveName;
+        std::vector<Inpx::SBookRecord> records;
     };
 
     struct SResultItem
@@ -53,13 +54,13 @@ private:
         Fb2::SFb2Data     fb2;
     };
 
-    static constexpr size_t k_workQueueSize   = 5000;
+    // Work queue holds one batch per archive; result queue holds individual books.
+    static constexpr size_t k_workQueueSize   = 128;
     static constexpr size_t k_resultQueueSize = 2000;
 
     Utils::CThreadSafeQueue<SWorkItem>   m_workQueue{k_workQueueSize};
     Utils::CThreadSafeQueue<SResultItem> m_resultQueue{k_resultQueueSize};
 
-    void ProducerThread(const std::string& inpxPath, const Config::CBookFilter& filter);
     void WorkerThread(const std::string& archivesDir, bool parseFb2);
     Db::SImportStats WriterThread(Db::CDatabase& db, size_t batchSize, IProgressReporter* reporter, size_t totalBooks);
 };

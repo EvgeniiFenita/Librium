@@ -7,7 +7,7 @@ class ISqlDatabase;
 class CDatabaseSchema
 {
 public:
-    // Создает схему базы данных (таблицы и индексы)
+    // Creates database schema (tables and indexes)
     static void Create(ISqlDatabase& db);
 
 private:

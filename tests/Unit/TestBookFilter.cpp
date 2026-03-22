@@ -138,18 +138,13 @@ TEST_CASE("BookFilter author exclusion", "[config]")
 
 TEST_CASE("BookFilter keyword exclusion", "[config]")
 {
-    // NOTE: excludeKeywords is defined in SFiltersConfig and persisted to JSON,
-    // but is not yet applied in CBookFilter::ShouldInclude. All books pass through
-    // regardless of their keywords field.
-
-    SECTION("excludeKeywords not yet applied — books are not filtered by keywords")
+    SECTION("excludeKeywords filters books with matching keywords")
     {
         SFiltersConfig f;
         f.excludeKeywords = {"spam", "junk"};
         CBookFilter filter(f);
-        // All books pass through because keyword filtering is unimplemented
-        REQUIRE(filter.ShouldInclude(MakeFilterRec("ru", 100000, "sf", "spam")));
-        REQUIRE(filter.ShouldInclude(MakeFilterRec("ru", 100000, "sf", "junk")));
+        REQUIRE_FALSE(filter.ShouldInclude(MakeFilterRec("ru", 100000, "sf", "spam")));
+        REQUIRE_FALSE(filter.ShouldInclude(MakeFilterRec("ru", 100000, "sf", "junk")));
         REQUIRE(filter.ShouldInclude(MakeFilterRec("ru", 100000, "sf", "clean")));
     }
 
@@ -159,6 +154,33 @@ TEST_CASE("BookFilter keyword exclusion", "[config]")
         f.excludeKeywords = {};
         CBookFilter filter(f);
         REQUIRE(filter.ShouldInclude(MakeFilterRec("ru", 100000, "sf", "anything goes")));
+    }
+
+    SECTION("excludeKeywords partial match also excludes")
+    {
+        SFiltersConfig f;
+        f.excludeKeywords = {"spam"};
+        CBookFilter filter(f);
+        REQUIRE_FALSE(filter.ShouldInclude(MakeFilterRec("ru", 100000, "sf", "contains spam text")));
+        REQUIRE(filter.ShouldInclude(MakeFilterRec("ru", 100000, "sf", "clean text")));
+    }
+
+    SECTION("book with empty keywords field is never excluded by keyword filter")
+    {
+        SFiltersConfig f;
+        f.excludeKeywords = {"spam"};
+        CBookFilter filter(f);
+        REQUIRE(filter.ShouldInclude(MakeFilterRec("ru", 100000, "sf", "")));
+    }
+
+    SECTION("excludeKeywords exclusion reason is non-empty")
+    {
+        SFiltersConfig f;
+        f.excludeKeywords = {"spam"};
+        CBookFilter filter(f);
+        auto result = filter.ShouldInclude(MakeFilterRec("ru", 100000, "sf", "spam"));
+        REQUIRE_FALSE(result.included);
+        REQUIRE_FALSE(result.reason.empty());
     }
 }
 
