@@ -15,6 +15,30 @@ os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 sys.path.append(str(Path(__file__).parent))
 from Core import CPaths, CUI, CRunner
 
+def generate_demo_library(out_dir: Path) -> Path:
+    """Generate a synthetic demo library of ~350 books with covers.
+    Reuses the existing one if it was already generated.
+    """
+    demo_lib_dir = out_dir / "demo_lib"
+    lib_path = demo_lib_dir / "test_library"
+
+    if lib_path.exists() and any(lib_path.glob("*.inpx")):
+        CUI.info(f"Reusing existing demo library at: {lib_path}")
+        return lib_path
+
+    CUI.info("Generating synthetic demo library (~350 books, with covers)...")
+    if not CRunner.run_python("LibraryGenerator.py", [
+        "--out", str(demo_lib_dir),
+        "--books", "350",
+        "--archive-size", "30",
+        "--covers",
+    ]):
+        CUI.error("Failed to generate demo library.")
+        sys.exit(1)
+
+    return lib_path
+
+
 def run_npm_install(work_dir: Path):
     node_modules = work_dir / "node_modules"
     if not node_modules.exists():
@@ -123,7 +147,18 @@ def generate_configs(args, out_dir: Path):
 def main():
     parser = argparse.ArgumentParser(description="Librium Web UI Runner")
     parser.add_argument("--preset", default="x64-debug", help="CMake preset to use")
-    parser.add_argument("--library", required=True, help="Path to real library (folder containing lib.inpx and archives/)")
+
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument(
+        "--library",
+        help="Path to a real library folder (must contain a .inpx file and archive ZIPs)",
+    )
+    source.add_argument(
+        "--demo",
+        action="store_true",
+        help="Generate a synthetic demo library (~350 books with covers) and use it",
+    )
+
     args = parser.parse_args()
 
     CUI.banner(f"LIBRIUM WEB UI RUNNER [{args.preset}]")
@@ -135,20 +170,25 @@ def main():
 
     src_web_dir = CPaths.REPO_ROOT / "web"
     out_web_dir = CPaths.ARTIFACTS_ROOT / "web"
-    
-    # 2. Prepare environment in out/
+
+    # 2. In demo mode, generate the synthetic library first
+    if args.demo:
+        CUI.step(1, "GENERATING DEMO LIBRARY")
+        args.library = str(generate_demo_library(out_web_dir))
+
+    # 3. Prepare environment in out/
     prepare_web_env(src_web_dir, out_web_dir)
-    
-    # 3. Setup configs in out/
+
+    # 4. Setup configs in out/
     generate_configs(args, out_web_dir)
-    
-    # 4. NPM Install in out/
+
+    # 5. NPM Install in out/
     run_npm_install(out_web_dir)
-    
-    # 5. Run Web Server from out/
+
+    # 6. Run Web Server from out/
     CUI.info("Starting Web Server...")
     CUI.info("URL: http://localhost:8080")
-    
+
     try:
         subprocess.run(["node", "server.js"], cwd=str(out_web_dir), check=True)
     except KeyboardInterrupt:

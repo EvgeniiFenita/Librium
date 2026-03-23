@@ -26,7 +26,7 @@ The web part follows a **Proxy-Backend** pattern to bridge the C++ Engine's TCP 
 - **Backend (Node.js)**:
   - **Process Management**: Automatically spawns and monitors the `Librium.exe` process (requires Node.js >= 18).
   - **TCP Bridge**: Handles a persistent connection to the C++ Engine and manages a request queue with timeouts.
-  - **LRU Cover Cache**: Stores up to 500 recently accessed covers in RAM (supports JPG, PNG, and WebP).
+  - **LRU Cover Cache**: Stores up to 50 MB of recently accessed covers in RAM (supports JPG, PNG, and WebP).
   - **Security**: Validates all incoming book IDs and sanitizes query parameters to prevent attacks.
   - **Static Server**: Serves the frontend files and cover images from the `meta/` directory.
 
@@ -51,7 +51,7 @@ web/
 
 ### LRU In-Memory Caching
 To handle large libraries (e.g., 60GB of covers) without overwhelming the client or the server's disk:
-- **Server-Side**: The Node.js proxy maintains a **Least Recently Used (LRU)** cache in RAM for covers. Only the most active covers are kept in memory.
+- **Server-Side**: The Node.js proxy maintains a **Least Recently Used (LRU)** cache in RAM for covers. Up to **50 MB** of the most recently accessed covers are kept in memory.
 - **Client-Side**: Covers are served with a `Cache-Control: max-age=3600` header (1 hour), balancing responsiveness with local storage usage on mobile devices.
 
 ### Smart Pagination
@@ -62,18 +62,29 @@ The frontend requests books in batches of 40. The `IntersectionObserver` pre-fet
 ## 4. Usage & Deployment
 
 ### Local Development / Windows
-The easiest way to run the web interface is using the provided Python automation script:
+The easiest way to run the web interface is using the provided Python automation script.
 
+**With a real library:**
 ```powershell
 python scripts/RunWeb.py --preset x64-release --library "C:\Path\To\Your\Library"
 ```
 
+**With a synthetic demo library (~350 books, no real data required):**
+```powershell
+python scripts/RunWeb.py --demo
+```
+
+The `--demo` flag generates a synthetic library on the first run and reuses it on subsequent runs. All generated files are placed under `out/artifacts/web/demo_lib/`.
+
+`--library` and `--demo` are mutually exclusive.
+
 **What this script does:**
-1. Builds the C++ Engine in release mode.
-2. Detects your `.inpx` and archives folder.
-3. Generates necessary JSON configs in `out/artifacts/web/`.
-4. Installs `npm` dependencies.
-5. Launches the web server at `http://localhost:8080`.
+1. Builds the C++ Engine in the selected preset.
+2. In `--demo` mode: generates a synthetic library under `out/artifacts/web/demo_lib/`.
+3. Detects your `.inpx` and archives folder (or uses the generated one).
+4. Generates necessary JSON configs in `out/artifacts/web/`.
+5. Installs `npm` dependencies.
+6. Launches the web server at `http://localhost:8080`.
 
 ### Initial Import
 On the first launch, if the database is empty, the interface will automatically trigger a full library import. A progress bar will be displayed. You can also manually trigger an incremental update using the **"Обновить" (Update)** button in the header.

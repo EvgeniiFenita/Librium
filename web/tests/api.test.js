@@ -120,6 +120,26 @@ afterEach(() => {
     lastEngineParams = null;
 });
 
+/**
+ * Wait for the engine proxy to reach the 'ready' state.
+ * Required after tests that deliberately trigger a socket disconnect (e.g. BUG-1 timeout).
+ */
+async function waitForEngine(timeoutMs = 3000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        try {
+            const res = await request(httpServer).get('/api/status');
+            if (res.body.state === 'ready') return;
+        } catch (e) { /* server may still be starting */ }
+        await new Promise(r => setTimeout(r, 100));
+    }
+    throw new Error('Engine did not reach ready state within timeout');
+}
+
+beforeEach(async () => {
+    await waitForEngine();
+}, 5000);
+
 describe('Security & Validation', () => {
     it('should block Path Traversal attempts on /covers', async () => {
         // Now that the route is /covers/:id/:filename, /covers/../../ is not even matched
@@ -185,17 +205,73 @@ describe('Regression Tests (Bugs)', () => {
 
     it('should use unique output directories for exports (BUG-3)', async () => {
         // 1. First download
-        engineResponses.push({ status: 'ok', data: { file: 'test.fb2' } }); // filename is relative to out dir
-        await request(httpServer).get('/api/download/1');
+        engineResponses.push({ status: 'ok', data: { file: 'test.fb2' } });
+        const res1 = await request(httpServer).get('/api/download/1');
         const firstOutDir = lastEngineParams.out;
+        expect(res1.status).toBe(200);
 
         // 2. Second download
         engineResponses.push({ status: 'ok', data: { file: 'test.fb2' } });
-        await request(httpServer).get('/api/download/2');
+        const res2 = await request(httpServer).get('/api/download/2');
         const secondOutDir = lastEngineParams.out;
+        expect(res2.status).toBe(200);
 
         expect(firstOutDir).toBeDefined();
         expect(secondOutDir).toBeDefined();
         expect(firstOutDir).not.toBe(secondOutDir);
+    });
+});
+
+describe('Download Endpoint', () => {
+    it('should deliver file when engine returns a relative filename', async () => {
+        // Verifies fix for path.resolve(data.file) → path.resolve(uniqueOutDir, data.file).
+        // Engine returns just the filename; server must resolve it against uniqueOutDir.
+        engineResponses.push({ status: 'ok', data: { file: 'test.fb2' } });
+        const res = await request(httpServer).get('/api/download/1');
+        expect(res.status).toBe(200);
+        expect(res.headers['content-disposition']).toMatch(/attachment/i);
+    });
+
+    it('should reject path traversal embedded in the engine-returned filename', async () => {
+        // Engine (or attacker who compromised it) returns a filename with traversal sequences.
+        // The server must detect that the resolved path escapes uniqueOutDir and return 500.
+        engineResponses.push({ status: 'ok', data: { file: '../../../etc/passwd' } });
+        const res = await request(httpServer).get('/api/download/1');
+        expect(res.status).toBe(500);
+        expect(res.body.error).toBe('Invalid file path from engine');
+    });
+
+    it('should return 500 when engine returns no file path', async () => {
+        engineResponses.push({ status: 'ok', data: {} });
+        const res = await request(httpServer).get('/api/download/1');
+        expect(res.status).toBe(500);
+        expect(res.body.error).toBe('No file returned from engine');
+    });
+
+    it('should reject non-numeric book IDs on /api/download/:id', async () => {
+        const res = await request(httpServer).get('/api/download/invalid');
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe('Invalid book ID');
+    });
+});
+
+describe('LRU Cover Cache', () => {
+    it('should serve the same content on a repeated cover request', async () => {
+        const res1 = await request(httpServer).get('/covers/1/cover');
+        expect(res1.status).toBe(200);
+        expect(res1.headers['content-type']).toBe('image/jpeg');
+        expect(res1.headers['cache-control']).toBe('public, max-age=3600');
+
+        // Second request — content must be identical (served from LRU cache or disk)
+        const res2 = await request(httpServer).get('/covers/1/cover');
+        expect(res2.status).toBe(200);
+        expect(res2.headers['content-type']).toBe('image/jpeg');
+        expect(res2.headers['cache-control']).toBe('public, max-age=3600');
+        expect(res2.body.toString()).toBe(res1.body.toString());
+    });
+
+    it('should return 404 for a book with no cover directory', async () => {
+        const res = await request(httpServer).get('/covers/42/cover');
+        expect(res.status).toBe(404);
     });
 });

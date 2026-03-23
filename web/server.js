@@ -156,6 +156,7 @@ function connectTcp(retryCount = 0) {
         socket.destroy();
         socket = null;
     }
+    lineBuffer = '';
 
     // Update timeout from config if available
     if (webConfig && webConfig.tcpTimeout) {
@@ -244,11 +245,18 @@ function sendCommand(action, params = {}, timeoutMs = TCP_TIMEOUT) {
                     requestQueue.splice(idx, 1);
                     wrappedReject(new Error(`Command '${action}' timed out (queue)`));
                 } else if (currentLineHandler) {
-                    // Command is currently being processed by the engine
+                    // Command is currently being processed by the engine.
+                    // Destroy the socket to prevent the late response from
+                    // corrupting the next queued command (no request IDs in protocol).
+                    // socket.on('close') will schedule reconnect and resume the queue.
                     currentLineHandler = null;
                     busy = false;
                     wrappedReject(new Error(`Command '${action}' timed out (active)`));
-                    processQueue();
+                    if (socket) {
+                        socket.destroy();
+                    } else {
+                        processQueue();
+                    }
                 }
             }, timeoutMs);
         }
@@ -375,7 +383,7 @@ app.get('/api/download/:id', async (req, res) => {
             throw new Error("No file returned from engine");
         }
         
-        const filePath = path.resolve(data.file);
+        const filePath = path.resolve(uniqueOutDir, data.file);
         const resolvedOutDir = path.resolve(uniqueOutDir);
         if (!filePath.startsWith(resolvedOutDir + path.sep)) {
             fs.rmSync(uniqueOutDir, { recursive: true, force: true });

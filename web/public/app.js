@@ -178,8 +178,12 @@ function setupSearch() {
 
   document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      });
       btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
       searchField = btn.dataset.field;
       input.placeholder = `Search by ${btn.textContent.toLowerCase()}...`;
       if (input.value.trim()) doSearch();
@@ -409,6 +413,7 @@ function updateProgressBar(progress) {
   const { processed = 0, total = 0 } = progress || {};
   const pct = total > 0 ? Math.round((processed / total) * 100) : 0;
   document.getElementById('progress-bar').style.width = `${pct}%`;
+  document.getElementById('progress-bar-wrap').setAttribute('aria-valuenow', pct);
   document.getElementById('progress-text').textContent =
     total > 0
       ? `${processed.toLocaleString()} / ${total.toLocaleString()} books (${pct}%)`
@@ -425,12 +430,16 @@ function setupHeader() {
     try {
       const res = await fetch('/api/upgrade', { method: 'POST' });
       if (!res.ok) {
+        let errorMsg = 'Failed to start update';
+        try { const body = await res.json(); if (body.error) errorMsg = body.error; } catch (e) { /* ignore */ }
         resetUpgradeButton();
+        alert(`Update error: ${errorMsg}`);
         return;
       }
       startPolling();
     } catch (e) {
       resetUpgradeButton();
+      alert(`Update error: ${e.message}`);
     }
   });
 }
