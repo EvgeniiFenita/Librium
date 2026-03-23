@@ -287,12 +287,51 @@ function populateModal(book) {
 /**
  * Trigger book download safely.
  */
-function downloadBook(book) {
-  const link = document.createElement('a');
-  link.href = `/api/download/${book.id}`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+async function downloadBook(book) {
+  const btn = document.getElementById('download-btn');
+  const originalText = btn.innerHTML;
+  
+  try {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Processing...';
+    
+    const res = await fetch(`/api/download/${book.id}`);
+    if (!res.ok) {
+      let errMsg = 'Download failed';
+      try {
+        const errBody = await res.json();
+        if (errBody.error) errMsg = errBody.error;
+      } catch (e) {
+        const text = await res.text();
+        if (text) errMsg = text;
+      }
+      throw new Error(errMsg);
+    }
+    
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    // Format: "Author - Title.fb2"
+    const authorText = formatAuthor(book.authors);
+    let filename = authorText ? `${authorText} - ${book.title}` : book.title;
+    filename = (filename || 'book') + '.' + (book.ext || 'fb2');
+    
+    // Clean up invalid filename characters
+    filename = filename.replace(/[\\\/:*?"<>|]/g, '_');
+
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (e) {
+    alert(`Download error: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
 }
 
 function closeModal() {

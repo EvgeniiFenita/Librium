@@ -184,6 +184,11 @@ function connectTcp(retryCount = 0) {
             const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
             reconnectTimer = setTimeout(() => connectTcp(retryCount + 1), delay);
         }
+        busy = false;
+        if (currentLineHandler) {
+            currentLineHandler({ status: 'error', error: 'Connection closed' });
+            currentLineHandler = null;
+        }
     });
 }
 
@@ -437,7 +442,8 @@ app.get('/covers/:id/*', async (req, res) => {
     const dir = path.resolve(base, String(bookId));
     
     // Security check: ensure dir is within metaDir
-    if (!dir.startsWith(base)) {
+    const relativePath = path.relative(base, dir);
+    if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
         console.error(`[Security] Blocked access outside metaDir: ${dir} (base: ${base})`);
         return res.status(403).end();
     }
