@@ -85,3 +85,24 @@ On the first launch, if the database is empty, the interface will automatically 
 - **Artifacts**: All web-related data (database, logs, temporary exports, covers) are stored in `out/artifacts/web/`.
 - **Resetting**: To start fresh, simply delete the `out/artifacts/web/` directory.
 - **Logs**: Backend logs are printed to the console; C++ Engine logs are written to `out/artifacts/web/librium.log`.
+
+---
+
+## 6. Automated Testing
+
+The web interface includes a backend API test suite to ensure security and reliability.
+
+### Key Features
+- **Framework**: Built with **Jest** and **Supertest**.
+- **Engine Mocking**: Uses a lightweight mock TCP server to simulate the C++ Engine, allowing tests to run instantly without compiling the main project.
+- **Full Isolation**: Tests are executed in an ephemeral environment within `out/artifacts/<preset>/web_test/`. This keeps the `web/` source directory clean and prevents dependency conflicts.
+- **Clean Lifecycle**: Implements explicit resource cleanup (sockets, servers, timers) to ensure 100% reliable test execution.
+
+### Running Tests
+To run all web-related tests, use the master automation script:
+
+```powershell
+python scripts/Run.py test --stage web
+```
+
+This will automatically prepare the environment, install dependencies, and execute the test suite.

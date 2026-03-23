@@ -13,7 +13,18 @@ const app = express();
 /**
  * Load configuration files with validation and error handling.
  */
-function loadConfig() {
+function loadConfig(configOverride = null) {
+    if (configOverride) {
+        webConfig = configOverride.webConfig;
+        libriumConfig = configOverride.libriumConfig;
+        metaDir = webConfig.metaDir || path.resolve(__dirname, 'meta');
+        const tempDir = path.resolve(__dirname, webConfig.tempDir || 'temp');
+        if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+        }
+        return;
+    }
+
     const configPath = path.resolve(__dirname, 'web_config.json');
     if (!fs.existsSync(configPath)) {
         console.error(`[ERROR] web_config.json not found at ${configPath}`);
@@ -99,6 +110,7 @@ function restartLibrium() {
 let socket = null;
 let lineBuffer = '';
 let busy = false;
+let reconnectTimer = null;
 const requestQueue = [];
 const TCP_TIMEOUT = 30000; // 30 seconds
 
@@ -165,12 +177,12 @@ function connectTcp(retryCount = 0) {
     });
 
     socket.on('close', () => {
-        console.log('[TCP] Connection closed');
         if (engineState !== 'crashed') {
+            console.log('[TCP] Connection closed');
             setEngineState('starting');
             // Exponential backoff for reconnection
             const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
-            setTimeout(() => connectTcp(retryCount + 1), delay);
+            reconnectTimer = setTimeout(() => connectTcp(retryCount + 1), delay);
         }
     });
 }
@@ -421,10 +433,12 @@ app.get('/covers/:id/*', async (req, res) => {
     }
 
     // 2. Cache miss — read from disk asynchronously
-    const dir = path.resolve(metaDir, String(bookId));
+    const base = path.resolve(metaDir);
+    const dir = path.resolve(base, String(bookId));
     
     // Security check: ensure dir is within metaDir
-    if (!dir.startsWith(path.resolve(metaDir))) {
+    if (!dir.startsWith(base)) {
+        console.error(`[Security] Blocked access outside metaDir: ${dir} (base: ${base})`);
         return res.status(403).end();
     }
 
@@ -432,7 +446,9 @@ app.get('/covers/:id/*', async (req, res) => {
         await fsPromises.access(dir);
         const files = await fsPromises.readdir(dir);
         const coverFile = files.find(f => f.startsWith('cover.'));
-        if (!coverFile) return res.status(404).end();
+        if (!coverFile) {
+            return res.status(404).end();
+        }
         
         const filePath = path.join(dir, coverFile);
         const data = await fsPromises.readFile(filePath);
@@ -453,36 +469,45 @@ app.get('/covers/:id/*', async (req, res) => {
         res.setHeader('Cache-Control', 'public, max-age=3600');
         res.send(data);
     } catch (e) {
+        // Not found or access denied
         res.status(404).end();
     }
 });
 
 // --- GRACEFUL SHUTDOWN ---
-function shutdown() {
+function shutdown(exit = true) {
     console.log('[Server] Shutting down...');
+    setEngineState('crashed');
+    if (reconnectTimer) clearTimeout(reconnectTimer);
     if (socket) socket.destroy();
     if (libriumProcess) libriumProcess.kill();
-    process.exit(0);
+    if (exit) process.exit(0);
 }
 
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+process.on('SIGTERM', () => shutdown(true));
+process.on('SIGINT', () => shutdown(true));
 
 // --- STARTUP ---
-async function main() {
-    loadConfig();
-    startLibrium();
+async function main(configOverride = null, startEngine = true) {
+    loadConfig(configOverride);
+    if (startEngine) {
+        startLibrium();
+    }
     
     // Wait for the engine to start with a retry-based connection logic
     connectTcp();
     
-    app.listen(webConfig.webPort, '0.0.0.0', () => {
+    return app.listen(webConfig.webPort, '0.0.0.0', () => {
         console.log(`[Server] Librium Web UI running at http://localhost:${webConfig.webPort}`);
     });
 }
 
-main().catch(e => {
-    console.error('[Server] Fatal error during startup:', e);
-    process.exit(1);
-});
+if (require.main === module) {
+    main().catch(e => {
+        console.error('[Server] Fatal error during startup:', e);
+        process.exit(1);
+    });
+}
+
+module.exports = { app, loadConfig, connectTcp, setEngineState, shutdown, main };
 

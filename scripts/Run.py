@@ -72,9 +72,44 @@ def test_command(args):
         if any(r["status"] == "FAIL" for r in results):
             success = False
 
-    # 3. Real Library Tests
+    # 3. Web API Tests
+    if success and args.stage in ["web", "all"]:
+        CUI.step(3, "WEB API TESTS")
+        
+        web_src = CPaths.REPO_ROOT / "web"
+        web_test_root = artifact_dir / "web_test"
+        
+        # Prepare test environment in artifact dir
+        if web_test_root.exists():
+            shutil.rmtree(web_test_root)
+        
+        CUI.info(f"Preparing web test environment in {web_test_root}...")
+        web_test_root.mkdir(parents=True, exist_ok=True)
+        
+        # Copy web/ to artifacts dir (excluding node_modules if any)
+        for item in web_src.iterdir():
+            if item.name == "node_modules": continue
+            dest = web_test_root / item.name
+            if item.is_dir():
+                shutil.copytree(item, dest)
+            else:
+                shutil.copy2(item, dest)
+        
+        node_modules = web_test_root / "node_modules"
+        npm_cmd = ["npm.cmd"] if sys.platform.startswith("win") else ["npm"]
+        
+        if not node_modules.exists():
+            CUI.info("Installing npm dependencies in artifact dir...")
+            if not CRunner.run(npm_cmd + ["install", "--silent"], cwd=web_test_root):
+                success = False
+        
+        if success:
+            if not CRunner.run(npm_cmd + ["test"], cwd=web_test_root):
+                success = False
+
+    # 4. Real Library Tests
     if success and args.stage in ["real", "all"] and args.real_library:
-        CUI.step(3, "REAL LIBRARY TESTS")
+        CUI.step(4, "REAL LIBRARY TESTS")
         from SmokeTester import CSmokeTester
         librium_exe = CPaths.get_executable_path(build_dir, "apps/Librium", "Librium")
         
@@ -173,7 +208,7 @@ def main():
     # Test Subcommand
     test_p = subparsers.add_parser("test", help="Run tests")
     test_p.add_argument("--preset", default="x64-debug", help="CMake preset to use")
-    test_p.add_argument("--stage", choices=["unit", "scenario", "real", "all"], default="all")
+    test_p.add_argument("--stage", choices=["unit", "scenario", "web", "real", "all"], default="all")
     test_p.add_argument("--real-library", help="Path to real library")
 
     # Gen Subcommand
