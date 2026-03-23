@@ -22,10 +22,14 @@ function hashColor2(str) {
   return `hsl(${hue}, 50%, 35%)`;
 }
 
+/**
+ * Format authors list to "Author A, Author B" or "Author A + N".
+ */
 function formatAuthor(authors) {
   if (!authors || !authors.length) return '';
-  const a = authors[0];
-  return [a.lastName, a.firstName].filter(Boolean).join(' ');
+  const names = authors.map(a => [a.lastName, a.firstName].filter(Boolean).join(' '));
+  if (names.length <= 2) return names.join(', ');
+  return `${names[0]} + ${names.length - 1}`;
 }
 
 function formatSize(bytes) {
@@ -35,9 +39,19 @@ function formatSize(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+/**
+ * Enhanced fetch wrapper with error body parsing.
+ */
 async function api(path, options = {}) {
   const res = await fetch(path, options);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    let errorMessage = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body.error) errorMessage = body.error;
+    } catch (e) { /* ignore parse error */ }
+    throw new Error(errorMessage);
+  }
   return res.json();
 }
 
@@ -68,7 +82,8 @@ function renderBookCard(book) {
   card.className = 'book-card';
   card.dataset.id = book.id;
 
-  const coverUrl = `/covers/${book.id}/cover.jpg`;
+  // Use generic extension-less URL, server handles detection
+  const coverUrl = `/covers/${book.id}/cover`;
   const authorText = formatAuthor(book.authors);
 
   card.innerHTML = `
@@ -97,7 +112,6 @@ async function loadBooks(reset = false) {
   showLoadingMore(!reset);
 
   if (reset) {
-    console.log("Resetting book grid");
     offset = 0;
     totalFound = 0;
     document.getElementById('book-grid').innerHTML = '';
@@ -112,7 +126,6 @@ async function loadBooks(reset = false) {
     const data = await api(`/api/books?${params}`);
     const books = data.books || [];
     
-    // If we got books, we should definitely hide the overlay
     if (books.length > 0) {
         hideImportOverlay();
     }
@@ -175,7 +188,7 @@ function setupSearch() {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       searchField = btn.dataset.field;
-      input.placeholder = `Поиск по ${btn.textContent.toLowerCase()}...`;
+      input.placeholder = `Search by ${btn.textContent.toLowerCase()}...`;
       if (input.value.trim()) doSearch();
     });
   });
@@ -192,7 +205,7 @@ async function openModal(bookId) {
   const modal = document.getElementById('book-modal');
   modal.classList.remove('hidden');
 
-  document.getElementById('modal-title').textContent = 'Загрузка...';
+  document.getElementById('modal-title').textContent = 'Loading...';
   document.getElementById('modal-annotation').classList.add('hidden');
   document.getElementById('modal-authors').innerHTML = '';
   document.getElementById('modal-series').classList.add('hidden');
@@ -211,12 +224,12 @@ async function openModal(bookId) {
     const data = await api(`/api/books/${bookId}`);
     populateModal(data);
   } catch (e) {
-    document.getElementById('modal-title').textContent = 'Ошибка загрузки';
+    document.getElementById('modal-title').textContent = e.message || 'Loading error';
   }
 }
 
 function populateModal(book) {
-  document.getElementById('modal-title').textContent = book.title || 'Без названия';
+  document.getElementById('modal-title').textContent = book.title || 'Untitled';
 
   const img = document.getElementById('modal-cover');
   const ph = document.getElementById('modal-cover-placeholder');
@@ -237,26 +250,26 @@ function populateModal(book) {
   }
 
   const authors = formatAuthor(book.authors) || '—';
-  document.getElementById('modal-authors').innerHTML = `<strong>Автор:</strong> ${escapeHtml(authors)}`;
+  document.getElementById('modal-authors').innerHTML = `<strong>Author:</strong> ${escapeHtml(authors)}`;
 
   const seriesEl = document.getElementById('modal-series');
   if (book.series) {
     const snum = book.seriesNumber ? ` #${book.seriesNumber}` : '';
-    seriesEl.innerHTML = `<strong>Серия:</strong> ${escapeHtml(book.series)}${snum}`;
+    seriesEl.innerHTML = `<strong>Series:</strong> ${escapeHtml(book.series)}${snum}`;
     seriesEl.classList.remove('hidden');
   }
 
   const genreEl = document.getElementById('modal-genre');
   if (book.genres && book.genres.length) {
-    genreEl.innerHTML = `<strong>Жанр:</strong> ${escapeHtml(book.genres.join(', '))}`;
+    genreEl.innerHTML = `<strong>Genre:</strong> ${escapeHtml(book.genres.join(', '))}`;
     genreEl.classList.remove('hidden');
   }
 
   const details = [
-    book.language && `Язык: ${book.language.toUpperCase()}`,
-    book.publishYear && `Год: ${book.publishYear}`,
-    book.size && `Размер: ${formatSize(book.size)}`,
-    book.ext && `Формат: ${book.ext.toUpperCase()}`,
+    book.language && `Language: ${book.language.toUpperCase()}`,
+    book.publishYear && `Year: ${book.publishYear}`,
+    book.size && `Size: ${formatSize(book.size)}`,
+    book.ext && `Format: ${book.ext.toUpperCase()}`,
   ].filter(Boolean).join(' · ');
   document.getElementById('modal-details').textContent = details;
 
@@ -271,10 +284,15 @@ function populateModal(book) {
   btn.onclick = () => downloadBook(book);
 }
 
+/**
+ * Trigger book download safely.
+ */
 function downloadBook(book) {
   const link = document.createElement('a');
   link.href = `/api/download/${book.id}`;
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
 }
 
 function closeModal() {
@@ -293,23 +311,19 @@ function setupModal() {
 async function checkInitialStatus() {
   try {
     const status = await api('/api/status');
-    console.log("Engine state:", status.state);
 
     if (status.state === 'importing' || status.state === 'upgrading') {
-      showImportOverlay(status.state === 'upgrading' ? 'Обновление библиотеки...' : 'Импорт библиотеки...');
+      showImportOverlay(status.state === 'upgrading' ? 'Updating library...' : 'Importing library...');
       startPolling();
       return;
     }
 
     if (status.state === 'ready') {
       const stats = await api('/api/stats');
-      console.log("Stats received:", stats);
-      
-      // Check both snake_case and camelCase just in case
-      const bookCount = stats.total_books ?? stats.totalBooks ?? stats.total_count ?? 0;
+      const bookCount = stats.total_books ?? 0;
       
       if (bookCount === 0) {
-        showImportOverlay('Первый запуск: импорт библиотеки...');
+        showImportOverlay('First run: importing library...');
         fetch('/api/import', { method: 'POST' }).catch(console.error);
         startPolling();
       } else {
@@ -331,7 +345,6 @@ function showImportOverlay(title) {
 }
 
 function hideImportOverlay() {
-  console.log("Hiding import overlay");
   document.getElementById('import-overlay').classList.add('hidden');
 }
 
@@ -347,9 +360,12 @@ function startPolling() {
         const stats = await api('/api/stats');
         updateStatsBadge(stats);
         hideImportOverlay();
+        resetUpgradeButton();
         loadBooks(true);
       }
-    } catch (e) {}
+    } catch (e) {
+        console.error('Polling error:', e);
+    }
   }, 1000);
 }
 
@@ -359,31 +375,37 @@ function updateProgressBar(progress) {
   document.getElementById('progress-bar').style.width = `${pct}%`;
   document.getElementById('progress-text').textContent =
     total > 0
-      ? `${processed.toLocaleString()} / ${total.toLocaleString()} книг (${pct}%)`
-      : 'Подготовка...';
+      ? `${processed.toLocaleString()} / ${total.toLocaleString()} books (${pct}%)`
+      : 'Preparing...';
 }
 
 function setupHeader() {
   document.getElementById('upgrade-btn').addEventListener('click', async () => {
     const btn = document.getElementById('upgrade-btn');
     btn.disabled = true;
-    btn.textContent = '...';
+    btn.querySelector('.btn-text').classList.add('hidden');
+    btn.querySelector('.btn-spinner').classList.remove('hidden');
 
     try {
       await fetch('/api/upgrade', { method: 'POST' });
-      btn.classList.add('spinning');
       startPolling();
     } catch (e) {
-      btn.disabled = false;
-      btn.textContent = 'Обновить';
+      resetUpgradeButton();
     }
   });
 }
 
+function resetUpgradeButton() {
+    const btn = document.getElementById('upgrade-btn');
+    btn.disabled = false;
+    btn.querySelector('.btn-text').classList.remove('hidden');
+    btn.querySelector('.btn-spinner').classList.add('hidden');
+}
+
 function updateStatsBadge(stats) {
   const badge = document.getElementById('stats-badge');
-  const count = stats.total_books ?? stats.totalBooks ?? stats.total_count ?? 0;
-  badge.textContent = count > 0 ? `${count.toLocaleString()} книг` : '';
+  const count = stats.total_books ?? 0;
+  badge.textContent = count > 0 ? `${count.toLocaleString()} books` : '';
 }
 
 // --- INIT ---
@@ -394,3 +416,4 @@ document.addEventListener('DOMContentLoaded', () => {
   setupHeader();
   checkInitialStatus();
 });
+

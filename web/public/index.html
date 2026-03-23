@@ -1,21 +1,31 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Librium - Personal E-book Library Manager">
+  <meta name="theme-color" content="#1c1c1c">
   <title>Librium</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
 </head>
 <body>
+  <noscript>
+    <div style="text-align:center; padding:50px; color:#e6e6e6; background:#1c1c1c; height:100vh;">
+      <h2>JavaScript is Required</h2>
+      <p>Librium requires JavaScript to function. Please enable it in your browser settings.</p>
+    </div>
+  </noscript>
+
   <!-- IMPORT OVERLAY -->
-  <div id="import-overlay" class="overlay hidden">
+  <div id="import-overlay" class="overlay hidden" role="dialog" aria-labelledby="overlay-title">
     <div class="overlay-content">
-      <div class="overlay-icon">📚</div>
-      <h2 id="overlay-title">Импорт библиотеки...</h2>
-      <div class="progress-bar-wrap">
+      <div class="overlay-icon" aria-hidden="true">📚</div>
+      <h2 id="overlay-title">Importing Library...</h2>
+      <div class="progress-bar-wrap" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <div id="progress-bar" class="progress-bar"></div>
       </div>
-      <div id="progress-text" class="progress-text">Подготовка...</div>
+      <div id="progress-text" class="progress-text">Preparing...</div>
     </div>
   </div>
 
@@ -25,50 +35,53 @@
       <span class="logo">📚 Librium</span>
     </div>
     <div class="header-center">
-      <div class="search-wrap">
-        <input id="search-input" type="text" placeholder="Поиск по названию..." autocomplete="off">
-        <div class="search-filters">
-          <button class="filter-btn active" data-field="title">Название</button>
-          <button class="filter-btn" data-field="author">Автор</button>
-          <button class="filter-btn" data-field="series">Серия</button>
-          <button class="filter-btn" data-field="genre">Жанр</button>
-          <button class="filter-btn" data-field="language">Язык</button>
+      <div class="search-wrap" role="search">
+        <input id="search-input" type="text" placeholder="Search by title..." autocomplete="off" aria-label="Search books">
+        <div class="search-filters" role="group" aria-label="Search filters">
+          <button class="filter-btn active" data-field="title" aria-pressed="true">Title</button>
+          <button class="filter-btn" data-field="author" aria-pressed="false">Author</button>
+          <button class="filter-btn" data-field="series" aria-pressed="false">Series</button>
+          <button class="filter-btn" data-field="genre" aria-pressed="false">Genre</button>
+          <button class="filter-btn" data-field="language" aria-pressed="false">Language</button>
         </div>
       </div>
     </div>
     <div class="header-right">
-      <span id="stats-badge" class="stats-badge" title="Книг в библиотеке"></span>
-      <button id="upgrade-btn" class="btn-secondary" title="Обновить библиотеку">Обновить</button>
+      <span id="stats-badge" class="stats-badge" title="Total books in library" aria-live="polite"></span>
+      <button id="upgrade-btn" class="btn-secondary" title="Check for library updates" aria-label="Update library">
+        <span class="btn-text">Update</span>
+        <span class="btn-spinner hidden" aria-hidden="true">...</span>
+      </button>
     </div>
   </header>
 
   <!-- MAIN CONTENT -->
   <main class="main">
-    <div id="book-grid" class="book-grid"></div>
+    <div id="book-grid" class="book-grid" role="list"></div>
     <div id="sentinel" class="sentinel"></div>
-    <div id="loading-more" class="loading-more hidden">Загрузка...</div>
-    <div id="empty-state" class="empty-state hidden">Книги не найдены</div>
+    <div id="loading-more" class="loading-more hidden">Loading more books...</div>
+    <div id="empty-state" class="empty-state hidden" aria-live="polite">No books found</div>
   </main>
 
   <!-- BOOK MODAL -->
-  <div id="book-modal" class="modal hidden">
+  <div id="book-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-backdrop"></div>
     <div class="modal-content">
-      <button class="modal-close" id="modal-close">✕</button>
+      <button class="modal-close" id="modal-close" aria-label="Close details">✕</button>
       <div class="modal-body">
         <div class="modal-cover-wrap">
-          <img id="modal-cover" src="" alt="">
+          <img id="modal-cover" src="" alt="Book cover">
           <div id="modal-cover-placeholder" class="cover-placeholder hidden"></div>
         </div>
         <div class="modal-info">
-          <h2 id="modal-title">Загрузка...</h2>
+          <h2 id="modal-title">Loading...</h2>
           <div id="modal-authors" class="modal-field"></div>
           <div id="modal-series" class="modal-field hidden"></div>
           <div id="modal-genre" class="modal-field hidden"></div>
           <div id="modal-details" class="modal-details"></div>
           <div id="modal-annotation" class="modal-annotation hidden"></div>
           <div class="modal-actions">
-            <button id="download-btn" class="btn-primary">📥 Скачать</button>
+            <button id="download-btn" class="btn-primary">📥 Download</button>
           </div>
         </div>
       </div>
@@ -78,3 +91,4 @@
   <script src="app.js"></script>
 </body>
 </html>
+

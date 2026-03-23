@@ -2,6 +2,7 @@ const express = require('express');
 const { spawn } = require('child_process');
 const net = require('net');
 const fs = require('fs');
+const fsPromises = require('fs').promises;
 const path = require('path');
 
 let webConfig;
@@ -9,21 +10,44 @@ let libriumConfig;
 let metaDir;
 const app = express();
 
-// --- CONFIG ---
+/**
+ * Load configuration files with validation and error handling.
+ */
 function loadConfig() {
     const configPath = path.resolve(__dirname, 'web_config.json');
     if (!fs.existsSync(configPath)) {
         console.error(`[ERROR] web_config.json not found at ${configPath}`);
         process.exit(1);
     }
-    webConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+    try {
+        webConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    } catch (e) {
+        console.error(`[ERROR] Failed to parse web_config.json: ${e.message}`);
+        process.exit(1);
+    }
+
+    // Validate mandatory fields
+    const required = ['libriumExe', 'libriumConfig', 'libriumPort', 'webPort', 'tempDir'];
+    for (const field of required) {
+        if (webConfig[field] === undefined) {
+            console.error(`[ERROR] Missing mandatory field in web_config.json: ${field}`);
+            process.exit(1);
+        }
+    }
 
     const libriumConfigPath = path.resolve(__dirname, webConfig.libriumConfig);
     if (!fs.existsSync(libriumConfigPath)) {
         console.error(`[ERROR] librium_config.json not found at ${libriumConfigPath}`);
         process.exit(1);
     }
-    libriumConfig = JSON.parse(fs.readFileSync(libriumConfigPath, 'utf8'));
+
+    try {
+        libriumConfig = JSON.parse(fs.readFileSync(libriumConfigPath, 'utf8'));
+    } catch (e) {
+        console.error(`[ERROR] Failed to parse librium_config.json: ${e.message}`);
+        process.exit(1);
+    }
 
     metaDir = webConfig.metaDir || path.join(
         path.dirname(path.resolve(__dirname, libriumConfig.database.path)), 'meta'
@@ -37,6 +61,10 @@ function loadConfig() {
 
 // --- LIBRIUM PROCESS ---
 let libriumProcess = null;
+
+/**
+ * Start the Librium C++ engine process.
+ */
 function startLibrium() {
     const exePath = path.resolve(__dirname, webConfig.libriumExe);
     const configPath = path.resolve(__dirname, webConfig.libriumConfig);
@@ -53,14 +81,17 @@ function startLibrium() {
 
     libriumProcess.on('exit', (code) => {
         console.error(`[Librium] Process exited with code ${code}`);
-        engineState = 'crashed';
+        setEngineState('crashed');
+        // Restart after delay
         setTimeout(() => restartLibrium(), 5000);
     });
 }
 
 function restartLibrium() {
+    if (engineState !== 'crashed') return;
     console.log('[Server] Restarting Librium...');
     startLibrium();
+    // Attempt to reconnect after the process has had a moment to start
     setTimeout(() => connectTcp(), 1000);
 }
 
@@ -69,19 +100,52 @@ let socket = null;
 let lineBuffer = '';
 let busy = false;
 const requestQueue = [];
+const TCP_TIMEOUT = 30000; // 30 seconds
 
 let engineState = 'starting';  // 'starting' | 'ready' | 'importing' | 'upgrading' | 'crashed'
 let lastProgress = { processed: 0, total: 0 };
 let currentLineHandler = null;
 
-function connectTcp() {
+/**
+ * Change engine state and handle transitions.
+ */
+function setEngineState(newState) {
+    if (engineState === newState) return;
+    console.log(`[Engine] State changed: ${engineState} -> ${newState}`);
+    engineState = newState;
+
+    if (newState === 'crashed') {
+        // Reject all pending requests in the queue
+        while (requestQueue.length > 0) {
+            const { reject } = requestQueue.shift();
+            reject(new Error('Engine crashed'));
+        }
+        if (currentLineHandler) {
+            // We can't easily reject the current promise here because sendCommand closure is gone,
+            // but the timeout or socket error will handle it.
+            currentLineHandler = null;
+            busy = false;
+        }
+    }
+}
+
+/**
+ * Connect to the Librium engine via TCP.
+ */
+function connectTcp(retryCount = 0) {
+    if (socket) {
+        socket.destroy();
+        socket = null;
+    }
+
+    console.log(`[TCP] Connecting to Librium engine at 127.0.0.1:${webConfig.libriumPort} (Attempt ${retryCount + 1})...`);
     socket = net.connect(webConfig.libriumPort, '127.0.0.1');
     socket.setEncoding('utf8');
     socket.setKeepAlive(true, 10000);
 
     socket.on('connect', () => {
         console.log('[TCP] Connected to Librium engine');
-        engineState = 'ready';
+        setEngineState('ready');
         processQueue();
     });
 
@@ -97,16 +161,23 @@ function connectTcp() {
 
     socket.on('error', (err) => {
         console.error('[TCP] Socket error:', err.message);
+        // Do not immediately reconnect on error, wait for 'close'
     });
 
     socket.on('close', () => {
-        console.log('[TCP] Connection closed, will reconnect in 2s');
-        engineState = 'starting';
-        socket = null;
-        setTimeout(() => connectTcp(), 2000);
+        console.log('[TCP] Connection closed');
+        if (engineState !== 'crashed') {
+            setEngineState('starting');
+            // Exponential backoff for reconnection
+            const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+            setTimeout(() => connectTcp(retryCount + 1), delay);
+        }
     });
 }
 
+/**
+ * Handle incoming Base64-encoded JSON lines from the engine.
+ */
 function handleLine(base64Line) {
     let msg;
     try {
@@ -128,13 +199,33 @@ function handleLine(base64Line) {
     }
 }
 
+/**
+ * Send a command to the engine and wait for a response.
+ */
 function sendCommand(action, params = {}) {
     return new Promise((resolve, reject) => {
-        requestQueue.push({ action, params, resolve, reject });
+        const timeout = setTimeout(() => {
+            const idx = requestQueue.findIndex(r => r.resolve === resolve);
+            if (idx !== -1) {
+                requestQueue.splice(idx, 1);
+                reject(new Error(`Command '${action}' timed out (queue)`));
+            } else if (busy && !currentLineHandler) {
+                // This shouldn't happen if busy/handler are synced
+                reject(new Error(`Command '${action}' timed out (active)`));
+            }
+        }, TCP_TIMEOUT);
+
+        const wrappedResolve = (val) => { clearTimeout(timeout); resolve(val); };
+        const wrappedReject = (err) => { clearTimeout(timeout); reject(err); };
+
+        requestQueue.push({ action, params, resolve: wrappedResolve, reject: wrappedReject });
         processQueue();
     });
 }
 
+/**
+ * Process the next command in the queue.
+ */
 function processQueue() {
     if (busy || requestQueue.length === 0 || !socket || engineState === 'starting' || engineState === 'crashed') return;
     busy = true;
@@ -154,11 +245,19 @@ function processQueue() {
     };
 
     try {
-        socket.write(encoded);
+        socket.write(encoded, (err) => {
+            if (err) {
+                currentLineHandler = null;
+                busy = false;
+                reject(err);
+                processQueue();
+            }
+        });
     } catch (e) {
         currentLineHandler = null;
         busy = false;
         reject(e);
+        processQueue();
     }
 }
 
@@ -191,12 +290,14 @@ app.get('/api/stats', async (req, res) => {
 app.get('/api/books', async (req, res) => {
     if (engineState !== 'ready') return res.status(503).json({ error: "Engine not ready" });
     try {
-        const params = {
-            limit: parseInt(req.query.limit || 40),
-            offset: parseInt(req.query.offset || 0)
-        };
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 40, 1), 500);
+        const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+        const params = { limit, offset };
         ['title', 'author', 'series', 'genre', 'language'].forEach(k => {
-            if (req.query[k]) params[k] = req.query[k];
+            if (req.query[k] && typeof req.query[k] === 'string') {
+                params[k] = req.query[k].trim();
+            }
         });
 
         const data = await sendCommand('query', params);
@@ -208,10 +309,15 @@ app.get('/api/books', async (req, res) => {
 
 app.get('/api/books/:id', async (req, res) => {
     if (engineState !== 'ready') return res.status(503).json({ error: "Engine not ready" });
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0) return res.status(400).json({ error: "Invalid book ID" });
+
     try {
-        const data = await sendCommand('get-book', { id: parseInt(req.params.id) });
+        const data = await sendCommand('get-book', { id });
         if (data.cover) {
-            data.coverUrl = `/covers/${req.params.id}/cover.jpg`;
+            // We determine the extension dynamically in the covers endpoint, 
+            // but we provide a generic URL here.
+            data.coverUrl = `/covers/${id}/cover`;
         }
         res.json(data);
     } catch (e) {
@@ -221,18 +327,23 @@ app.get('/api/books/:id', async (req, res) => {
 
 app.get('/api/download/:id', async (req, res) => {
     if (engineState !== 'ready') return res.status(503).json({ error: "Engine not ready" });
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0) return res.status(400).json({ error: "Invalid book ID" });
+
     try {
         const tempDir = path.resolve(__dirname, webConfig.tempDir);
-        const data = await sendCommand('export', { id: parseInt(req.params.id), out: tempDir });
+        const data = await sendCommand('export', { id, out: tempDir });
         
-        if (!data.file) throw new Error("No file returned");
+        if (!data.file) throw new Error("No file returned from engine");
         
         const filePath = data.file;
         const filename = data.filename || path.basename(filePath);
         
         res.download(filePath, filename, (err) => {
-            if (!err) {
-                fs.unlink(filePath, () => {});
+            // Always attempt to unlink to prevent disk leaks
+            fs.unlink(filePath, () => {});
+            if (err && !res.headersSent) {
+                console.error(`[HTTP] Download error for book ${id}:`, err);
             }
         });
     } catch (e) {
@@ -241,8 +352,8 @@ app.get('/api/download/:id', async (req, res) => {
 });
 
 app.post('/api/import', async (req, res) => {
-    if (engineState !== 'ready') return res.status(503).json({ error: "Engine busy" });
-    engineState = 'importing';
+    if (engineState !== 'ready') return res.status(503).json({ error: "Engine busy or not ready" });
+    setEngineState('importing');
     lastProgress = { processed: 0, total: 0 };
     res.status(202).json({ message: "Import started" });
     
@@ -251,13 +362,13 @@ app.post('/api/import', async (req, res) => {
     } catch (e) {
         console.error('[Server] Import error:', e);
     } finally {
-        engineState = 'ready';
+        if (engineState === 'importing') setEngineState('ready');
     }
 });
 
 app.post('/api/upgrade', async (req, res) => {
-    if (engineState !== 'ready') return res.status(503).json({ error: "Engine busy" });
-    engineState = 'upgrading';
+    if (engineState !== 'ready') return res.status(503).json({ error: "Engine busy or not ready" });
+    setEngineState('upgrading');
     lastProgress = { processed: 0, total: 0 };
     res.status(202).json({ message: "Upgrade started" });
     
@@ -266,19 +377,19 @@ app.post('/api/upgrade', async (req, res) => {
     } catch (e) {
         console.error('[Server] Upgrade error:', e);
     } finally {
-        engineState = 'ready';
+        if (engineState === 'upgrading') setEngineState('ready');
     }
 });
 
 // --- COVERS CACHE (LRU) ---
-const MAX_CACHE_SIZE = 500; // Количество обложек в памяти
+const MAX_CACHE_SIZE = 500; // Max covers in RAM
 const coverCache = new Map();
 
 function getCoverFromCache(bookId) {
     if (coverCache.has(bookId)) {
         const data = coverCache.get(bookId);
         coverCache.delete(bookId);
-        coverCache.set(bookId, data); // Переносим в конец (самый свежий)
+        coverCache.set(bookId, data); // Move to end (MRU)
         return data;
     }
     return null;
@@ -293,32 +404,52 @@ function addCoverToCache(bookId, data) {
 }
 
 // --- COVERS ENDPOINT ---
-app.get('/covers/:id/*', (req, res) => {
-    const bookId = req.params.id;
+app.get('/covers/:id/*', async (req, res) => {
+    const bookIdRaw = req.params.id;
+    // Security: Validate bookId is numeric only
+    if (!/^\d+$/.test(bookIdRaw)) {
+        return res.status(400).end();
+    }
+    const bookId = parseInt(bookIdRaw, 10);
     
-    // 1. Пробуем взять из RAM-кэша
-    const cachedData = getCoverFromCache(bookId);
-    if (cachedData) {
-        res.setHeader('Content-Type', 'image/jpeg');
-        res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 час в браузере
-        return res.send(cachedData);
+    // 1. Try RAM cache
+    const cached = getCoverFromCache(bookId);
+    if (cached) {
+        res.setHeader('Content-Type', cached.mime);
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+        return res.send(cached.data);
     }
 
-    // 2. Если нет в кэше — читаем с диска
-    const dir = path.join(metaDir, bookId);
-    if (!fs.existsSync(dir)) return res.status(404).end();
+    // 2. Cache miss — read from disk asynchronously
+    const dir = path.resolve(metaDir, String(bookId));
     
+    // Security check: ensure dir is within metaDir
+    if (!dir.startsWith(path.resolve(metaDir))) {
+        return res.status(403).end();
+    }
+
     try {
-        const files = fs.readdirSync(dir);
+        await fsPromises.access(dir);
+        const files = await fsPromises.readdir(dir);
         const coverFile = files.find(f => f.startsWith('cover.'));
         if (!coverFile) return res.status(404).end();
         
         const filePath = path.join(dir, coverFile);
-        const data = fs.readFileSync(filePath);
+        const data = await fsPromises.readFile(filePath);
         
-        addCoverToCache(bookId, data);
+        // Detect MIME type by extension
+        const ext = path.extname(coverFile).toLowerCase();
+        const mimeMap = {
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.png': 'image/png',
+            '.webp': 'image/webp'
+        };
+        const mime = mimeMap[ext] || 'image/jpeg';
         
-        res.setHeader('Content-Type', 'image/jpeg');
+        addCoverToCache(bookId, { data, mime });
+        
+        res.setHeader('Content-Type', mime);
         res.setHeader('Cache-Control', 'public, max-age=3600');
         res.send(data);
     } catch (e) {
@@ -326,11 +457,23 @@ app.get('/covers/:id/*', (req, res) => {
     }
 });
 
+// --- GRACEFUL SHUTDOWN ---
+function shutdown() {
+    console.log('[Server] Shutting down...');
+    if (socket) socket.destroy();
+    if (libriumProcess) libriumProcess.kill();
+    process.exit(0);
+}
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+
 // --- STARTUP ---
 async function main() {
     loadConfig();
     startLibrium();
-    await new Promise(r => setTimeout(r, 1500));
+    
+    // Wait for the engine to start with a retry-based connection logic
     connectTcp();
     
     app.listen(webConfig.webPort, '0.0.0.0', () => {
@@ -338,4 +481,8 @@ async function main() {
     });
 }
 
-main().catch(console.error);
+main().catch(e => {
+    console.error('[Server] Fatal error during startup:', e);
+    process.exit(1);
+});
+

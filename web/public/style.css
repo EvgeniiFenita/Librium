@@ -63,7 +63,7 @@ body { background: var(--bg-primary); color: var(--text-primary); font-family: s
 }
 .btn-secondary:hover { background: rgba(255,255,255,0.2); }
 .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
-.spinning { animation: spin 1s linear infinite; }
+.btn-spinner { display: inline-block; animation: spin 1s linear infinite; margin-left: 4px; }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
 /* Grid */
@@ -115,8 +115,9 @@ body { background: var(--bg-primary); color: var(--text-primary); font-family: s
 
 .modal-cover-wrap {
   flex-shrink: 0; width: 150px; aspect-ratio: 2/3; border-radius: var(--radius);
-  overflow: hidden; background: var(--bg-card);
+  overflow: hidden; background: var(--bg-card); display: flex; align-items: center; justify-content: center;
 }
+.modal-cover-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .modal-info { flex: 1; display: flex; flex-direction: column; gap: 8px; }
 #modal-title { font-size: 1.1rem; font-weight: 600; line-height: 1.4; }
 .modal-field { font-size: 0.875rem; color: var(--text-muted); }

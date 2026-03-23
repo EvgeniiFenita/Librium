@@ -20,12 +20,14 @@ The web part follows a **Proxy-Backend** pattern to bridge the C++ Engine's TCP 
   - **Grid View**: Displays book covers in a responsive grid.
   - **Infinite Scroll**: Loads books automatically as you scroll down using `IntersectionObserver`.
   - **Search Bar**: Supports filtering by Title, Author, Series, Genre, and Language.
-  - **Book Modal**: Shows full book metadata, large cover, annotation, and a download button.
+  - **Book Modal**: Shows full book metadata, large cover (correctly sized), annotation, and a download button.
+  - **Author Display**: Intelligent formatting (e.g., "Author A, Author B" or "Author A + N" for multiple authors).
   - **Progress Overlay**: Appears during initial import or manual library rebuilds.
 - **Backend (Node.js)**:
-  - **Process Management**: Automatically spawns and monitors the `Librium.exe` process.
-  - **TCP Bridge**: Handles a persistent connection to the C++ Engine and manages a request queue.
-  - **LRU Cover Cache**: Stores up to 500 recently accessed covers in RAM to reduce disk I/O.
+  - **Process Management**: Automatically spawns and monitors the `Librium.exe` process (requires Node.js >= 18).
+  - **TCP Bridge**: Handles a persistent connection to the C++ Engine and manages a request queue with timeouts.
+  - **LRU Cover Cache**: Stores up to 500 recently accessed covers in RAM (supports JPG, PNG, and WebP).
+  - **Security**: Validates all incoming book IDs and sanitizes query parameters to prevent attacks.
   - **Static Server**: Serves the frontend files and cover images from the `meta/` directory.
 
 ---

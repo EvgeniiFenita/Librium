@@ -1,0 +1,8 @@
+{
+    "libriumExe": "../out/build/x64-debug/apps/Librium/Librium.exe",
+    "libriumConfig": "../out/artifacts/x64-debug/web/librium_config.json",
+    "libriumPort": 9001,
+    "webPort": 8080,
+    "tempDir": "./temp",
+    "metaDir": "./meta"
+}
