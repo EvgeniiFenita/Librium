@@ -69,9 +69,14 @@ std::string CStringUtils::SanitizeFilename(const std::string& filename)
     std::string result = filename;
     for (char& c : result)
     {
-        if (c == '\\' || c == '/' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|')
+        // Only sanitize ASCII characters. Multibyte UTF-8 characters (like Cyrillic)
+        // have the high bit set and should be preserved.
+        if (static_cast<unsigned char>(c) < 128)
         {
-            c = '_';
+            if (c == '\\' || c == '/' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|')
+            {
+                c = '_';
+            }
         }
     }
     return result;

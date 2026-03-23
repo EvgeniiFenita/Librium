@@ -121,6 +121,40 @@ TEST_CASE("CStringUtils::Cp1251ToUtf8", "[utils]")
     }
 }
 
+TEST_CASE("CStringUtils::SanitizeFilename", "[utils]")
+{
+    SECTION("Empty string returns empty")
+    {
+        REQUIRE(CStringUtils::SanitizeFilename("").empty());
+    }
+
+    SECTION("Normal filename remains unchanged")
+    {
+        REQUIRE(CStringUtils::SanitizeFilename("Book.fb2") == "Book.fb2");
+    }
+
+    SECTION("Illegal ASCII characters are replaced with underscores")
+    {
+        // Illegal: \ / : * ? " < > |
+        REQUIRE(CStringUtils::SanitizeFilename("A\\B/C:D*E?F\"G<H>I|J.fb2") == "A_B_C_D_E_F_G_H_I_J.fb2");
+    }
+
+    SECTION("Cyrillic (UTF-8) characters are preserved")
+    {
+        // "Гарри Поттер.fb2"
+        std::string input = "\xD0\x93\xD0\xB0\xD1\x80\xD1\x80\xD0\xB8 \xD0\x9F\xD0\xBE\xD1\x82\xD1\x82\xD0\xB5\xD1\x80.fb2";
+        REQUIRE(CStringUtils::SanitizeFilename(input) == input);
+    }
+
+    SECTION("Mixed Cyrillic and illegal ASCII")
+    {
+        // "Гарри: Поттер?.fb2" -> "Гарри_ Поттер_.fb2"
+        std::string input = "\xD0\x93\xD0\xB0\xD1\x80\xD1\x80\xD0\xB8: \xD0\x9F\xD0\xBE\xD1\x82\xD1\x82\xD0\xB5\xD1\x80?.fb2";
+        std::string expected = "\xD0\x93\xD0\xB0\xD1\x80\xD1\x80\xD0\xB8_ \xD0\x9F\xD0\xBE\xD1\x82\xD1\x82\xD0\xB5\xD1\x80_.fb2";
+        REQUIRE(CStringUtils::SanitizeFilename(input) == expected);
+    }
+}
+
 TEST_CASE("CStringUtils::Utf16ToUtf8", "[utils]")
 {
     SECTION("Empty wstring returns empty string")
