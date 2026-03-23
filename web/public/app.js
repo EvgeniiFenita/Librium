@@ -8,18 +8,11 @@ let debounceTimer = null;
 let pollTimer = null;
 
 // --- UTILITIES ---
-function hashColor(str) {
+function hashColor(str, hueOffset = 0, saturation = 40, lightness = 25) {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = Math.imul(31, h) + str.charCodeAt(i) | 0;
-  const hue = Math.abs(h) % 360;
-  return `hsl(${hue}, 40%, 25%)`;
-}
-
-function hashColor2(str) {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) h = Math.imul(31, h) + str.charCodeAt(i) | 0;
-  const hue = (Math.abs(h) % 360 + 30) % 360;
-  return `hsl(${hue}, 50%, 35%)`;
+  const hue = (Math.abs(h) % 360 + hueOffset) % 360;
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
 /**
@@ -66,7 +59,7 @@ function showLoadingMore(show) {
 // --- PLACEHOLDERS ---
 function createPlaceholderSvg(title) {
   const c1 = hashColor(title || 'book');
-  const c2 = hashColor2(title || 'book');
+  const c2 = hashColor(title || 'book', 30, 50, 35);
   return `
     <div style="width:100%;height:100%;background:linear-gradient(135deg,${c1},${c2});
                 display:flex;align-items:center;justify-content:center;">
@@ -255,7 +248,7 @@ function populateModal(book) {
   const seriesEl = document.getElementById('modal-series');
   if (book.series) {
     const snum = book.seriesNumber ? ` #${book.seriesNumber}` : '';
-    seriesEl.innerHTML = `<strong>Series:</strong> ${escapeHtml(book.series)}${snum}`;
+    seriesEl.innerHTML = `<strong>Series:</strong> ${escapeHtml(book.series)}${escapeHtml(String(snum))}`;
     seriesEl.classList.remove('hidden');
   }
 
@@ -299,11 +292,15 @@ async function downloadBook(book) {
     if (!res.ok) {
       let errMsg = 'Download failed';
       try {
-        const errBody = await res.json();
-        if (errBody.error) errMsg = errBody.error;
-      } catch (e) {
         const text = await res.text();
-        if (text) errMsg = text;
+        try {
+          const errBody = JSON.parse(text);
+          if (errBody.error) errMsg = errBody.error;
+        } catch (e) {
+          if (text) errMsg = text;
+        }
+      } catch (e) {
+        // body could not be read
       }
       throw new Error(errMsg);
     }
@@ -426,7 +423,11 @@ function setupHeader() {
     btn.querySelector('.btn-spinner').classList.remove('hidden');
 
     try {
-      await fetch('/api/upgrade', { method: 'POST' });
+      const res = await fetch('/api/upgrade', { method: 'POST' });
+      if (!res.ok) {
+        resetUpgradeButton();
+        return;
+      }
       startPolling();
     } catch (e) {
       resetUpgradeButton();

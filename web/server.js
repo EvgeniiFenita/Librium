@@ -2,13 +2,28 @@ const express = require('express');
 const { spawn } = require('child_process');
 const net = require('net');
 const fs = require('fs');
-const fsPromises = require('fs').promises;
+const fsPromises = require('fs/promises');
 const path = require('path');
+const crypto = require('crypto');
 
+// --- GLOBAL STATE ---
 let webConfig;
 let libriumConfig;
 let metaDir;
+let libriumProcess = null;
+let socket = null;
+let lineBuffer = '';
+let busy = false;
+let reconnectTimer = null;
+const requestQueue = [];
+let TCP_TIMEOUT = 30000; // 30 seconds
+
+let engineState = 'starting';  // 'starting' | 'ready' | 'importing' | 'upgrading' | 'crashed'
+let lastProgress = { processed: 0, total: 0 };
+let currentLineHandler = null;
+
 const app = express();
+app.use(express.json());
 
 /**
  * Load configuration files with validation and error handling.
@@ -71,7 +86,6 @@ function loadConfig(configOverride = null) {
 }
 
 // --- LIBRIUM PROCESS ---
-let libriumProcess = null;
 
 /**
  * Start the Librium C++ engine process.
@@ -107,16 +121,6 @@ function restartLibrium() {
 }
 
 // --- TCP CLIENT ---
-let socket = null;
-let lineBuffer = '';
-let busy = false;
-let reconnectTimer = null;
-const requestQueue = [];
-const TCP_TIMEOUT = 30000; // 30 seconds
-
-let engineState = 'starting';  // 'starting' | 'ready' | 'importing' | 'upgrading' | 'crashed'
-let lastProgress = { processed: 0, total: 0 };
-let currentLineHandler = null;
 
 /**
  * Change engine state and handle transitions.
@@ -133,8 +137,7 @@ function setEngineState(newState) {
             reject(new Error('Engine crashed'));
         }
         if (currentLineHandler) {
-            // We can't easily reject the current promise here because sendCommand closure is gone,
-            // but the timeout or socket error will handle it.
+            currentLineHandler({ status: 'error', error: 'Engine crashed' });
             currentLineHandler = null;
             busy = false;
         }
@@ -145,9 +148,18 @@ function setEngineState(newState) {
  * Connect to the Librium engine via TCP.
  */
 function connectTcp(retryCount = 0) {
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+    }
     if (socket) {
         socket.destroy();
         socket = null;
+    }
+
+    // Update timeout from config if available
+    if (webConfig && webConfig.tcpTimeout) {
+        TCP_TIMEOUT = webConfig.tcpTimeout;
     }
 
     console.log(`[TCP] Connecting to Librium engine at 127.0.0.1:${webConfig.libriumPort} (Attempt ${retryCount + 1})...`);
@@ -173,7 +185,6 @@ function connectTcp(retryCount = 0) {
 
     socket.on('error', (err) => {
         console.error('[TCP] Socket error:', err.message);
-        // Do not immediately reconnect on error, wait for 'close'
     });
 
     socket.on('close', () => {
@@ -219,21 +230,28 @@ function handleLine(base64Line) {
 /**
  * Send a command to the engine and wait for a response.
  */
-function sendCommand(action, params = {}) {
+function sendCommand(action, params = {}, timeoutMs = TCP_TIMEOUT) {
     return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-            const idx = requestQueue.findIndex(r => r.resolve === resolve);
-            if (idx !== -1) {
-                requestQueue.splice(idx, 1);
-                reject(new Error(`Command '${action}' timed out (queue)`));
-            } else if (busy && !currentLineHandler) {
-                // This shouldn't happen if busy/handler are synced
-                reject(new Error(`Command '${action}' timed out (active)`));
-            }
-        }, TCP_TIMEOUT);
+        let timeout = null;
 
-        const wrappedResolve = (val) => { clearTimeout(timeout); resolve(val); };
-        const wrappedReject = (err) => { clearTimeout(timeout); reject(err); };
+        const wrappedResolve = (val) => { if (timeout) clearTimeout(timeout); resolve(val); };
+        const wrappedReject = (err) => { if (timeout) clearTimeout(timeout); reject(err); };
+
+        if (timeoutMs > 0) {
+            timeout = setTimeout(() => {
+                const idx = requestQueue.findIndex(r => r.reject === wrappedReject);
+                if (idx !== -1) {
+                    requestQueue.splice(idx, 1);
+                    wrappedReject(new Error(`Command '${action}' timed out (queue)`));
+                } else if (currentLineHandler) {
+                    // Command is currently being processed by the engine
+                    currentLineHandler = null;
+                    busy = false;
+                    wrappedReject(new Error(`Command '${action}' timed out (active)`));
+                    processQueue();
+                }
+            }, timeoutMs);
+        }
 
         requestQueue.push({ action, params, resolve: wrappedResolve, reject: wrappedReject });
         processQueue();
@@ -332,8 +350,6 @@ app.get('/api/books/:id', async (req, res) => {
     try {
         const data = await sendCommand('get-book', { id });
         if (data.cover) {
-            // We determine the extension dynamically in the covers endpoint, 
-            // but we provide a generic URL here.
             data.coverUrl = `/covers/${id}/cover`;
         }
         res.json(data);
@@ -349,17 +365,28 @@ app.get('/api/download/:id', async (req, res) => {
 
     try {
         const tempDir = path.resolve(__dirname, webConfig.tempDir);
-        const data = await sendCommand('export', { id, out: tempDir });
+        const uniqueOutDir = path.join(tempDir, crypto.randomUUID());
+        fs.mkdirSync(uniqueOutDir, { recursive: true });
+
+        const data = await sendCommand('export', { id, out: uniqueOutDir });
         
-        if (!data.file) throw new Error("No file returned from engine");
+        if (!data.file) {
+            fs.rmSync(uniqueOutDir, { recursive: true, force: true });
+            throw new Error("No file returned from engine");
+        }
         
-        const filePath = data.file;
+        const filePath = path.resolve(data.file);
+        const resolvedOutDir = path.resolve(uniqueOutDir);
+        if (!filePath.startsWith(resolvedOutDir + path.sep)) {
+            fs.rmSync(uniqueOutDir, { recursive: true, force: true });
+            return res.status(500).json({ error: 'Invalid file path from engine' });
+        }
+
         const filename = data.filename || path.basename(filePath);
         
         res.download(filePath, filename, (err) => {
-            // Always attempt to unlink to prevent disk leaks
-            fs.unlink(filePath, () => {});
-            if (err && !res.headersSent) {
+            fs.rmSync(uniqueOutDir, { recursive: true, force: true });
+            if (err) {
                 console.error(`[HTTP] Download error for book ${id}:`, err);
             }
         });
@@ -375,7 +402,7 @@ app.post('/api/import', async (req, res) => {
     res.status(202).json({ message: "Import started" });
     
     try {
-        await sendCommand('import');
+        await sendCommand('import', {}, 0);
     } catch (e) {
         console.error('[Server] Import error:', e);
     } finally {
@@ -390,7 +417,7 @@ app.post('/api/upgrade', async (req, res) => {
     res.status(202).json({ message: "Upgrade started" });
     
     try {
-        await sendCommand('upgrade');
+        await sendCommand('upgrade', {}, 0);
     } catch (e) {
         console.error('[Server] Upgrade error:', e);
     } finally {
@@ -399,7 +426,8 @@ app.post('/api/upgrade', async (req, res) => {
 });
 
 // --- COVERS CACHE (LRU) ---
-const MAX_CACHE_SIZE = 500; // Max covers in RAM
+const MAX_CACHE_SIZE = 50 * 1024 * 1024; // 50 MB
+let currentCacheSize = 0;
 const coverCache = new Map();
 
 function getCoverFromCache(bookId) {
@@ -413,23 +441,28 @@ function getCoverFromCache(bookId) {
 }
 
 function addCoverToCache(bookId, data) {
-    if (coverCache.size >= MAX_CACHE_SIZE) {
-        const firstKey = coverCache.keys().next().value;
-        coverCache.delete(firstKey);
+    if (coverCache.has(bookId)) {
+        currentCacheSize -= coverCache.get(bookId).data.length;
+        coverCache.delete(bookId);
     }
     coverCache.set(bookId, data);
+    currentCacheSize += data.data.length;
+
+    while (currentCacheSize > MAX_CACHE_SIZE) {
+        const firstKey = coverCache.keys().next().value;
+        currentCacheSize -= coverCache.get(firstKey).data.length;
+        coverCache.delete(firstKey);
+    }
 }
 
 // --- COVERS ENDPOINT ---
-app.get('/covers/:id/*', async (req, res) => {
+app.get('/covers/:id/:filename', async (req, res) => {
     const bookIdRaw = req.params.id;
-    // Security: Validate bookId is numeric only
     if (!/^\d+$/.test(bookIdRaw)) {
         return res.status(400).end();
     }
     const bookId = parseInt(bookIdRaw, 10);
     
-    // 1. Try RAM cache
     const cached = getCoverFromCache(bookId);
     if (cached) {
         res.setHeader('Content-Type', cached.mime);
@@ -437,14 +470,11 @@ app.get('/covers/:id/*', async (req, res) => {
         return res.send(cached.data);
     }
 
-    // 2. Cache miss — read from disk asynchronously
     const base = path.resolve(metaDir);
     const dir = path.resolve(base, String(bookId));
     
-    // Security check: ensure dir is within metaDir
     const relativePath = path.relative(base, dir);
     if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
-        console.error(`[Security] Blocked access outside metaDir: ${dir} (base: ${base})`);
         return res.status(403).end();
     }
 
@@ -458,8 +488,6 @@ app.get('/covers/:id/*', async (req, res) => {
         
         const filePath = path.join(dir, coverFile);
         const data = await fsPromises.readFile(filePath);
-        
-        // Detect MIME type by extension
         const ext = path.extname(coverFile).toLowerCase();
         const mimeMap = {
             '.jpg': 'image/jpeg',
@@ -475,7 +503,6 @@ app.get('/covers/:id/*', async (req, res) => {
         res.setHeader('Cache-Control', 'public, max-age=3600');
         res.send(data);
     } catch (e) {
-        // Not found or access denied
         res.status(404).end();
     }
 });
@@ -499,10 +526,7 @@ async function main(configOverride = null, startEngine = true) {
     if (startEngine) {
         startLibrium();
     }
-    
-    // Wait for the engine to start with a retry-based connection logic
     connectTcp();
-    
     return app.listen(webConfig.webPort, '0.0.0.0', () => {
         console.log(`[Server] Librium Web UI running at http://localhost:${webConfig.webPort}`);
     });
@@ -516,4 +540,3 @@ if (require.main === module) {
 }
 
 module.exports = { app, loadConfig, connectTcp, setEngineState, shutdown, main };
-

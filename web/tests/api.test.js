@@ -9,6 +9,7 @@ let mockTcpServer;
 let mockTcpPort = 0;
 let tempTestDir = '';
 let engineResponses = [];
+let lastEngineParams = null;
 let activeSockets = new Set();
 let httpServer;
 
@@ -41,8 +42,22 @@ beforeAll((done) => {
                 const line = buffer.slice(0, idx).trim();
                 buffer = buffer.slice(idx + 1);
                 
-                // Pop the next mock response
-                const resData = engineResponses.length > 0 ? engineResponses.shift() : { status: 'ok', data: {} };
+                try {
+                    const req = JSON.parse(Buffer.from(line, 'base64').toString('utf8'));
+                    lastEngineParams = req.params;
+
+                    if (req.action === 'export' && req.params.out) {
+                        // Create a dummy file for res.download to find
+                        const outDir = req.params.out;
+                        if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+                        fs.writeFileSync(path.join(outDir, 'test.fb2'), 'fake_book_content');
+                    }
+                } catch(e) {}
+
+                // If no responses queued, don't send anything (simulate timeout)
+                if (engineResponses.length === 0) continue;
+
+                const resData = engineResponses.shift();
                 const resBase64 = Buffer.from(JSON.stringify(resData)).toString('base64') + '\n';
                 socket.write(resBase64);
             }
@@ -52,18 +67,7 @@ beforeAll((done) => {
     mockTcpServer.listen(0, '127.0.0.1', () => {
         mockTcpPort = mockTcpServer.address().port;
         
-        // 3. Initialize server.js config to point to our test environment
-        loadConfig({
-            webConfig: {
-                libriumPort: mockTcpPort,
-                webPort: 0, // Random port
-                tempDir: tempPath,
-                metaDir: metaPath
-            },
-            libriumConfig: {}
-        });
-
-        // 4. Start the app server and connect the proxy (without starting the real engine)
+        // 3. Start the app server and connect the proxy (without starting the real engine)
         const config = {
             webConfig: {
                 libriumExe: "fake.exe",
@@ -71,7 +75,8 @@ beforeAll((done) => {
                 libriumPort: mockTcpPort,
                 webPort: 0, // Random port
                 tempDir: tempPath,
-                metaDir: metaPath
+                metaDir: metaPath,
+                tcpTimeout: 500 // Increased from 200 to 500 for stability
             },
             libriumConfig: {
                 database: { path: "fake.db" }
@@ -79,7 +84,7 @@ beforeAll((done) => {
         };
         main(config, false).then(server => {
             httpServer = server;
-            setTimeout(done, 200);
+            setTimeout(done, 500);
         });
     });
 });
@@ -94,22 +99,35 @@ afterAll((done) => {
     }
     activeSockets.clear();
 
-    mockTcpServer.close(() => {
+    if (httpServer) {
         httpServer.close(() => {
-            try {
-                fs.rmSync(tempTestDir, { recursive: true, force: true });
-            } catch (e) {}
+            mockTcpServer.close(() => {
+                try {
+                    fs.rmSync(tempTestDir, { recursive: true, force: true });
+                } catch (e) {}
+                done();
+            });
+        });
+    } else {
+        mockTcpServer.close(() => {
             done();
         });
-    });
+    }
+});
+
+afterEach(() => {
+    engineResponses.length = 0;
+    lastEngineParams = null;
 });
 
 describe('Security & Validation', () => {
     it('should block Path Traversal attempts on /covers', async () => {
-        // ID should be strictly numeric
+        // Now that the route is /covers/:id/:filename, /covers/../../ is not even matched
+        // and Express returns 404 by default.
         const res1 = await request(httpServer).get('/covers/../../etc/passwd/cover.jpg');
-        expect(res1.status).toBe(400);
+        expect(res1.status).toBe(404);
 
+        // This matches the route but fails the regex check for :id, returning 400
         const res2 = await request(httpServer).get('/covers/1abc/cover.jpg');
         expect(res2.status).toBe(400);
     });
@@ -154,5 +172,30 @@ describe('Static Files & Caching', () => {
     it('should return 404 for a missing cover', async () => {
         const res = await request(httpServer).get('/covers/999/cover');
         expect(res.status).toBe(404);
+    });
+});
+
+describe('Regression Tests (Bugs)', () => {
+    it('should timeout if engine does not respond (BUG-1)', async () => {
+        // No responses pushed to engineResponses -> engine will time out in 200ms
+        const res = await request(httpServer).get('/api/stats');
+        expect(res.status).toBe(500);
+        expect(res.body.error).toContain('timed out');
+    });
+
+    it('should use unique output directories for exports (BUG-3)', async () => {
+        // 1. First download
+        engineResponses.push({ status: 'ok', data: { file: 'test.fb2' } }); // filename is relative to out dir
+        await request(httpServer).get('/api/download/1');
+        const firstOutDir = lastEngineParams.out;
+
+        // 2. Second download
+        engineResponses.push({ status: 'ok', data: { file: 'test.fb2' } });
+        await request(httpServer).get('/api/download/2');
+        const secondOutDir = lastEngineParams.out;
+
+        expect(firstOutDir).toBeDefined();
+        expect(secondOutDir).toBeDefined();
+        expect(firstOutDir).not.toBe(secondOutDir);
     });
 });

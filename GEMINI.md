@@ -159,6 +159,7 @@ class CUserService
 
 ## Testing Standards
 - **Unified Runner**: ALWAYS verify changes using `python scripts/Run.py`.
+- **Mandatory Script Usage**: ALL tests (Unit, Scenario, Web) MUST be executed ONLY via `python scripts/Run.py`. Direct execution of test binaries, `npm test`, or `jest` is strictly FORBIDDEN. This ensures all temporary artifacts and downloaded dependencies are isolated within the `out/` directory, preventing pollution of the `libs/`, `apps/`, or `tests/` source folders.
 - **Stages**: 
   1. **Unit**: Fast C++ tests via Catch2.
   2. **Scenarios**: Data-driven behavioral tests using `LibraryGenerator` (synthetic data) and `ScenarioTester`.
