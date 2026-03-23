@@ -23,7 +23,7 @@ SAppConfig SAppConfig::Load(const std::string& path)
     // Use filesystem::path to handle UTF-8 paths correctly on Windows
     std::ifstream f(Utf8ToPath(path));
     if (!f.is_open())
-        throw ConfigError("Cannot open config: " + path);
+        throw CConfigError("Cannot open config: " + path);
 
     json j;
     try 
@@ -32,7 +32,7 @@ SAppConfig SAppConfig::Load(const std::string& path)
     }
     catch (const json::parse_error& e) 
     { 
-        throw ConfigError(std::string("JSON parse error: ") + e.what()); 
+        throw CConfigError(std::string("JSON parse error: ") + e.what()); 
     }
 
     SAppConfig cfg = Defaults();
@@ -97,7 +97,7 @@ void SAppConfig::Save(const std::string& path) const
         {"logging",  {{"level", logging.level}, {"file", logging.file},
                       {"progressInterval", logging.progressInterval}}}
     };
-    std::ofstream f(path);
+    std::ofstream f(Utf8ToPath(path));
     f << j.dump(2) << "\n";
 }
 

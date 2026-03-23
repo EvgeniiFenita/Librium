@@ -23,8 +23,10 @@ public:
         int64_t count = req.GetInt("count", 0);
 
         // 2. Business Logic (using service.GetApi())
-        // NOTE: Do NOT write SQL strings here. If new queries are needed,
-        //       add them to SqlQueries.hpp as constexpr std::string_view first.
+        // NOTE: Do NOT write SQL strings here. ALL SQL — including queries,
+        //       transaction control (BEGIN TRANSACTION, COMMIT, ROLLBACK), and
+        //       PRAGMAs — must be defined in SqlQueries.hpp as
+        //       constexpr std::string_view constants first.
         try {
             // ... logic here ...
             

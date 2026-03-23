@@ -1,7 +1,6 @@
 #include "AsioTcpServer.hpp"
 #include "Log/Logger.hpp"
 #include <asio.hpp>
-#include <iostream>
 
 using asio::ip::tcp;
 
@@ -27,7 +26,8 @@ void CAsioTcpServer::Run()
         acceptor.accept(socket);
         LOG_INFO("Client connected to engine");
 
-        auto sendCallback = [&socket](const std::string& msg) {
+        auto sendCallback = [&socket](const std::string& msg)
+        {
             asio::error_code error;
             asio::write(socket, asio::buffer(msg + "\n"), error);
             if (error)
@@ -59,7 +59,8 @@ void CAsioTcpServer::Run()
             std::string line;
             std::getline(is, line);
             
-            if (!line.empty() && line.back() == '\r') {
+            if (!line.empty() && line.back() == '\r')
+            {
                 line.pop_back();
             }
 
@@ -75,7 +76,7 @@ void CAsioTcpServer::Run()
             handler(line);
         }
     }
-    catch (std::exception& e)
+    catch (const std::exception& e)
     {
         LOG_ERROR("Transport error: {}", e.what());
     }

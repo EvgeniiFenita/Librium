@@ -20,7 +20,7 @@ void CSqliteStatement::Check(int rc, const char* context) const
 {
     if (rc != SQLITE_OK && rc != SQLITE_DONE && rc != SQLITE_ROW)
     {
-        throw CDbError(std::string(context) + ": " + std::to_string(rc));
+        throw CDbError(std::string(context) + ": " + sqlite3_errstr(rc) + " (code " + std::to_string(rc) + ")");
     }
 }
 

@@ -2,7 +2,7 @@
 
 namespace Librium::Utils {
 
-std::string CBase64::Encode(const std::string& input) 
+std::string CBase64::Encode(const std::string& input)
 {
     std::string ret;
     int i = 0;
@@ -12,9 +12,11 @@ std::string CBase64::Encode(const std::string& input)
     const char* bytes_to_encode = input.c_str();
     size_t in_len = input.size();
 
-    while (in_len--) {
+    while (in_len--)
+    {
         char_array_3[i++] = *(bytes_to_encode++);
-        if (i == 3) {
+        if (i == 3)
+        {
             char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
             char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
             char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
@@ -25,7 +27,8 @@ std::string CBase64::Encode(const std::string& input)
         }
     }
 
-    if (i) {
+    if (i)
+    {
         for (j = i; j < 3; j++) char_array_3[j] = '\0';
         char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
         char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
@@ -38,9 +41,10 @@ std::string CBase64::Encode(const std::string& input)
     return ret;
 }
 
-std::string CBase64::Decode(const std::string& input) 
+std::string CBase64::Decode(const std::string& input)
 {
-    auto is_base64 = [](unsigned char c) {
+    auto is_base64 = [](unsigned char c)
+    {
         return (std::isalnum(c) || (c == '+') || (c == '/'));
     };
 
@@ -53,9 +57,11 @@ std::string CBase64::Decode(const std::string& input)
 
     std::string_view b64chars(BASE64_CHARS);
 
-    while (in_len-- && (input[in_] != '=') && is_base64(input[in_])) {
+    while (in_len-- && (input[in_] != '=') && is_base64(input[in_]))
+    {
         char_array_4[i++] = input[in_]; in_++;
-        if (i == 4) {
+        if (i == 4)
+        {
             for (i = 0; i < 4; i++)
                 char_array_4[i] = static_cast<unsigned char>(b64chars.find(static_cast<char>(char_array_4[i])));
 
@@ -68,7 +74,8 @@ std::string CBase64::Decode(const std::string& input)
         }
     }
 
-    if (i) {
+    if (i)
+    {
         for (j = i; j < 4; j++) char_array_4[j] = 0;
         for (j = 0; j < 4; j++)
             char_array_4[j] = static_cast<unsigned char>(b64chars.find(static_cast<char>(char_array_4[j])));

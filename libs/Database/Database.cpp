@@ -44,6 +44,7 @@ void CDatabase::BeginBulkImport()
     catch (const std::exception& e)
     {
         LOG_ERROR("BeginBulkImport failed: {}", e.what());
+        throw;
     }
 }
 
@@ -156,6 +157,7 @@ int64_t CDatabase::GetOrCreateSeries(const std::string& series)
 
     m_stmtInsertSeries->Reset();
     m_stmtInsertSeries->BindText(1, series);
+    m_stmtInsertSeries->BindText(2, series); // search_name = librium_upper(param 2)
     m_stmtInsertSeries->Step();
 
     m_stmtGetSeries->Reset();
@@ -309,6 +311,7 @@ void CDatabase::MarkArchiveIndexed(const std::string& archiveName)
 
     stmt->BindText(1, archiveName);
     stmt->Step();
+    CSqlStmtResetGuard guard(*stmt);
 }
 
 int64_t CDatabase::CountBooks() const
@@ -354,6 +357,9 @@ void CDatabase::DropIndexes()
     LOG_INFO("Dropping indexes for bulk import...");
     Exec(std::string(Sql::DropIndexBooksTitle));
     Exec(std::string(Sql::DropIndexBooksLang));
+    Exec(std::string(Sql::DropIndexBooksSearchTitle));
+    Exec(std::string(Sql::DropIndexAuthorsSearchName));
+    Exec(std::string(Sql::DropIndexSeriesSearchName));
 }
 
 void CDatabase::CreateIndexes()
@@ -361,6 +367,9 @@ void CDatabase::CreateIndexes()
     LOG_INFO("Re-creating indexes after import...");
     Exec(std::string(Sql::CreateIndexBooksTitle));
     Exec(std::string(Sql::CreateIndexBooksLang));
+    Exec(std::string(Sql::CreateIndexBooksSearchTitle));
+    Exec(std::string(Sql::CreateIndexAuthorsSearchName));
+    Exec(std::string(Sql::CreateIndexSeriesSearchName));
 }
 
 namespace {
@@ -485,7 +494,7 @@ SQueryResult CDatabase::ExecuteQuery(const SQueryParams& params)
     {
         auto token = ParseSearchQuery(params.series);
         std::string frag;
-        BuildSearchSql(token, "ser.name", frag, binds.series);
+        BuildSearchSql(token, "ser.search_name", frag, binds.series);
         whereSql += frag;
     }
 

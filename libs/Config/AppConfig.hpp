@@ -31,10 +31,10 @@ struct SFilterResult
     }
 };
 
-class ConfigError : public std::runtime_error
+class CConfigError : public std::runtime_error
 {
 public:
-    explicit ConfigError(const std::string& msg) : std::runtime_error(msg)
+    explicit CConfigError(const std::string& msg) : std::runtime_error(msg)
     {}
 };
 
@@ -75,7 +75,7 @@ struct SFiltersConfig
 struct SLoggingConfig
 {
     std::string level{"info"};
-    std::string file{""};
+    std::string file;
     size_t      progressInterval{1000};
 };
 

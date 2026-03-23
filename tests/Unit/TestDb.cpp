@@ -1,9 +1,11 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "Database/Database.hpp"
+#include "TestUtils.hpp"
 #include <filesystem>
 
 using namespace Librium;
+using namespace Librium::Tests;
 
 namespace {
 
@@ -23,8 +25,8 @@ Inpx::SBookRecord MakeRec(const std::string& id="100001", const std::string& tit
 
 TEST_CASE("Database basic operations", "[db]")
 {
-    std::string dbPath = "test.db";
-    if (std::filesystem::exists(dbPath)) std::filesystem::remove(dbPath);
+    CTempDir tempDir;
+    std::string dbPath = (tempDir.GetPath() / "test.db").string();
 
     {
         Db::CDatabase db(dbPath);
@@ -65,6 +67,5 @@ TEST_CASE("Database basic operations", "[db]")
             REQUIRE(archives[0] == "my_archive");
         }
     }
-
-    std::filesystem::remove(dbPath);
 }
+

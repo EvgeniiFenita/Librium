@@ -49,6 +49,7 @@ void CAppService::Dispatch(const IRequest& req, IResponse& res, Indexer::IProgre
     }
     catch (const std::exception& e)
     {
+        LOG_ERROR("Unhandled exception in action '{}': {}", req.GetAction(), e.what());
         res.SetError(e.what());
     }
 }

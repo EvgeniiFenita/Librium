@@ -1,6 +1,9 @@
 #pragma once
 
+#include "Log/Logger.hpp"
+
 #include <cstdint>
+#include <stdexcept>
 #include <string>
 
 namespace Librium::Db {
@@ -33,7 +36,18 @@ class CSqlStmtResetGuard
 {
 public:
     explicit CSqlStmtResetGuard(ISqlStatement& stmt) noexcept : m_stmt(stmt) {}
-    ~CSqlStmtResetGuard() noexcept { m_stmt.Reset(); }
+    ~CSqlStmtResetGuard() noexcept
+    {
+        try
+        {
+            m_stmt.Reset();
+        }
+        catch (const std::exception& e)
+        {
+            // Reset errors are non-fatal and must not propagate from a destructor.
+            LOG_WARN("CSqlStmtResetGuard: failed to reset statement: {}", e.what());
+        }
+    }
     CSqlStmtResetGuard(const CSqlStmtResetGuard&)            = delete;
     CSqlStmtResetGuard& operator=(const CSqlStmtResetGuard&) = delete;
 private:

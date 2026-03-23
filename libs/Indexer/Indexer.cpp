@@ -4,6 +4,7 @@
 #include "Log/Logger.hpp"
 #include "Zip/ZipReader.hpp"
 
+#include <chrono>
 #include <filesystem>
 #include <unordered_map>
 #include <fstream>
@@ -29,7 +30,7 @@ std::vector<std::string> CIndexer::GetNewArchives(Db::CDatabase& db, const std::
         if (entry.name.size() >= 4 &&
             entry.name.substr(entry.name.size()-4) == ".inp") 
         {
-            fs::path p(entry.name);
+            fs::path p = Utf8ToPath(entry.name);
             auto u8stem = p.stem().u8string();
             allArchives.push_back(std::string(u8stem.begin(), u8stem.end()));
         }
@@ -362,7 +363,7 @@ Db::SImportStats CIndexer::Run(Db::CDatabase& db, EImportMode mode, IProgressRep
     if (closer.joinable()) closer.join();
 
     auto endTime = std::chrono::high_resolution_clock::now();
-    stats.totalTimeMs = (double)std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+    stats.totalTimeMs = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count());
 
     guard.MarkFinished();
 

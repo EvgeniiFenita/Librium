@@ -2,9 +2,11 @@
 
 #include "Database/QueryTypes.hpp"
 #include "Database/Database.hpp"
+#include "TestUtils.hpp"
 #include <filesystem>
 
 using namespace Librium;
+using namespace Librium::Tests;
 
 namespace {
 
@@ -27,8 +29,8 @@ void AddBook(Db::CDatabase& db, const std::string& id, const std::string& title,
 
 TEST_CASE("BookQuery basic execution", "[query]")
 {
-    std::string dbPath = "test_query.db";
-    if (std::filesystem::exists(dbPath)) std::filesystem::remove(dbPath);
+    CTempDir tempDir;
+    std::string dbPath = (tempDir.GetPath() / "test_query.db").string();
 
     {
         Db::CDatabase db(dbPath);
@@ -124,6 +126,5 @@ TEST_CASE("BookQuery basic execution", "[query]")
             REQUIRE(res.books.size() == 2);
         }
     }
-
-    std::filesystem::remove(dbPath);
 }
+

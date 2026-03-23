@@ -65,7 +65,3 @@ private:
 #define LOG_ERROR_S(msg) ::Librium::Log::CLogger::Instance().Log(::Librium::Log::ELogLevel::Error, msg, std::source_location::current())
 
 
-
-
-
-

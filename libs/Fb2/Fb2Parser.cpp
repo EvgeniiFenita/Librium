@@ -19,6 +19,12 @@ using Utils::CStringUtils;
 
 namespace {
 
+#ifndef LIBRIUM_FB2_DEBUG_DUMP
+static constexpr int kDebugDumpMax = 0;
+#else
+static constexpr int kDebugDumpMax = 5;
+#endif
+
 std::atomic<int> g_debugDumpCount{0};
 
 pugi::xml_node FindChildIgnoreCase(const pugi::xml_node& parent, const char* name)
@@ -77,7 +83,7 @@ SFb2Data CFb2Parser::Parse(const std::string& xmlText, const std::string& contex
         if (pos != std::string::npos) utf8Xml.replace(pos, 6, "utf-8");
     }
 
-    if (g_debugDumpCount.fetch_add(1) < 5)
+    if (kDebugDumpMax > 0 && g_debugDumpCount.fetch_add(1) < kDebugDumpMax)
     {
         std::string preview = utf8Xml.substr(0, 1000);
         LOG_DEBUG("FB2 XML Raw Preview (first 1000 chars):\n{}", preview);
@@ -117,7 +123,7 @@ SFb2Data CFb2Parser::Parse(const std::string& xmlText, const std::string& contex
                 else if (child.type() == pugi::node_element)
                 {
                     std::string name = child.name();
-                    if (name.find("p") != std::string::npos || name.find("empty-line") != std::string::npos)
+                    if (name == "p" || name.find("empty-line") != std::string::npos)
                         ss << "\n";
                     gatherText(child);
                 }
@@ -157,7 +163,7 @@ SFb2Data CFb2Parser::Parse(const std::string& xmlText, const std::string& contex
         for (auto binary : root.children())
         {
             std::string name = binary.name();
-            if (name.find("binary") != std::string::npos)
+            if (name == "binary")
             {
                 std::string idVal;
                 std::string ctype;
@@ -189,7 +195,7 @@ SFb2Data CFb2Parser::Parse(const std::string& xmlText, const std::string& contex
         }
     }
 
-    if (g_debugDumpCount.load() <= 5)
+    if (kDebugDumpMax > 0 && g_debugDumpCount.load() < kDebugDumpMax)
     {
         LOG_DEBUG("FB2 Parse Result: annotation_len={}, keywords='{}', publisher='{}'", 
             res.annotation.length(), res.keywords, res.publisher);

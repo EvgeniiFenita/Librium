@@ -15,7 +15,6 @@ struct SQueryParams
     std::string language;
     std::string libId;
     std::string archiveName;
-    std::string yearFrom;
     std::string dateFrom;
     std::string dateTo;
     int         ratingMin{0};

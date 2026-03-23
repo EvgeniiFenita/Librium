@@ -2,6 +2,7 @@
 #include "SqliteStatement.hpp"
 #include "SqliteFunctions.hpp"
 #include "Database.hpp" // For CDbError
+#include "SqlQueries.hpp"
 #include "Log/Logger.hpp"
 
 #include <sqlite3.h>
@@ -25,10 +26,10 @@ CSqliteDatabase::CSqliteDatabase(const std::string& path, int64_t cacheSize, int
     RegisterSqliteFunctions(m_db.get());
 
     // Performance optimizations
-    Exec("PRAGMA cache_size = " + std::to_string(cacheSize));
-    Exec("PRAGMA temp_store = MEMORY");
-    Exec("PRAGMA mmap_size = " + std::to_string(mmapSize));
-    Exec("PRAGMA busy_timeout = 5000");
+    Exec(std::string(Sql::PragmaCacheSizePrefix) + std::to_string(cacheSize));
+    Exec(std::string(Sql::PragmaTempStore));
+    Exec(std::string(Sql::PragmaMmapSizePrefix) + std::to_string(mmapSize));
+    Exec(std::string(Sql::PragmaBusyTimeout));
 }
 
 CSqliteDatabase::~CSqliteDatabase() = default;
@@ -60,17 +61,17 @@ std::unique_ptr<ISqlStatement> CSqliteDatabase::Prepare(const std::string& sql)
 
 void CSqliteDatabase::BeginTransaction()
 {
-    Exec("BEGIN TRANSACTION");
+    Exec(std::string(Sql::BeginTransaction));
 }
 
 void CSqliteDatabase::Commit()
 {
-    Exec("COMMIT");
+    Exec(std::string(Sql::CommitTransaction));
 }
 
 void CSqliteDatabase::Rollback()
 {
-    Exec("ROLLBACK");
+    Exec(std::string(Sql::RollbackTransaction));
 }
 
 int64_t CSqliteDatabase::LastInsertRowId() const

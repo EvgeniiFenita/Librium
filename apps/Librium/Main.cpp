@@ -82,9 +82,12 @@ int main(int argc, char* argv[])
         }
         else if (args[i] == "--port" && i + 1 < args.size())
         {
-            try {
+            try
+            {
                 port = static_cast<uint16_t>(std::stoi(args[++i]));
-            } catch (const std::exception& e) {
+            }
+            catch (const std::exception& e)
+            {
                 LOG_ERROR("Invalid port number: {}", e.what());
                 return 1;
             }
@@ -131,7 +134,7 @@ int main(int argc, char* argv[])
     }
     catch (const std::exception& e)
     {
-        LOG_ERROR("Fatal error: : {}", e.what());
+        LOG_ERROR("Fatal error: {}", e.what());
         return 1;
     }
 

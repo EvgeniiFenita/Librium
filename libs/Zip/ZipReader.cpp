@@ -108,7 +108,7 @@ std::vector<SZipEntry> CZipReader::ListEntries(const std::filesystem::path& zipP
             e.name = st.name;
             e.uncompressedSize = st.size;
             e.compressedSize = st.comp_size;
-            e.isDirectory = (e.name.back() == '/' || e.name.back() == '\\');
+            e.isDirectory = !e.name.empty() && (e.name.back() == '/' || e.name.back() == '\\');
             result.push_back(std::move(e));
         }
     }
@@ -131,7 +131,8 @@ void CZipReader::IterateEntries(const std::filesystem::path& zipPath, const std:
         zip_stat_init(&st);
         if (zip_stat_index(reader.m_za.get(), i, 0, &st) == 0)
         {
-            if (st.name[strlen(st.name) - 1] == '/' || st.name[strlen(st.name) - 1] == '\\')
+            const size_t nameLen = strlen(st.name);
+            if (nameLen == 0 || st.name[nameLen - 1] == '/' || st.name[nameLen - 1] == '\\')
             {
                 continue;
             }
@@ -169,7 +170,7 @@ void CZipReader::IterateEntryNames(const std::filesystem::path& zipPath, const s
             e.name = st.name;
             e.uncompressedSize = st.size;
             e.compressedSize = st.comp_size;
-            e.isDirectory = (e.name.back() == '/' || e.name.back() == '\\');
+            e.isDirectory = !e.name.empty() && (e.name.back() == '/' || e.name.back() == '\\');
             if (!callback(e))
             {
                 break;

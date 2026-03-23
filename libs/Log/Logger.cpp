@@ -2,7 +2,7 @@
 
 #include <chrono>
 #include <ctime>
-#include <iostream>
+#include <cstdio>
 #include <filesystem>
 #include <thread>
 #include <sstream>
@@ -10,12 +10,23 @@
 
 namespace Librium::Log {
 
+namespace {
+
+// Converts a UTF-8 string to a filesystem path without depending on Config layer.
+std::filesystem::path Utf8ToPath(const std::string& str)
+{
+    return std::filesystem::path(
+        std::u8string(reinterpret_cast<const char8_t*>(str.data()), str.size()));
+}
+
+} // namespace
+
 class CFileOutput : public ILogOutput
 {
 public:
     explicit CFileOutput(const std::string& path)
     {
-        m_file.open(path, std::ios::app);
+        m_file.open(Utf8ToPath(path), std::ios::app);
     }
 
     void Write(const std::string& message) override
@@ -36,8 +47,8 @@ class CConsoleOutput : public ILogOutput
 public:
     void Write(const std::string& message) override
     {
-        std::cout << message;
-        std::cout.flush();
+        std::fputs(message.c_str(), stdout);
+        std::fflush(stdout);
     }
 };
 
@@ -71,18 +82,19 @@ void CLogger::ClearOutputs()
 
 void CLogger::Setup(ELogLevel level, const std::string& file)
 {
-    auto& logger = CLogger::Instance();
-    logger.ClearOutputs();
-    logger.SetLevel(level);
-    
+    // Build new outputs before acquiring the lock to minimize critical section duration.
+    std::vector<std::unique_ptr<ILogOutput>> newOutputs;
     if (!file.empty())
-    {
-        logger.AddFileOutput(file);
-    }
+        newOutputs.push_back(std::make_unique<CFileOutput>(file));
     else
-    {
-        logger.AddConsoleOutput();
-    }
+        newOutputs.push_back(std::make_unique<CConsoleOutput>());
+
+    auto& logger = CLogger::Instance();
+    logger.m_level.store(level, std::memory_order_relaxed);
+
+    // Replace outputs atomically in a single lock — no window where messages are dropped.
+    std::lock_guard lock(logger.m_mutex);
+    logger.m_outputs = std::move(newOutputs);
 }
 
 ELogLevel CLogger::ParseLevel(const std::string& levelStr, ELogLevel defaultLevel)

@@ -92,9 +92,9 @@ public:
     [[nodiscard]] SQueryResult ExecuteQuery(const SQueryParams& params);
     [[nodiscard]] std::optional<SBookResult> GetBookById(int64_t id);
 
-    ISqlDatabase* Handle() 
-    { 
-        return m_db.get(); 
+    ISqlDatabase* Handle()
+    {
+        return m_db.get();
     }
 
     void DropIndexes();

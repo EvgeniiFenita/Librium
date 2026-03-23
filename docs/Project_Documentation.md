@@ -204,7 +204,7 @@ To ensure Windows compatibility with non-ASCII paths:
 - **Archive-Aware Scheduling**: The indexer groups all books by archive during pre-scan. Each `SWorkItem` in the work queue represents a complete archive batch — all books from one ZIP. A worker thread picks up an entire batch, opens the ZIP exactly once, processes all books sequentially, then closes it. This eliminates redundant ZIP opens caused by multiple threads competing for the same archive.
 - **Fast Upgrade**: The `upgrade` command automatically skips archives that are already marked as indexed in the database, reducing incremental update time from minutes to seconds.
 - **Index Management**: Search indexes are dropped before bulk imports and recreated afterward to maintain constant O(1) insertion speed. `CImportGuard` manages this lifecycle automatically.
-- **Search Optimizations**: Fast case-insensitive search is achieved through denormalized columns (`search_title` in `books`, `search_name` in `authors`) indexed for prefix searching. This avoids expensive function calls in `WHERE` clauses.
+- **Search Optimizations**: Fast case-insensitive search is achieved through denormalized columns (`search_title` in `books`, `search_name` in `authors` and `series`) indexed for prefix searching. This avoids expensive function calls in `WHERE` clauses.
 - **Database Caching**: Internal memory caches for Authors, Genres, Series, and Publishers IDs minimize SQLite lookup overhead during mass indexing.
 - **Worker Parallelism**: Supports high thread counts (up to 32+ threads) for simultaneous FB2 parsing and XML processing.
 

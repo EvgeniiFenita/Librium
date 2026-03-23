@@ -24,10 +24,23 @@ void CDatabaseSchema::Create(ISqlDatabase& db)
     Exec(db, Sql::CreateTableBookAuthors.data());
     Exec(db, Sql::CreateTableBookGenres.data());
 
+    // Migration: add search_name to series table for databases created before this column was added.
+    // Fresh databases already have the column via CreateTableSeries, so we check first
+    // to avoid a noisy LOG_ERROR from the SQLite layer on "duplicate column name".
+    {
+        auto stmt = db.Prepare(std::string(Sql::CheckSeriesSearchNameColumn));
+        stmt->Step();
+        if (!stmt->IsRow() || stmt->ColumnInt(0) == 0)
+        {
+            Exec(db, Sql::MigrateSeriesAddSearchName.data());
+        }
+    }
+
     Exec(db, Sql::CreateIndexBooksTitle.data());
     Exec(db, Sql::CreateIndexBooksLang.data());
     Exec(db, Sql::CreateIndexBooksSearchTitle.data());
     Exec(db, Sql::CreateIndexAuthorsSearchName.data());
+    Exec(db, Sql::CreateIndexSeriesSearchName.data());
     
     LOG_INFO("Database schema is ready.");
 }
@@ -41,6 +54,7 @@ void CDatabaseSchema::Exec(ISqlDatabase& db, const char* sql)
     catch (const CDbError& e)
     {
         LOG_ERROR("Schema creation error: {} | Query: {}", e.what(), sql);
+        throw;
     }
 }
 

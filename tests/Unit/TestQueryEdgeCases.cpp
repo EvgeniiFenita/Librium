@@ -3,10 +3,12 @@
 #include "Database/Database.hpp"
 #include "Database/QueryTypes.hpp"
 #include "Fb2/Fb2Parser.hpp"
+#include "TestUtils.hpp"
 
 #include <filesystem>
 
 using namespace Librium;
+using namespace Librium::Tests;
 
 namespace {
 
@@ -38,8 +40,8 @@ void AddBookEdge(Db::CDatabase& db,
 
 TEST_CASE("BookQuery rating filter", "[query]")
 {
-    std::string dbPath = "test_q_rating.db";
-    if (std::filesystem::exists(dbPath)) std::filesystem::remove(dbPath);
+    CTempDir tempDir;
+    std::string dbPath = (tempDir.GetPath() / "test_q_rating.db").string();
 
     {
         Db::CDatabase db(dbPath);
@@ -84,14 +86,12 @@ TEST_CASE("BookQuery rating filter", "[query]")
             REQUIRE(res.totalFound == 4);
         }
     }
-
-    std::filesystem::remove(dbPath);
 }
 
 TEST_CASE("BookQuery date filters", "[query]")
 {
-    std::string dbPath = "test_q_date.db";
-    if (std::filesystem::exists(dbPath)) std::filesystem::remove(dbPath);
+    CTempDir tempDir;
+    std::string dbPath = (tempDir.GetPath() / "test_q_date.db").string();
 
     {
         Db::CDatabase db(dbPath);
@@ -135,14 +135,12 @@ TEST_CASE("BookQuery date filters", "[query]")
             REQUIRE(res.books[0].libId == "2");
         }
     }
-
-    std::filesystem::remove(dbPath);
 }
 
 TEST_CASE("BookQuery empty result", "[query]")
 {
-    std::string dbPath = "test_q_empty.db";
-    if (std::filesystem::exists(dbPath)) std::filesystem::remove(dbPath);
+    CTempDir tempDir;
+    std::string dbPath = (tempDir.GetPath() / "test_q_empty.db").string();
 
     {
         Db::CDatabase db(dbPath);
@@ -159,8 +157,8 @@ TEST_CASE("BookQuery empty result", "[query]")
 
         SECTION("Query on empty database")
         {
-            std::string emptyDb = "test_q_truly_empty.db";
-            if (std::filesystem::exists(emptyDb)) std::filesystem::remove(emptyDb);
+            CTempDir innerTempDir;
+            std::string emptyDb = (innerTempDir.GetPath() / "test_q_truly_empty.db").string();
             {
                 Db::CDatabase emptyDbObj(emptyDb);
                 Db::SQueryParams p;
@@ -168,17 +166,14 @@ TEST_CASE("BookQuery empty result", "[query]")
                 REQUIRE(res.totalFound == 0);
                 REQUIRE(res.books.empty());
             }
-            std::filesystem::remove(emptyDb);
         }
     }
-
-    std::filesystem::remove(dbPath);
 }
 
 TEST_CASE("BookQuery multi-author books", "[query]")
 {
-    std::string dbPath = "test_q_multiauthor.db";
-    if (std::filesystem::exists(dbPath)) std::filesystem::remove(dbPath);
+    CTempDir tempDir;
+    std::string dbPath = (tempDir.GetPath() / "test_q_multiauthor.db").string();
 
     {
         Db::CDatabase db(dbPath);
@@ -235,14 +230,12 @@ TEST_CASE("BookQuery multi-author books", "[query]")
             REQUIRE(res.books[0].authors.size() == 1);
         }
     }
-
-    std::filesystem::remove(dbPath);
 }
 
 TEST_CASE("BookQuery pagination offset", "[query]")
 {
-    std::string dbPath = "test_q_pagination.db";
-    if (std::filesystem::exists(dbPath)) std::filesystem::remove(dbPath);
+    CTempDir tempDir;
+    std::string dbPath = (tempDir.GetPath() / "test_q_pagination.db").string();
 
     {
         Db::CDatabase db(dbPath);
@@ -301,14 +294,12 @@ TEST_CASE("BookQuery pagination offset", "[query]")
             REQUIRE(total == 6);
         }
     }
-
-    std::filesystem::remove(dbPath);
 }
 
 TEST_CASE("CDatabase::GetBookById", "[db]")
 {
-    std::string dbPath = "test_get_by_id.db";
-    if (std::filesystem::exists(dbPath)) std::filesystem::remove(dbPath);
+    CTempDir tempDir;
+    std::string dbPath = (tempDir.GetPath() / "test_get_by_id.db").string();
 
     {
         Db::CDatabase db(dbPath);
@@ -344,6 +335,5 @@ TEST_CASE("CDatabase::GetBookById", "[db]")
             REQUIRE(result->authors[0].lastName == "Finder");
         }
     }
-
-    std::filesystem::remove(dbPath);
 }
+

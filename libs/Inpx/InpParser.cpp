@@ -219,7 +219,7 @@ std::vector<SBookRecord> CInpParser::Parse(const std::string& inpxPath)
     {
         if (name.size() >= 4 && name.substr(name.size() - 4) == ".inp")
         {
-            std::filesystem::path p(name);
+            std::filesystem::path p = Config::Utf8ToPath(name);
             auto u8stem = p.stem().u8string();
             std::string archive(u8stem.begin(), u8stem.end());
             LOG_DEBUG("Parsing archive: {}", archive);
@@ -256,7 +256,7 @@ SInpParseStats CInpParser::ParseStreaming(const std::string& inpxPath, const std
             return true;
         }
 
-        std::filesystem::path p(name);
+        std::filesystem::path p = Config::Utf8ToPath(name);
         auto u8stem = p.stem().u8string();
         std::string archive(u8stem.begin(), u8stem.end());
         LOG_DEBUG("Parsing archive: {}", archive);

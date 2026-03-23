@@ -31,6 +31,9 @@ public:
         }
     }
 
+    CTempDir(const CTempDir&)            = delete;
+    CTempDir& operator=(const CTempDir&) = delete;
+
     [[nodiscard]] std::filesystem::path GetPath() const
     {
         return m_path;
@@ -66,17 +69,24 @@ inline void CreateTestZip(const std::filesystem::path& zipPath, const std::map<s
 
     for (const auto& [name, content] : files)
     {
-        zip_source_t* source = zip_source_buffer(archive.get(), content.c_str(), content.size(), 0);
+        struct SZipSourceDeleter
+        {
+            void operator()(zip_source_t* s) const { if (s) zip_source_free(s); }
+        };
+        using zip_source_ptr = std::unique_ptr<zip_source_t, SZipSourceDeleter>;
+
+        zip_source_ptr source(zip_source_buffer(archive.get(), content.c_str(), content.size(), 0));
         if (!source)
         {
             throw std::runtime_error("Failed to create zip source for " + name);
         }
 
-        if (zip_file_add(archive.get(), name.c_str(), source, ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8) < 0)
+        if (zip_file_add(archive.get(), name.c_str(), source.get(), ZIP_FL_OVERWRITE | ZIP_FL_ENC_UTF_8) < 0)
         {
-            zip_source_free(source);
             throw std::runtime_error("Failed to add file to zip: " + name);
         }
+        // zip_file_add took ownership of the source on success — release the guard.
+        source.release();
     }
 }
 

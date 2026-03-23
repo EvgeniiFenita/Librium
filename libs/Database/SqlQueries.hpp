@@ -19,6 +19,17 @@ constexpr std::string_view PragmaSyncOff = "PRAGMA synchronous = OFF";
 // Initial page size for new databases
 constexpr std::string_view PragmaPageSize = "PRAGMA page_size = 16384";
 
+// Performance pragmas (dynamic value appended at call site)
+constexpr std::string_view PragmaCacheSizePrefix = "PRAGMA cache_size = ";
+constexpr std::string_view PragmaTempStore = "PRAGMA temp_store = MEMORY";
+constexpr std::string_view PragmaMmapSizePrefix = "PRAGMA mmap_size = ";
+constexpr std::string_view PragmaBusyTimeout = "PRAGMA busy_timeout = 5000";
+
+// Transaction control
+constexpr std::string_view BeginTransaction = "BEGIN TRANSACTION";
+constexpr std::string_view CommitTransaction = "COMMIT";
+constexpr std::string_view RollbackTransaction = "ROLLBACK";
+
 // Create archives table
 constexpr std::string_view CreateTableArchives = R"(
     CREATE TABLE IF NOT EXISTS archives (
@@ -52,7 +63,8 @@ constexpr std::string_view CreateTableGenres = R"(
 constexpr std::string_view CreateTableSeries = R"(
     CREATE TABLE IF NOT EXISTS series (
         id INTEGER PRIMARY KEY,
-        name TEXT UNIQUE
+        name TEXT UNIQUE,
+        search_name TEXT
     )
 )";
 
@@ -123,12 +135,19 @@ constexpr std::string_view CreateIndexBooksLang = "CREATE INDEX IF NOT EXISTS id
 // Search columns indexes
 constexpr std::string_view CreateIndexBooksSearchTitle = "CREATE INDEX IF NOT EXISTS idx_books_search_title ON books(search_title)";
 constexpr std::string_view CreateIndexAuthorsSearchName = "CREATE INDEX IF NOT EXISTS idx_authors_search_name ON authors(search_name)";
+constexpr std::string_view CreateIndexSeriesSearchName = "CREATE INDEX IF NOT EXISTS idx_series_search_name ON series(search_name)";
+
+// Migration helpers: add search_name to existing series tables created before this column was introduced.
+// Use CheckSeriesSearchNameColumn to guard against "duplicate column name" SQLite errors.
+constexpr std::string_view CheckSeriesSearchNameColumn = "SELECT COUNT(*) FROM pragma_table_info('series') WHERE name='search_name'";
+constexpr std::string_view MigrateSeriesAddSearchName = "ALTER TABLE series ADD COLUMN search_name TEXT";
 
 // Drop indexes for bulk import
 constexpr std::string_view DropIndexBooksTitle = "DROP INDEX IF EXISTS idx_books_title";
 constexpr std::string_view DropIndexBooksLang = "DROP INDEX IF EXISTS idx_books_lang";
 constexpr std::string_view DropIndexBooksSearchTitle = "DROP INDEX IF EXISTS idx_books_search_title";
 constexpr std::string_view DropIndexAuthorsSearchName = "DROP INDEX IF EXISTS idx_authors_search_name";
+constexpr std::string_view DropIndexSeriesSearchName = "DROP INDEX IF EXISTS idx_series_search_name";
 
 
 // --- Data Operations ---
@@ -145,8 +164,8 @@ constexpr std::string_view InsertGenre = "INSERT OR IGNORE INTO genres (code) VA
 // Get genre ID by code
 constexpr std::string_view GetGenreId = "SELECT id FROM genres WHERE code=?";
 
-// Insert a series
-constexpr std::string_view InsertSeries = "INSERT OR IGNORE INTO series (name) VALUES (?)";
+// Insert a series (if not exists) — search_name is pre-uppercased for Cyrillic-safe search
+constexpr std::string_view InsertSeries = "INSERT OR IGNORE INTO series (name, search_name) VALUES (?, librium_upper(?))";
 
 // Get series ID by name
 constexpr std::string_view GetSeriesId = "SELECT id FROM series WHERE name=?";
@@ -254,10 +273,7 @@ constexpr std::string_view QueryJoinGenres = "JOIN book_genres bg ON b.id = bg.b
 
 // Dynamic WHERE clauses
 constexpr std::string_view QueryWhere1 = "WHERE 1=1 ";
-constexpr std::string_view QueryWhereTitle = "AND b.title LIKE ? ";
-constexpr std::string_view QueryWhereAuthor = "AND (a.last_name LIKE ? OR a.first_name LIKE ?) ";
 constexpr std::string_view QueryWhereGenre = "AND g.code = ? ";
-constexpr std::string_view QueryWhereSeries = "AND ser.name LIKE ? ";
 constexpr std::string_view QueryWhereLanguage = "AND b.language = ? ";
 constexpr std::string_view QueryWhereLibId = "AND b.lib_id = ? ";
 constexpr std::string_view QueryWhereArchiveName = "AND arch.name = ? ";

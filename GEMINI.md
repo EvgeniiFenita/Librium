@@ -192,6 +192,7 @@ class CUserService
     - **Transport Layer**: Only `libs/Transport` (Asio). Must remain format-agnostic.
     - **Protocol Layer**: Only `libs/Protocol` (JSON/Base64). Must be the ONLY place for `nlohmann/json` dependency.
     - **Service Layer**: Clean business logic. Must ONLY use `IRequest` and `IResponse` interfaces for communication. Interacts with `Database` to fulfill requests.
+- **Deliberate Exception — Config Layer**: `libs/Config/AppConfig.cpp` also uses `nlohmann/json` for reading and writing the application configuration file (`config.json`). This is a sanctioned exception to the "Protocol only" rule because the Config layer must be able to persist its own data format independently of the IPC Protocol layer. Do NOT add `nlohmann/json` to any other module.
 
 ### Threading & Performance Rules
 - **Ownership**: Use `std::unique_ptr` for managing object ownership. Raw pointers are allowed only for non-owning access (observers).
