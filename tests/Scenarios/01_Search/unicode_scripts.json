@@ -6,10 +6,19 @@
   ],
   "steps": [
     { "args": ["import"] },
-    { "args": ["query", "--author", "Πλάτων"] },
-    { "args": ["query", "--author", "შოთა"] }
-  ],
-  "expected": {
-    "totalFound": 1
-  }
+    {
+      "args": ["query", "--author", "Πλάτων"],
+      "expected": {
+        "totalFound": 1,
+        "books": [ { "title": "Plato's Republic" } ]
+      }
+    },
+    {
+      "args": ["query", "--author", "შოთა"],
+      "expected": {
+        "totalFound": 1,
+        "books": [ { "title": "Georgian Knight" } ]
+      }
+    }
+  ]
 }

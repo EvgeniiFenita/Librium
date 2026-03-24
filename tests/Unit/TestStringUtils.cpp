@@ -102,7 +102,7 @@ TEST_CASE("CStringUtils::Cp1251ToUtf8", "[utils]")
         std::string cp1251 = "\xCF\xF0\xE8\xE2\xE5\xF2";
         std::string result = CStringUtils::Cp1251ToUtf8(cp1251);
         REQUIRE(CStringUtils::IsUtf8(result));
-        REQUIRE_FALSE(result.empty());
+        REQUIRE(result == "\xD0\x9F\xD1\x80\xD0\xB8\xD0\xB2\xD0\xB5\xD1\x82"); // "Привет" in UTF-8
     }
 
     SECTION("Result of conversion is valid UTF-8")
@@ -111,6 +111,7 @@ TEST_CASE("CStringUtils::Cp1251ToUtf8", "[utils]")
         std::string cp1251 = "\xC2\xEE\xE9\xED\xE0";
         std::string result = CStringUtils::Cp1251ToUtf8(cp1251);
         REQUIRE(CStringUtils::IsUtf8(result));
+        REQUIRE(result == "\xD0\x92\xD0\xBE\xD0\xB9\xD0\xBD\xD0\xB0"); // "Война" in UTF-8
     }
 #endif
 
@@ -177,9 +178,9 @@ TEST_CASE("CStringUtils::Utf16ToUtf8", "[utils]")
         std::wstring input = L"\u041F\u0440\u0438\u0432\u0435\u0442"; // "Привет"
         std::string result = CStringUtils::Utf16ToUtf8(input);
         REQUIRE(CStringUtils::IsUtf8(result));
-        REQUIRE_FALSE(result.empty());
         // UTF-8 "Привет" is 12 bytes (2 bytes per Cyrillic char)
         REQUIRE(result.size() == 12);
+        REQUIRE(result == "\xD0\x9F\xD1\x80\xD0\xB8\xD0\xB2\xD0\xB5\xD1\x82"); // "Привет" in UTF-8
     }
 
     SECTION("Roundtrip: ASCII utf16 -> utf8 is identical to original")

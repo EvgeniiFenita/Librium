@@ -7,12 +7,26 @@
   ],
   "steps": [
     { "args": ["import"] },
-    { "args": ["query", "--genre", "sf_space"] },
-    { "args": ["query", "--series", "Space Saga"] },
-    { "args": ["query", "--date-from", "2024-02-01"] }
-  ],
-  "expected": {
-    "totalFound": 1,
-    "books": [ { "title": "Sci-Fi Book 2" } ]
-  }
+    {
+      "args": ["query", "--genre", "sf_space"],
+      "expected": {
+        "totalFound": 2,
+        "books": [ { "title": "Sci-Fi Book 1" }, { "title": "Sci-Fi Book 2" } ]
+      }
+    },
+    {
+      "args": ["query", "--series", "Space Saga"],
+      "expected": {
+        "totalFound": 2,
+        "books": [ { "title": "Sci-Fi Book 1" }, { "title": "Sci-Fi Book 2" } ]
+      }
+    },
+    {
+      "args": ["query", "--date-from", "2024-02-01"],
+      "expected": {
+        "totalFound": 2,
+        "books": [ { "title": "Sci-Fi Book 2" }, { "title": "Fantasy Book" } ]
+      }
+    }
+  ]
 }

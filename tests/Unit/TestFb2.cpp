@@ -99,6 +99,12 @@ TEST_CASE("Parses cover image", "[fb2]")
     auto d = CFb2Parser{}.Parse(xml);
     REQUIRE(d.coverExt == ".png");
     REQUIRE(d.coverData.size() == 68);
+    // Verify PNG magic bytes: 0x89 'P' 'N' 'G'
+    REQUIRE(d.coverData.size() >= 4);
+    REQUIRE(d.coverData[0] == 0x89);
+    REQUIRE(d.coverData[1] == 0x50); // 'P'
+    REQUIRE(d.coverData[2] == 0x4E); // 'N'
+    REQUIRE(d.coverData[3] == 0x47); // 'G'
 }
 
 #ifdef _WIN32

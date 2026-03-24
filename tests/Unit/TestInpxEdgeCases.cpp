@@ -123,6 +123,7 @@ TEST_CASE("CInpParser: book with very long title is stored intact", "[inpx][edge
 
     REQUIRE(books.size() == 1);
     REQUIRE(books[0].title.size() == 500);
+    REQUIRE(books[0].title == longTitle);
 }
 
 TEST_CASE("CInpParser: book with empty title is parsed without crash", "[inpx][edge]")
@@ -140,7 +141,11 @@ TEST_CASE("CInpParser: book with empty title is parsed without crash", "[inpx][e
 
     auto u8path = inpxPath.u8string();
     CInpParser parser;
-    REQUIRE_NOTHROW(parser.Parse(std::string(u8path.begin(), u8path.end())));
+    // Empty title is allowed if fileName is non-empty — book is still parsed
+    auto books = parser.Parse(std::string(u8path.begin(), u8path.end()));
+    REQUIRE(books.size() == 1);
+    REQUIRE(books[0].title.empty());
+    REQUIRE(books[0].authors[0].lastName == "Author");
 }
 
 TEST_CASE("CInpParser: keywords field is correctly parsed", "[inpx][edge]")

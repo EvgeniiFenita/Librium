@@ -65,18 +65,27 @@ TEST_CASE("InpParser operations", "[inpx]")
 
         REQUIRE(books.size() == 3);
 
-        bool found = false;
-        for (const auto& b : books)
+        auto findBook = [&](const std::string& title) -> const SBookRecord*
         {
-            if (b.title == "Война и мир")
-            {
-                REQUIRE(b.authors.size() == 1);
-                REQUIRE(b.authors[0].lastName == "Толстой");
-                REQUIRE(b.language == "ru");
-                found = true;
-                break;
-            }
-        }
-        REQUIRE(found);
+            for (const auto& b : books)
+                if (b.title == title) return &b;
+            return nullptr;
+        };
+
+        const auto* tolstoy = findBook("Война и мир");
+        REQUIRE(tolstoy != nullptr);
+        REQUIRE(tolstoy->authors.size() == 1);
+        REQUIRE(tolstoy->authors[0].lastName == "Толстой");
+        REQUIRE(tolstoy->language == "ru");
+
+        const auto* dostoevsky = findBook("Преступление и наказание");
+        REQUIRE(dostoevsky != nullptr);
+        REQUIRE(dostoevsky->authors[0].lastName == "Достоевский");
+        REQUIRE(dostoevsky->language == "ru");
+
+        const auto* king = findBook("The Shining");
+        REQUIRE(king != nullptr);
+        REQUIRE(king->authors[0].lastName == "King");
+        REQUIRE(king->language == "en");
     }
 }

@@ -40,7 +40,7 @@ TEST_CASE("CZipReader operations", "[zip]")
     SECTION("ReadEntry returns correct content")
     {
         const auto data = CZipReader::ReadEntry(zipPath, "hello.txt");
-        REQUIRE(std::string(data.begin(), data.end()).find("hello") != std::string::npos);
+        REQUIRE(std::string(data.begin(), data.end()) == "hello world from test zip");
     }
 
     SECTION("ReadEntry throws for missing entry")
@@ -48,7 +48,7 @@ TEST_CASE("CZipReader operations", "[zip]")
         REQUIRE_THROWS_AS(CZipReader::ReadEntry(zipPath, "no_such.txt"), CZipError);
     }
 
-    SECTION("IterateEntries visits files")
+    SECTION("IterateEntries visits all files")
     {
         int count = 0;
         CZipReader::IterateEntries(zipPath, [&](const std::string&, std::vector<uint8_t>)
@@ -56,7 +56,7 @@ TEST_CASE("CZipReader operations", "[zip]")
             ++count;
             return true;
         });
-        REQUIRE(count >= 1);
+        REQUIRE(count == 2); // hello.txt + subdir/another.txt
     }
 
     SECTION("IterateEntries stops on false")

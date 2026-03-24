@@ -78,6 +78,7 @@ TEST_CASE("GetBookById: publisher, ISBN, publishYear are stored and retrieved", 
         REQUIRE(result->publisher    == "Galaxy Press");
         REQUIRE(result->isbn         == "978-3-1614-5153-2");
         REQUIRE(result->publishYear  == "2023");
+        REQUIRE(result->annotation   == "Some annotation.");
     }
 }
 
@@ -137,6 +138,7 @@ TEST_CASE("GetBookById: book with empty FB2 fields has empty strings", "[db][get
         REQUIRE(result->annotation.empty());
         REQUIRE(result->publisher.empty());
         REQUIRE(result->isbn.empty());
+        REQUIRE(result->publishYear.empty());
     }
 }
 

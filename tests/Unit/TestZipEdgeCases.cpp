@@ -36,7 +36,7 @@ TEST_CASE("CZipReader: ZIP containing Unicode (Cyrillic) filenames", "[zip][edge
     {
         auto data = CZipReader::ReadEntry(zipPath, cyrillicName);
         std::string content(data.begin(), data.end());
-        REQUIRE(content.find("FB2 content") != std::string::npos);
+        REQUIRE(content == "FB2 content for Cyrillic filename");
     }
 }
 
@@ -97,6 +97,14 @@ TEST_CASE("CZipReader: ZIP with multiple files — all entries are enumerable", 
     {
         auto entries = CZipReader::ListEntries(zipPath);
         REQUIRE(entries.size() == 3);
+        auto hasEntry = [&](const std::string& name) {
+            for (const auto& e : entries)
+                if (e.name == name) return true;
+            return false;
+        };
+        REQUIRE(hasEntry("a.txt"));
+        REQUIRE(hasEntry("b.txt"));
+        REQUIRE(hasEntry("c.txt"));
     }
 
     SECTION("IterateEntries visits all three files and returns correct content")
