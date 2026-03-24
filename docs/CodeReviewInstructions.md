@@ -10,8 +10,8 @@ Perform a comprehensive, read-only audit of the entire codebase. Do NOT modify a
 
 Scan ALL source files under:
 - `libs/` (Config, Database, Fb2, Indexer, Inpx, Log, Protocol, Service, Transport, Utils, Zip)
-- `apps/Librium/` (Commands, Indexer, Main.cpp)
-- `tests/` (Unit, Integration)
+- `apps/Librium/` (Main.cpp, Version.hpp, ProtocolProgressReporter.hpp)
+- `tests/` (Unit, Scenarios)
 - `CMakeLists.txt`, `CMakePresets.json`, `vcpkg.json`
 - `scripts/Run.py`, `scripts/ScenarioTester.py`
 

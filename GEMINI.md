@@ -36,16 +36,27 @@ Follow these steps **in order** before writing any code:
 - **Classes**: Prefix with `C` (`CDatabase`).
 - **Interfaces**: Prefix with `I` (`IDatabase`).
 - **Structs**: Prefix with `S` (`SBookRecord`).
-- **Enums**: Prefix with `E` (`ELogLevel`).
+- **Enums**: Prefix with `E` (`ELogLevel`). Enum values use **PascalCase** (`Success`, `Playing`).
 - **Member Variables**: Prefix with `m_` (`m_dbPath`).
+- **Function Parameters**: Use **camelCase** (`userId`, `queryText`). Never `user_id` or `UserID`.
+- **Methods/Functions**: Use **PascalCase** (`GetUserById`, `ExecuteQuery`). Never snake_case.
+- **Access Specifier Order**: Always declare `public` first, then `protected`, then `private`. No empty lines after specifiers.
+- **Namespace Closing Comment**: Always close a namespace with a comment: `} // namespace Librium::Db`.
 
 ## Coding & Formatting Style
-- **Braces**: ALWAYS use **Allman style** (opening brace on a NEW line).
-- **Namespaces**: Use C++20 nested namespace syntax (`namespace Librium::Db { ... }`).
-- **Unicode**: ALWAYS use `Librium::Config::Utf8ToPath()` when creating paths from strings. NEVER use `path.string()` on Windows; use `path.u8string()` if conversion is needed.
+- **Braces**: ALWAYS use **Allman style** (opening brace on a NEW line) for classes, structs, functions, and control blocks. Exception: namespace opening brace stays on the **same line** as the declaration. Single-statement `if`/`else`/`for`/`while` bodies MAY omit braces.
+- **Namespaces**: Use C++20 nested namespace syntax (`namespace Librium::Db { ... }`). Always close with a comment.
+- **Unicode**: ALWAYS use `Librium::Config::Utf8ToPath()` when creating paths from strings. NEVER use `path.string()` on Windows; use `path.u8string()` if conversion is needed. **Exception**: `libs/Log/Logger.cpp` defines its own local `Utf8ToPath()` in an anonymous namespace to avoid a circular dependency — do NOT change this.
 - **Thread Safety**: ALWAYS use `std::jthread` for thread lifecycle. Wrap thread entry functions in `try-catch` blocks to prevent `std::terminate`.
 - **Error Handling**: NEVER use `catch (...)`. ALWAYS catch at minimum `const std::exception&` and log the error using `LOG_ERROR` before handling or skipping. Silent exception swallowing is a build-breaking violation.
 - **RAII Compliance**: ALWAYS wrap third-party handles (sqlite3, sqlite3_stmt, zip_t, etc.) in RAII containers (like `std::unique_ptr` with custom deleters) IMMEDIATELY upon acquisition. Manual resource management (manual `close`/`finalize`) is strictly forbidden. Ownership must be established in the same scope as acquisition.
+- **`override` / `final`**: ALWAYS use `override` when overriding a virtual method. Use `final` to prevent further overriding.
+- **`nullptr`**: Use `nullptr` instead of `NULL` or `0` for pointer initialization.
+- **`[[nodiscard]]`**: Mark functions with `[[nodiscard]]` when ignoring the return value is likely a bug.
+- **No `using namespace` in Headers**: `using namespace` is forbidden in any header file.
+- **`#include` What You Use**: Each file must include only the headers it actually uses. No unnecessary includes.
+- **Const Correctness**: Use `const` whenever possible — on methods, parameters, and local variables.
+- **Logging**: ALWAYS use `LOG_DEBUG`, `LOG_INFO`, `LOG_WARN`, `LOG_ERROR` macros. Never call `CLogger` methods directly. Never use `std::cout`/`std::cerr` in `libs/`. **The logger is silent by default** — it will not output to the console unless `AddConsoleOutput()` is explicitly called.
 
 ## Common LLM Mistakes — DO NOT DO THIS
 
@@ -149,23 +160,70 @@ class CUserService
 };
 ```
 
+### Mistake 8 — snake_case for parameter names
+
+Wrong:
+```cpp
+void GetUserById(int user_id);
+void Execute(std::string query_text);
+```
+Right:
+```cpp
+void GetUserById(int userId);
+void Execute(std::string queryText);
+```
+
 ---
 
 ## Build & Environment
 - **Generator**: Ninja (preferred) or Visual Studio 18 2026.
-- **Master Pipeline**: `python scripts/Run.py --preset <preset> [--real-library <path>]`. ALWAYS use this script for building and testing. DO NOT use `Build.py` or `Test.py` directly.
+- **Master Pipeline**: `python scripts/Run.py --preset <preset> [--real-library <path>] [--clean]`. ALWAYS use this script for building and testing. DO NOT use `Build.py` or `Test.py` directly.
 - **Presets**: `x64-debug`, `x64-release`, `linux-debug`, `linux-release`.
 - **Dependencies**: `vcpkg` in manifest mode. Requires `VCPKG_ROOT` env var.
 
+## Python Scripting Style
+
+Automation scripts in `scripts/` must follow these rules to maintain consistency with the main C++ codebase:
+
+- **File Naming**: Use **PascalCase** (`Run.py`, `LibraryGenerator.py`).
+- **Class Naming**: Prefix with `C` (`CLibraryGenerator`, `CSmokeTester`).
+- **Method Naming**: Use **PascalCase** (`GenerateLibrary`, `RunTests`).
+- **Variable Naming**: Use **snake_case** for local variables; **camelCase** for function parameters.
+- **Path Handling**: Use `pathlib.Path` objects for all filesystem operations.
+- **Bytecode Prevention**: Always include `sys.dont_write_bytecode = True` and `os.environ["PYTHONDONTWRITEBYTECODE"] = "1"` at the very top of entry-point scripts.
+- **Shared Logic**: Common paths and UI utilities must be imported from `Core.py`.
+
 ## Testing Standards
 - **Unified Runner**: ALWAYS verify changes using `python scripts/Run.py`.
-- **Mandatory Script Usage**: ALL tests (Unit, Scenario, Web) MUST be executed ONLY via `python scripts/Run.py`. Direct execution of test binaries, `npm test`, or `jest` is strictly FORBIDDEN. This ensures all temporary artifacts and downloaded dependencies are isolated within the `out/` directory, preventing pollution of the `libs/`, `apps/`, or `tests/` source folders.
+- **Mandatory Script Usage**: ALL tests (Unit, Scenario, Web) MUST be executed ONLY via `python scripts/Run.py`. Direct execution of test binaries, `npm test`, `jest`, or individual Python scripts is strictly FORBIDDEN. This ensures all temporary artifacts and downloaded dependencies are isolated within the `out/` directory, preventing pollution of the `libs/`, `apps/`, `tests/`, or `web/` source folders.
 - **Stages**: 
-  1. **Unit**: Fast C++ tests via Catch2.
-  2. **Scenarios**: Data-driven behavioral tests using `LibraryGenerator` (synthetic data) and `ScenarioTester`.
-  3. **Smoke (Real)**: Optional full-scale import test on real `Lib.rus.ec` data (triggered by `--real-library`).
+  1. **Unit**: Fast C++ tests via Catch2. Self-contained, no external scripts. Covers filters, encoding, Base64, concurrency, transactions, INPX, ZIP, logger, queries, config.
+  2. **Scenarios**: Data-driven behavioral tests using `LibraryGenerator` (synthetic data) and `ScenarioTester`. Communicates with `Librium.exe` via TCP. Covers 8 categories: query filters, parsing, stats, upgrade/re-import, export, utility (covers), protocol error resilience.
+  3. **Web**: Backend API tests using **Jest + Supertest** with a mock TCP server (no real engine needed). Run via `python scripts/Run.py test --stage web`. Artifacts and `node_modules` go to `out/artifacts/<preset>/web_test/` — the `web/` source directory must NEVER receive test dependencies.
+  4. **Smoke (Real)**: Optional full-scale import test on real `Lib.rus.ec` data (triggered by `--real-library`).
 - **New Features**: Every new CLI command, search parameter, or SQLite function MUST have corresponding tests (Unit or Scenario).
-- **Artifacts**: All temporary data must stay in `out/artifacts/<preset>/`. NEVER create files in `libs/`, `apps/`, or `tests/`.
+- **Artifacts**: All temporary data must stay in `out/artifacts/<preset>/`. NEVER create files in `libs/`, `apps/`, `tests/`, or `web/`.
+
+### Rule: Test Immutability
+
+**NEVER rewrite tests** — neither unit tests (Catch2) nor integration tests (Python) nor web tests (Jest).
+
+When refactoring or adapting tests to code changes:
+
+1. **Minimal change** — make exactly as many edits as the task requires. If one line is broken, fix one line.
+2. **Never delete** test cases, sections (`SECTION`/`SUBCASE`), assertions (`REQUIRE`, `CHECK`, `assert`), input data, or expected values.
+3. **Never rename** test cases or sections unless explicitly asked.
+4. **Never change assertion logic** — if there was `REQUIRE(a == b)`, it must stay as-is.
+5. **Never change test input data** (fixtures, parameters, test strings/numbers/files) unless explicitly asked.
+6. **Never "simplify" or "refactor"** tests as part of tasks not directly related to tests.
+
+**Algorithm**: Before editing a test, ask yourself: *"What exactly broke due to changes in the production code?"* Fix only that. Leave everything else untouched.
+
+**Example** — Task: replace `Foo foo(a, b)` with `Foo foo = Foo::create(a, b)`
+
+✅ Correct: find all occurrences of `Foo foo(` in tests and replace with `Foo foo = Foo::create(` — and nothing else.
+
+❌ Wrong: rewrite the entire test case, add new checks, remove sections, change input data.
 
 ## Reference Documentation
 - **[Project Overview](docs/Project_Documentation.md)**: Architecture, directory layout, and CLI usage.
@@ -186,6 +244,13 @@ class CUserService
   - In the caller: `m_db->Execute(SqlQueries::kSelectBookById, params);`
 - **Database Layer Isolation**: Files in `libs/Indexer/`, `libs/Service/`, `libs/Query/`, and all files under `apps/` MUST NEVER include `<sqlite3.h>` directly. If you find yourself writing `sqlite3_` anywhere outside of `CSqliteDatabase` or `CSqliteStatement`, stop — you are in the wrong layer. All database interaction MUST go through `ISqlDatabase` and `ISqlStatement` interfaces, or through the `CDatabase` public API. The only files permitted to call the raw SQLite C API are `CSqliteDatabase.cpp`, `CSqliteStatement.cpp`, and `SqliteFunctions.cpp`.
 - **Unicode Search**: All text searches MUST be case-insensitive for Cyrillic. This is achieved by using the `librium_upper()` custom SQLite function and searching against denormalized `search_title` or `search_name` columns. Never use `LIKE` on raw `title` or `name` columns for user queries.
+- **SQLite Binding**: Use `SQLITE_TRANSIENT` (not `SQLITE_STATIC`) when binding temporary string objects, to ensure SQLite copies the data before the binding call returns.
+- **SQLite Cursor Lifecycle**: Any `sqlite3_step()` returning `SQLITE_ROW` holds an open read cursor. `sqlite3_reset()` MUST be called immediately after reading the result — before the function returns. Failure causes `SQLITE_LOCKED` on subsequent DDL statements (`DROP INDEX`, `CREATE INDEX`) in the same connection. INSERT statements (`SQLITE_DONE`) do NOT hold cursors.
+
+### C++ Correctness Rules
+- **Destructor Exception Handling**: Destructors that call potentially-throwing operations (e.g., `ISqlStatement::Reset()`) MUST wrap the call in `try-catch`, log via `LOG_WARN`, and swallow the exception — never let exceptions escape a destructor.
+- **Fatal Errors Must Rethrow**: In critical paths (schema creation, bulk import setup), always `LOG_ERROR` then re-throw — never silently continue. Applies to `CDatabaseSchema::Exec()` and `BeginBulkImport()`.
+- **Scope Guards for State Restoration**: Use `CImportGuard` (or equivalent RAII guards) to restore system state (search indexes, SQLite PRAGMAs) after exceptions during bulk operations.
 
 ### IPC Architecture Rules
 - **IPC Architecture**:

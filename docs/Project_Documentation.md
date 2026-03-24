@@ -13,12 +13,12 @@ The project is organized into independent, reusable static libraries and a singl
 | Module | Responsibility | Dependencies |
 | :--- | :--- | :--- |
 | **Log** | Thread-safe singleton logger. Supports multiple outputs and static configuration. | None |
-| **Zip** | RAII-based ZIP archive management. Unified smart pointer interface for archives and files. | `libzip`, `zlib` |
-| **Fb2** | XML parser for FictionBook 2.0 metadata using `pugixml`. Extracts text info (annotation, keywords, etc.) and cover images (base64-decoded). | `pugixml` |
-| **Inpx** | High-speed parser for `.inpx` collection indices. | **Zip**, **Config** |
+| **Zip** | RAII-based ZIP archive management. Unified smart pointer interface for archives and files. | `libzip`, `zlib`, **Log** |
+| **Fb2** | XML parser for FictionBook 2.0 metadata using `pugixml`. Extracts text info (annotation, keywords, etc.) and cover images (base64-decoded). | `pugixml`, **Log**, **Utils** |
+| **Inpx** | High-speed parser for `.inpx` collection indices. | **Zip**, **Log** |
 | **Config** | JSON-based configuration and cross-platform path helpers (`Utf8ToPath`). | **Inpx**, `nlohmann_json` |
-| **Database** | Abstraction layer for SQL databases. Generic logic is isolated from application logic via `ISqlDatabase` and `ISqlStatement` interfaces. Includes full query and search engine logic. | **Fb2**, **Inpx**, `Sqlite3Lib` |
-| **Service** | Engine core using the Command pattern. Abstracts communication via `IRequest`/`IResponse` interfaces. | **Database**, **Indexer**, **QueryLib**, **Utils** |
+| **Database** | Abstraction layer for SQL databases. Generic logic is isolated from application logic via `ISqlDatabase` and `ISqlStatement` interfaces. Includes full query and search engine logic. | **Fb2**, **Inpx**, **Log**, `Sqlite3Lib` |
+| **Service** | Engine core using the Command pattern. Abstracts communication via `IRequest`/`IResponse` interfaces. | **Database**, **Indexer**, **Config**, **Inpx**, **Fb2**, **Zip**, **Log**, **Utils** |
 | **Protocol** | Implementation of communication formats (e.g., JSON over Base64). | **Service**, **Utils**, `nlohmann_json` |
 | **Transport** | Network communication layer (Localhost TCP via **Asio**). | **Log**, `asio` |
 | **Utils** | Common technical utilities (Base64, Thread-safe queue, String helpers). | None |
@@ -43,6 +43,7 @@ Librium/
 │   ├── Log/                ← Centralized logging with CLogger
 │   ├── Protocol/           ← JSON Serialization & Base64 protocol
 │   ├── Service/            ← Business logic & Action dispatching
+│   │   └── Actions/        ← IServiceAction implementations (Actions.hpp / Actions.cpp)
 │   ├── Transport/          ← Asio-based TCP server
 │   ├── Utils/              ← Shared utilities (Base64, Queue, etc.)
 │   └── Zip/                ← Unicode-aware archive handling
@@ -56,11 +57,14 @@ Librium/
 │   ├── Build.py            ← Build shortcut wrapper
 │   └── Test.py             ← Test shortcut wrapper
 ├── tests/
-│   ├── Scenarios/          ← Data-driven E2E scenarios (.json)
+│   ├── Scenarios/          ← Data-driven E2E scenarios (.json), organized by category
 │   └── Unit/               ← Catch2 test suite (self-contained)
 ├── web/                    ← Web Interface (Node.js & Vanilla JS)
 │   ├── public/             ← Static frontend files
-│   └── server.js           ← Web Proxy & LRU Cache
+│   ├── tests/              ← Jest/Supertest API tests (source only; deps go to out/)
+│   ├── server.js           ← Web Proxy & LRU Cache
+│   ├── package.json        ← Node dependencies (Express, Jest)
+│   └── web_config.example.json ← Config template (copy and adjust for local use)
 ├── Dockerfile.linux        ← Linux build environment
 ├── CMakeLists.txt          ← Root build configuration
 └── CMakePresets.json       ← Cross-platform build presets
@@ -93,7 +97,7 @@ python scripts/Run.py --preset x64-debug --clean
 2.  **Stage 2: SCENARIO**: Behavioral tests. 
     - Uses `LibraryGenerator.py` to create a "miniature" realistic library.
     - Communicates with `Librium.exe` via **TCP sockets**.
-    - Covers 8 scenario categories: query filters, parsing, stats, upgrade/re-import, export, utility (covers), protocol error resilience.
+    - Covers 7 scenario categories: search operators, query filters, parsing, upgrade/re-import, export, utility (covers), protocol error resilience.
     - Includes **Smoke (Real)** test if `--real-library` path is provided.
 
 ---

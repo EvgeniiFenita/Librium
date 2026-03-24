@@ -40,9 +40,11 @@ web/
 │   ├── index.html         # Main SPA layout
 │   ├── style.css          # Dark-themed styles (Plex/Calibre inspired)
 │   └── app.js             # Frontend logic & state management
+├── tests/
+│   └── api.test.js        # Jest/Supertest API tests (source only; deps installed to out/)
 ├── server.js              # Node.js Express server & TCP bridge
-├── package.json           # Node dependencies (Express)
-└── web_config.json        # Configuration (generated automatically)
+├── package.json           # Node dependencies (Express, Jest)
+└── web_config.example.json  # Config template (copy to web_config.json and adjust for local use)
 ```
 
 ---

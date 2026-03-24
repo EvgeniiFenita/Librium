@@ -4,7 +4,7 @@ Librium uses the **Command Pattern** implemented via the `IServiceAction` interf
 
 ## 1. Create the Action Class
 
-Add your new action class to `libs/Service/Actions.hpp` and implement it in `Actions.cpp`.
+Add your new action class to `libs/Service/Actions/Actions.hpp` and implement it in `Actions.cpp`.
 
 ### Interface: `IServiceAction`
 ```cpp
@@ -103,8 +103,8 @@ Create a new `.json` scenario in `tests/Scenarios/` to verify your command:
 
 Before considering a new command complete, verify ALL of the following items. Do not mark the task done until every box can be checked.
 
-- [ ] Action class declared in `libs/Service/Actions.hpp`
-- [ ] Action class implemented in `libs/Service/Actions.cpp`
+- [ ] Action class declared in `libs/Service/Actions/Actions.hpp`
+- [ ] Action class implemented in `libs/Service/Actions/Actions.cpp`
 - [ ] Action registered in `CAppService` constructor in `libs/Service/AppService.cpp`
 - [ ] If a new domain struct is returned: `SetData` overload added to `libs/Service/Response.hpp`
 - [ ] If a new domain struct is returned: serialization implemented in `libs/Protocol/JsonProtocol.cpp`
