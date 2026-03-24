@@ -20,13 +20,14 @@ The web part follows a **Proxy-Backend** pattern to bridge the C++ Engine's TCP 
   - **Grid View**: Displays book covers in a responsive grid.
   - **Infinite Scroll**: Loads books automatically as you scroll down using `IntersectionObserver`.
   - **Search Bar**: Supports filtering by Title, Author, Series, Genre, and Language.
-  - **Book Modal**: Shows full book metadata, large cover (correctly sized), annotation, and a download button.
+  - **Book Modal**: Shows full book metadata, large cover (correctly sized), annotation, and download buttons. **📥 FB2** is always available; **📥 EPUB** appears only when the fbc converter is configured on the server.
   - **Author Display**: Intelligent formatting (e.g., "Author A, Author B" or "Author A + N" for multiple authors).
   - **Progress Overlay**: Appears during initial import or manual library rebuilds.
 - **Backend (Node.js)**:
   - **Process Management**: Automatically spawns and monitors the `Librium.exe` process (requires Node.js >= 18).
   - **TCP Bridge**: Handles a persistent connection to the C++ Engine and manages a request queue with timeouts.
   - **LRU Cover Cache**: Stores up to 50 MB of recently accessed covers in RAM (supports JPG, PNG, and WebP).
+  - **EPUB Conversion**: Optionally converts exported FB2 files to EPUB2 format using the **fbc** (fb2cng) converter. The converter is downloaded automatically by `RunWeb.py` and placed in the `tools/` directory. Controlled by `toolsDir` and `fb2cngExe` config fields. If the converter is absent, FB2 download remains available and EPUB buttons are hidden in the UI.
   - **Security**: Validates all incoming book IDs and sanitizes query parameters to prevent attacks.
   - **Static Server**: Serves the frontend files and cover images from the `meta/` directory.
 
@@ -84,12 +85,26 @@ The `--demo` flag generates a synthetic library on the first run and reuses it o
 1. Builds the C++ Engine in the selected preset.
 2. In `--demo` mode: generates a synthetic library under `out/artifacts/web/demo_lib/`.
 3. Detects your `.inpx` and archives folder (or uses the generated one).
-4. Generates necessary JSON configs in `out/artifacts/web/`.
-5. Installs `npm` dependencies.
-6. Launches the web server at `http://localhost:8080`.
+4. Copies web source to `out/artifacts/web/` and downloads the **fbc** EPUB converter to `out/artifacts/web/tools/` (skipped if already present).
+5. Generates necessary JSON configs in `out/artifacts/web/`.
+6. Installs `npm` dependencies.
+7. Launches the web server at `http://localhost:8080`.
 
 ### Initial Import
 On the first launch, if the database is empty, the interface will automatically trigger a full library import. A progress bar will be displayed. You can also manually trigger an incremental update using the **"Обновить" (Update)** button in the header.
+
+### Configuration Reference (`web_config.json`)
+
+| Field | Type | Description |
+|---|---|---|
+| `libriumExe` | string | Absolute path to `Librium.exe` (or `Librium` on Linux). |
+| `libriumConfig` | string | Absolute path to the C++ Engine's `librium_config.json`. |
+| `libriumPort` | number | TCP port the C++ Engine listens on (default: `9001`). |
+| `webPort` | number | HTTP port for the web server (default: `8080`). |
+| `tempDir` | string | Directory for temporary export files. Cleaned up after each download. |
+| `metaDir` | string | Directory where the C++ Engine stores extracted cover images (`meta/`). |
+| `toolsDir` | string | Directory containing third-party tools. The **fbc** converter is looked up here as `fbc` / `fbc.exe`. |
+| `fb2cngExe` | string | Optional explicit path to the fbc converter binary. Overrides `toolsDir` lookup when non-empty. |
 
 ---
 
@@ -108,8 +123,13 @@ The web interface includes a backend API test suite to ensure security and relia
 ### Key Features
 - **Framework**: Built with **Jest** and **Supertest**.
 - **Engine Mocking**: Uses a lightweight mock TCP server to simulate the C++ Engine, allowing tests to run instantly without compiling the main project.
-- **Full Isolation**: Tests are executed in an ephemeral environment within `out/artifacts/<preset>/web_test/`. This keeps the `web/` source directory clean and prevents dependency conflicts.
+- **Full Isolation**: Tests are executed in an ephemeral environment within `out/artifacts/<preset>/web_test/`. This keeps the `web/` source directory clean and prevents dependency conflicts. The fbc converter is **not** downloaded during tests — the suite validates the "converter absent" path only.
 - **Clean Lifecycle**: Implements explicit resource cleanup (sockets, servers, timers) to ensure 100% reliable test execution.
+
+### Coverage
+- `GET /api/config` — returns `{ epubEnabled: false }` when fbc is not configured.
+- `GET /api/download/:id?format=epub` — returns `501` when fbc is not configured.
+- Path traversal, ID validation, export error paths, LRU cover cache, engine mock responses.
 
 ### Running Tests
 To run all web-related tests, use the master automation script:

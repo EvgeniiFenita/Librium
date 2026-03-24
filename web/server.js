@@ -1,12 +1,15 @@
 const express = require('express');
-const { spawn } = require('child_process');
+const { spawn, execFile } = require('child_process');
 const net = require('net');
 const fs = require('fs');
 const fsPromises = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
+const util = require('util');
+const execFileAsync = util.promisify(execFile);
 
 // --- GLOBAL STATE ---
+let fb2cngExe = null;
 let webConfig;
 let libriumConfig;
 let metaDir;
@@ -366,39 +369,91 @@ app.get('/api/books/:id', async (req, res) => {
     }
 });
 
-app.get('/api/download/:id', async (req, res) => {
-    if (engineState !== 'ready') return res.status(503).json({ error: "Engine not ready" });
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id) || id <= 0) return res.status(400).json({ error: "Invalid book ID" });
+app.get('/api/config', (req, res) =>
+{
+    res.json({ epubEnabled: !!fb2cngExe });
+});
 
-    try {
+app.get('/api/download/:id', async (req, res) =>
+{
+    if (engineState !== 'ready')
+    {
+        return res.status(503).json({ error: "Engine not ready" });
+    }
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id) || id <= 0)
+    {
+        return res.status(400).json({ error: "Invalid book ID" });
+    }
+
+    const format = req.query.format === 'epub' ? 'epub' : 'fb2';
+
+    if (format === 'epub' && !fb2cngExe)
+    {
+        return res.status(501).json({ error: "EPUB conversion is not configured on the server." });
+    }
+
+    try
+    {
         const tempDir = path.resolve(__dirname, webConfig.tempDir);
         const uniqueOutDir = path.join(tempDir, crypto.randomUUID());
         fs.mkdirSync(uniqueOutDir, { recursive: true });
 
         const data = await sendCommand('export', { id, out: uniqueOutDir });
         
-        if (!data.file) {
+        if (!data.file)
+        {
             fs.rmSync(uniqueOutDir, { recursive: true, force: true });
             throw new Error("No file returned from engine");
         }
         
         const filePath = path.resolve(uniqueOutDir, data.file);
         const resolvedOutDir = path.resolve(uniqueOutDir);
-        if (!filePath.startsWith(resolvedOutDir + path.sep)) {
+        if (!filePath.startsWith(resolvedOutDir + path.sep))
+        {
             fs.rmSync(uniqueOutDir, { recursive: true, force: true });
             return res.status(500).json({ error: 'Invalid file path from engine' });
         }
 
-        const filename = data.filename || path.basename(filePath);
-        
-        res.download(filePath, filename, (err) => {
+        let finalFilePath = filePath;
+        let filename = data.filename || path.basename(filePath);
+
+        if (format === 'epub')
+        {
+            const epubOutDir = path.join(uniqueOutDir, 'epub_out');
+            fs.mkdirSync(epubOutDir, { recursive: true });
+            try
+            {
+                await execFileAsync(
+                    fb2cngExe,
+                    ['convert', '--to', 'epub2', '--nodirs', '--overwrite', filePath, epubOutDir],
+                    { timeout: 120000 }
+                );
+                const epubFiles = fs.readdirSync(epubOutDir).filter(f => f.endsWith('.epub'));
+                if (epubFiles.length === 0)
+                    throw new Error('Converter produced no EPUB file');
+                finalFilePath = path.join(epubOutDir, epubFiles[0]);
+                filename = path.basename(filename, path.extname(filename)) + '.epub';
+            }
+            catch (e)
+            {
+                fs.rmSync(uniqueOutDir, { recursive: true, force: true });
+                console.error(`[HTTP] EPUB conversion failed for book ${id}:`, e);
+                return res.status(500).json({ error: 'EPUB conversion failed' });
+            }
+        }
+
+        res.download(finalFilePath, filename, (err) =>
+        {
             fs.rmSync(uniqueOutDir, { recursive: true, force: true });
-            if (err) {
+            if (err)
+            {
                 console.error(`[HTTP] Download error for book ${id}:`, err);
             }
         });
-    } catch (e) {
+    }
+    catch (e)
+    {
         res.status(500).json({ error: e.message });
     }
 });
@@ -531,7 +586,31 @@ process.on('SIGINT', () => shutdown(true));
 // --- STARTUP ---
 async function main(configOverride = null, startEngine = true) {
     loadConfig(configOverride);
-    if (startEngine) {
+
+    const toolsDir = path.resolve(__dirname, webConfig.toolsDir || 'tools');
+    const exeName = process.platform === 'win32' ? 'fbc.exe' : 'fbc';
+    const potentialExePath = path.join(toolsDir, exeName);
+
+    if (webConfig.fb2cngExe && fs.existsSync(path.resolve(__dirname, webConfig.fb2cngExe)))
+    {
+        fb2cngExe = path.resolve(__dirname, webConfig.fb2cngExe);
+    }
+    else if (fs.existsSync(potentialExePath))
+    {
+        fb2cngExe = potentialExePath;
+    }
+
+    if (fb2cngExe)
+    {
+        console.log(`[Server] EPUB converter found: ${fb2cngExe}`);
+    }
+    else
+    {
+        console.warn(`[Server] EPUB converter (fbc) not found in ${toolsDir}. EPUB download will be disabled.`);
+    }
+
+    if (startEngine)
+    {
         startLibrium();
     }
     connectTcp();

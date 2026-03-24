@@ -76,6 +76,8 @@ beforeAll((done) => {
                 webPort: 0, // Random port
                 tempDir: tempPath,
                 metaDir: metaPath,
+                toolsDir: path.join(tempTestDir, 'tools'),
+                fb2cngExe: "", // No override, will check toolsDir (which is empty)
                 tcpTimeout: 500 // Increased from 200 to 500 for stability
             },
             libriumConfig: {
@@ -179,6 +181,12 @@ describe('API Endpoints (Mocked Engine)', () => {
         expect(res.status).toBe(500);
         expect(res.body.error).toBe('Internal C++ Error');
     });
+
+    it('should return epubEnabled: false when fbc is not configured', async () => {
+        const res = await request(httpServer).get('/api/config');
+        expect(res.status).toBe(200);
+        expect(res.body.epubEnabled).toBe(false);
+    });
 });
 
 describe('Static Files & Caching', () => {
@@ -252,6 +260,12 @@ describe('Download Endpoint', () => {
         const res = await request(httpServer).get('/api/download/invalid');
         expect(res.status).toBe(400);
         expect(res.body.error).toBe('Invalid book ID');
+    });
+
+    it('should return 501 for EPUB format if fb2cng is not configured', async () => {
+        const res = await request(httpServer).get('/api/download/1?format=epub');
+        expect(res.status).toBe(501);
+        expect(res.body.error).toContain('EPUB conversion is not configured');
     });
 });
 

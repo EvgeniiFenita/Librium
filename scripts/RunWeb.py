@@ -62,11 +62,13 @@ def prepare_web_env(src_web_dir: Path, out_web_dir: Path):
         shutil.rmtree(dest_public)
     shutil.copytree(src_web_dir / "public", dest_public)
 
+    # Download EPUB converter into tools/
+    CRunner.DownloadFbc(out_web_dir / "tools")
+
 def generate_configs(args, out_dir: Path):
     CUI.info("Generating configs...")
     out_dir.mkdir(parents=True, exist_ok=True)
     
-    # ... (rest of path detection same)
     lib_path = Path(args.library)
     if not lib_path.exists():
         CUI.error(f"Library path {lib_path} does not exist.")
@@ -135,7 +137,9 @@ def generate_configs(args, out_dir: Path):
         "libriumPort": 9001,
         "webPort": 8080,
         "tempDir": str((out_dir / "temp").resolve()).replace('\\', '/'),
-        "metaDir": str((out_dir / "meta").resolve()).replace('\\', '/')
+        "metaDir": str((out_dir / "meta").resolve()).replace('\\', '/'),
+        "toolsDir": str((out_dir / "tools").resolve()).replace('\\', '/'),
+        "fb2cngExe": ""
     }
     
     web_cfg_path = out_dir / "web_config.json"

@@ -92,3 +92,70 @@ class CRunner:
         if args:
             cmd.extend(args)
         return CRunner.run(cmd, exit_on_fail=exit_on_fail)
+
+    @staticmethod
+    def DownloadFbc(tools_dir: Path):
+        """Download and extract fbc (fb2cng) converter if not present."""
+        import platform
+        import urllib.request
+        import json
+        import zipfile
+        
+        system = platform.system().lower()
+        arch = platform.machine().lower()
+        
+        exe_name = "fbc.exe" if system == "windows" else "fbc"
+        if (tools_dir / exe_name).exists():
+            return
+
+        CUI.info(f"Downloading EPUB converter (fbc) for {system} {arch}...")
+        tools_dir.mkdir(parents=True, exist_ok=True)
+
+        asset_pattern = ""
+        if system == "windows":
+            if "amd64" in arch or "x86_64" in arch: asset_pattern = "windows-amd64.zip"
+            elif "arm64" in arch: asset_pattern = "windows-arm64.zip"
+            else: asset_pattern = "windows-386.zip"
+        elif system == "linux":
+            if "amd64" in arch or "x86_64" in arch: asset_pattern = "linux-amd64.zip"
+            elif "arm64" in arch: asset_pattern = "linux-arm64.zip"
+            else: asset_pattern = "linux-386.zip"
+        elif system == "darwin":
+            if "arm64" in arch: asset_pattern = "darwin-arm64.zip"
+            else: asset_pattern = "darwin-amd64.zip"
+
+        if not asset_pattern:
+            CUI.error(f"Unsupported platform for fbc: {system} {arch}. EPUB conversion will be disabled.")
+            return
+
+        try:
+            release_url = "https://api.github.com/repos/rupor-github/fb2cng/releases/latest"
+            with urllib.request.urlopen(urllib.request.Request(release_url, headers={"User-Agent": "Librium-Runner"})) as response:
+                release_data = json.loads(response.read().decode())
+            
+            asset = next((a for a in release_data["assets"] if a["name"].startswith("fbc-") and a["name"].endswith(asset_pattern)), None)
+            if not asset:
+                CUI.error(f"Could not find fbc asset matching {asset_pattern}")
+                return
+
+            archive_path = tools_dir / asset["name"]
+            CUI.info(f"Downloading {asset['browser_download_url']}...")
+            urllib.request.urlretrieve(asset["browser_download_url"], archive_path)
+            
+            CUI.info(f"Extracting {archive_path.name}...")
+            resolved_tools_dir = tools_dir.resolve()
+            with zipfile.ZipFile(archive_path, 'r') as zip_ref:
+                for member in zip_ref.infolist():
+                    target_path = (tools_dir / member.filename).resolve()
+                    if not target_path.is_relative_to(resolved_tools_dir):
+                        raise Exception(f"Zip slip attempt detected: {member.filename}")
+                    zip_ref.extract(member, tools_dir)
+            
+            archive_path.unlink()
+            
+            if system != "windows":
+                (tools_dir / exe_name).chmod(0o755)
+                
+            CUI.info("EPUB converter installed successfully.")
+        except Exception as e:
+            CUI.warn(f"Failed to download EPUB converter: {e}")

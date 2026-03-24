@@ -252,8 +252,9 @@ Librium includes a modern, dark-themed web interface for browsing and downloadin
 - **Key Features**:
   - Responsive book grid with covers.
   - Infinite scroll and advanced search.
-  - One-click downloads with descriptive filenames.
+  - One-click downloads in **FB2** format; **EPUB** download available when the fbc converter is configured.
   - In-memory LRU caching for performance.
+  - `/api/config` endpoint exposes server capabilities (e.g., `epubEnabled`) to the frontend.
 - **Detailed Docs**: See **[Web Interface Documentation](Web_Interface.md)**.
 - **Quick Start**:
   ```powershell

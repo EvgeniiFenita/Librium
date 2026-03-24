@@ -85,7 +85,7 @@ def test_command(args):
         
         CUI.info(f"Preparing web test environment in {web_test_root}...")
         web_test_root.mkdir(parents=True, exist_ok=True)
-        
+
         # Copy web/ to artifacts dir (excluding node_modules if any)
         for item in web_src.iterdir():
             if item.name == "node_modules": continue

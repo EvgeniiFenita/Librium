@@ -4,5 +4,7 @@
     "libriumPort": 9001,
     "webPort": 8080,
     "tempDir": "./temp",
-    "metaDir": "./meta"
+    "metaDir": "./meta",
+    "toolsDir": "./tools",
+    "fb2cngExe": ""
 }

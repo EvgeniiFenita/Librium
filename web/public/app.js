@@ -6,6 +6,7 @@ let currentQuery = {};
 let searchField = 'title';
 let debounceTimer = null;
 let pollTimer = null;
+let epubConfigPromise = null;
 
 // --- UTILITIES ---
 function hashColor(str, hueOffset = 0, saturation = 40, lightness = 25) {
@@ -214,33 +215,40 @@ async function openModal(bookId) {
   img.style.display = 'none';
   ph.classList.add('hidden');
 
-  const btn = document.getElementById('download-btn');
-  btn.style.display = 'none';
+  const btnFb2 = document.getElementById('download-fb2-btn');
+  const btnEpub = document.getElementById('download-epub-btn');
+  btnFb2.style.display = 'none';
+  btnEpub.style.display = 'none';
 
   try {
     const data = await api(`/api/books/${bookId}`);
-    populateModal(data);
+    await populateModal(data);
   } catch (e) {
     document.getElementById('modal-title').textContent = e.message || 'Loading error';
   }
 }
 
-function populateModal(book) {
+async function populateModal(book)
+{
   document.getElementById('modal-title').textContent = book.title || 'Untitled';
 
   const img = document.getElementById('modal-cover');
   const ph = document.getElementById('modal-cover-placeholder');
   
-  if (book.coverUrl) {
+  if (book.coverUrl)
+  {
     img.src = book.coverUrl;
     img.style.display = 'block';
-    img.onerror = () => {
+    img.onerror = () =>
+    {
       img.style.display = 'none';
       ph.innerHTML = createPlaceholderSvg(book.title);
       ph.classList.remove('hidden');
       ph.style.display = 'flex';
     };
-  } else {
+  }
+  else
+  {
     ph.innerHTML = createPlaceholderSvg(book.title);
     ph.classList.remove('hidden');
     ph.style.display = 'flex';
@@ -250,14 +258,16 @@ function populateModal(book) {
   document.getElementById('modal-authors').innerHTML = `<strong>Author:</strong> ${escapeHtml(authors)}`;
 
   const seriesEl = document.getElementById('modal-series');
-  if (book.series) {
+  if (book.series)
+  {
     const snum = book.seriesNumber ? ` #${book.seriesNumber}` : '';
     seriesEl.innerHTML = `<strong>Series:</strong> ${escapeHtml(book.series)}${escapeHtml(String(snum))}`;
     seriesEl.classList.remove('hidden');
   }
 
   const genreEl = document.getElementById('modal-genre');
-  if (book.genres && book.genres.length) {
+  if (book.genres && book.genres.length)
+  {
     genreEl.innerHTML = `<strong>Genre:</strong> ${escapeHtml(book.genres.join(', '))}`;
     genreEl.classList.remove('hidden');
   }
@@ -271,39 +281,57 @@ function populateModal(book) {
   document.getElementById('modal-details').textContent = details;
 
   const annEl = document.getElementById('modal-annotation');
-  if (book.annotation) {
+  if (book.annotation)
+  {
     annEl.textContent = book.annotation;
     annEl.classList.remove('hidden');
   }
 
-  const btn = document.getElementById('download-btn');
-  btn.style.display = 'inline-block';
-  btn.onclick = () => downloadBook(book);
+  const btnFb2 = document.getElementById('download-fb2-btn');
+  btnFb2.style.display = 'inline-block';
+  btnFb2.onclick = () => downloadBook(book, 'fb2');
+
+  const epubEnabled = epubConfigPromise ? await epubConfigPromise : false;
+  const btnEpub = document.getElementById('download-epub-btn');
+  if (epubEnabled)
+  {
+      btnEpub.style.display = 'inline-block';
+      btnEpub.onclick = () => downloadBook(book, 'epub');
+  }
 }
 
 /**
  * Trigger book download safely.
  */
-async function downloadBook(book) {
-  const btn = document.getElementById('download-btn');
+async function downloadBook(book, format = 'fb2')
+{
+  const btn = format === 'epub' ? document.getElementById('download-epub-btn') : document.getElementById('download-fb2-btn');
   const originalText = btn.innerHTML;
   
-  try {
+  try
+  {
     btn.disabled = true;
     btn.innerHTML = '⏳ Processing...';
     
-    const res = await fetch(`/api/download/${book.id}`);
-    if (!res.ok) {
+    const res = await fetch(`/api/download/${book.id}?format=${format}`);
+    if (!res.ok)
+    {
       let errMsg = 'Download failed';
-      try {
+      try
+      {
         const text = await res.text();
-        try {
+        try
+        {
           const errBody = JSON.parse(text);
           if (errBody.error) errMsg = errBody.error;
-        } catch (e) {
+        }
+        catch (e)
+        {
           if (text) errMsg = text;
         }
-      } catch (e) {
+      }
+      catch (e)
+      {
         // body could not be read
       }
       throw new Error(errMsg);
@@ -314,10 +342,11 @@ async function downloadBook(book) {
     const link = document.createElement('a');
     link.href = url;
     
-    // Format: "Author - Title.fb2"
+    // Format: "Author - Title.ext"
     const authorText = formatAuthor(book.authors);
     let filename = authorText ? `${authorText} - ${book.title}` : book.title;
-    filename = (filename || 'book') + '.' + (book.ext || 'fb2');
+    let ext = format === 'epub' ? 'epub' : (book.ext || 'fb2');
+    filename = (filename || 'book') + '.' + ext;
     
     // Clean up invalid filename characters
     filename = filename.replace(/[\\\/:*?"<>|]/g, '_');
@@ -327,9 +356,13 @@ async function downloadBook(book) {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-  } catch (e) {
+  }
+  catch (e)
+  {
     alert(`Download error: ${e.message}`);
-  } finally {
+  }
+  finally
+  {
     btn.disabled = false;
     btn.innerHTML = originalText;
   }
@@ -459,6 +492,7 @@ function updateStatsBadge(stats) {
 
 // --- INIT ---
 document.addEventListener('DOMContentLoaded', () => {
+  epubConfigPromise = api('/api/config').then(data => data.epubEnabled).catch(() => false);
   setupSearch();
   setupModal();
   setupInfiniteScroll();
