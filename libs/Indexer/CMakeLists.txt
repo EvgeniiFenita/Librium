@@ -10,5 +10,4 @@ target_link_libraries(Indexer PUBLIC
     Inpx 
     Zip 
     Fb2
-    nlohmann_json::nlohmann_json
 )

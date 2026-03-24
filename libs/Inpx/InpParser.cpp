@@ -2,7 +2,7 @@
 
 #include "Zip/ZipReader.hpp"
 #include "Log/Logger.hpp"
-#include "Config/AppConfig.hpp"
+#include "Utils/StringUtils.hpp"
 
 #include <filesystem>
 #include <string>
@@ -215,11 +215,11 @@ std::vector<SBookRecord> CInpParser::Parse(const std::string& inpxPath)
 
     LOG_INFO("Parsing INPX file: {}", inpxPath);
 
-    Zip::CZipReader::IterateEntries(Config::Utf8ToPath(inpxPath), [&](const std::string& name, std::vector<uint8_t> data)
+    Zip::CZipReader::IterateEntries(Utils::CStringUtils::Utf8ToPath(inpxPath), [&](const std::string& name, std::vector<uint8_t> data)
     {
         if (name.size() >= 4 && name.substr(name.size() - 4) == ".inp")
         {
-            std::filesystem::path p = Config::Utf8ToPath(name);
+            std::filesystem::path p = Utils::CStringUtils::Utf8ToPath(name);
             auto u8stem = p.stem().u8string();
             std::string archive(u8stem.begin(), u8stem.end());
             LOG_DEBUG("Parsing archive: {}", archive);
@@ -245,7 +245,7 @@ SInpParseStats CInpParser::ParseStreaming(const std::string& inpxPath, const std
 
     LOG_INFO("Streaming INPX file: {}", inpxPath);
 
-    Zip::CZipReader::IterateEntries(Config::Utf8ToPath(inpxPath), [&](const std::string& name, std::vector<uint8_t> data)
+    Zip::CZipReader::IterateEntries(Utils::CStringUtils::Utf8ToPath(inpxPath), [&](const std::string& name, std::vector<uint8_t> data)
     {
         if (stop)
         {
@@ -256,7 +256,7 @@ SInpParseStats CInpParser::ParseStreaming(const std::string& inpxPath, const std
             return true;
         }
 
-        std::filesystem::path p = Config::Utf8ToPath(name);
+        std::filesystem::path p = Utils::CStringUtils::Utf8ToPath(name);
         auto u8stem = p.stem().u8string();
         std::string archive(u8stem.begin(), u8stem.end());
         LOG_DEBUG("Parsing archive: {}", archive);
@@ -322,7 +322,7 @@ SInpParseStats CInpParser::ParseStreaming(const std::string& inpxPath, const std
 size_t CInpParser::CountLines(const std::string& inpxPath)
 {
     size_t total = 0;
-    Zip::CZipReader::IterateEntries(Config::Utf8ToPath(inpxPath), [&](const std::string& name, std::vector<uint8_t> data)
+    Zip::CZipReader::IterateEntries(Utils::CStringUtils::Utf8ToPath(inpxPath), [&](const std::string& name, std::vector<uint8_t> data)
     {
         if (name.size() >= 4 && name.substr(name.size() - 4) == ".inp")
         {

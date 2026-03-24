@@ -82,4 +82,10 @@ std::string CStringUtils::SanitizeFilename(const std::string& filename)
     return result;
 }
 
+std::filesystem::path CStringUtils::Utf8ToPath(const std::string& utf8Str)
+{
+    return std::filesystem::path(
+        std::u8string(utf8Str.begin(), utf8Str.end()));
+}
+
 } // namespace Librium::Utils

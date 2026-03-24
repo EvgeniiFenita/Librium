@@ -75,7 +75,7 @@ void CExportAction::Execute(CAppService& service, const IRequest& req, IResponse
     try
     {
         int64_t id = req.GetInt("id");
-        auto outDir = Config::Utf8ToPath(req.GetString("out"));
+        auto outDir = Utils::CStringUtils::Utf8ToPath(req.GetString("out"));
         
         auto bookOpt = service.GetApi().GetBook(id);
         if (!bookOpt)

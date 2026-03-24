@@ -1,5 +1,7 @@
 #include "Logger.hpp"
 
+#include "Utils/StringUtils.hpp"
+
 #include <chrono>
 #include <ctime>
 #include <cstdio>
@@ -10,23 +12,12 @@
 
 namespace Librium::Log {
 
-namespace {
-
-// Converts a UTF-8 string to a filesystem path without depending on Config layer.
-std::filesystem::path Utf8ToPath(const std::string& str)
-{
-    return std::filesystem::path(
-        std::u8string(reinterpret_cast<const char8_t*>(str.data()), str.size()));
-}
-
-} // namespace
-
 class CFileOutput : public ILogOutput
 {
 public:
     explicit CFileOutput(const std::string& path)
     {
-        m_file.open(Utf8ToPath(path), std::ios::app);
+        m_file.open(Utils::CStringUtils::Utf8ToPath(path), std::ios::app);
     }
 
     void Write(const std::string& message) override

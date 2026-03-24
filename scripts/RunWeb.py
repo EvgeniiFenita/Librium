@@ -62,6 +62,13 @@ def prepare_web_env(src_web_dir: Path, out_web_dir: Path):
         shutil.rmtree(dest_public)
     shutil.copytree(src_web_dir / "public", dest_public)
 
+    # Copy lib/ and routes/ module directories
+    for subdir in ["lib", "routes"]:
+        dest = out_web_dir / subdir
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.copytree(src_web_dir / subdir, dest)
+
     # Download EPUB converter into tools/
     CRunner.DownloadFbc(out_web_dir / "tools")
 

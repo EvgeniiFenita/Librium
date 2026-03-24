@@ -279,8 +279,7 @@ Use the `_S` variants for simple strings without formatting.
 
 Windows uses UTF-16 for system paths, while our application uses UTF-8 strings. Improper conversion causes the "No mapping for Unicode character" error.
 
-1.  **Creation**: Always create `std::filesystem::path` from UTF-8 strings using `Librium::Config::Utf8ToPath(str)`.
-    > **Exception — Log module**: `libs/Log/Logger.cpp` defines its own local `Utf8ToPath()` in an anonymous namespace to avoid a circular dependency (Config already depends on Log). All other modules must use `Librium::Config::Utf8ToPath()`.
+1.  **Creation**: Always create `std::filesystem::path` from UTF-8 strings using `Utils::CStringUtils::Utf8ToPath(str)`.
 2.  **Conversion**: **NEVER** use `path.string()` if the path might contain Unicode. Use `path.u8string()` and cast if needed, but prefer keeping it as a `path` object.
 3.  **APIs**: Application-level functions and library interfaces should prefer `std::filesystem::path` over `std::string` for all file-related arguments.
 

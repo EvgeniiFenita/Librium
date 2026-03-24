@@ -8,6 +8,7 @@ target_include_directories(Config PUBLIC
 
 target_link_libraries(Config PUBLIC
     Inpx
+    Utils
     nlohmann_json::nlohmann_json
 )
 

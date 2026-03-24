@@ -2,6 +2,7 @@
 
 #include "Inpx/InpParser.hpp"
 #include "Log/Logger.hpp"
+#include "Utils/StringUtils.hpp"
 #include "Zip/ZipReader.hpp"
 
 #include <chrono>
@@ -13,7 +14,7 @@ namespace fs = std::filesystem;
 
 namespace Librium::Indexer {
 
-using Config::Utf8ToPath;
+using Utils::CStringUtils;
 
 CIndexer::CIndexer(Config::SAppConfig cfg)
     : m_cfg(std::move(cfg))
@@ -25,12 +26,12 @@ std::vector<std::string> CIndexer::GetNewArchives(Db::IBookWriter& db, const std
     std::unordered_set<std::string> indexedSet(indexed.begin(), indexed.end());
 
     std::vector<std::string> allArchives;
-    Zip::CZipReader::IterateEntryNames(Utf8ToPath(inpxPath), [&](const Zip::SZipEntry& entry) 
+    Zip::CZipReader::IterateEntryNames(CStringUtils::Utf8ToPath(inpxPath), [&](const Zip::SZipEntry& entry) 
     {
         if (entry.name.size() >= 4 &&
             entry.name.substr(entry.name.size()-4) == ".inp") 
         {
-            fs::path p = Utf8ToPath(entry.name);
+            fs::path p = CStringUtils::Utf8ToPath(entry.name);
             auto u8stem = p.stem().u8string();
             allArchives.push_back(std::string(u8stem.begin(), u8stem.end()));
         }
@@ -72,7 +73,7 @@ void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2)
             {
                 for (const auto& suffix : {std::string(".zip"), std::string("")}) 
                 {
-                    fs::path p = Utf8ToPath(archivesDir) / Utf8ToPath(item->archiveName + suffix);
+                    fs::path p = CStringUtils::Utf8ToPath(archivesDir) / CStringUtils::Utf8ToPath(item->archiveName + suffix);
                     if (fs::exists(p)) { archivePath = p; break; }
                 }
                 archivePathCache[item->archiveName] = archivePath;
@@ -168,7 +169,7 @@ Db::SImportStats CIndexer::WriterThread(Db::IBookWriter& db, size_t batchSize, I
                     {
                         try
                         {
-                            auto metaDir = Config::GetBookMetaDir(Config::Utf8ToPath(m_cfg.database.path), id);
+                            auto metaDir = Config::CAppPaths::GetBookMetaDir(CStringUtils::Utf8ToPath(m_cfg.database.path), id);
                             fs::create_directories(metaDir);
                             auto coverPath = metaDir / ("cover" + item->fb2.coverExt);
                             
@@ -326,7 +327,7 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, IProgressR
 
     if (mode == EImportMode::Full)
     {
-        auto metaDir = Config::Utf8ToPath(m_cfg.database.path).parent_path() / "meta";
+        auto metaDir = CStringUtils::Utf8ToPath(m_cfg.database.path).parent_path() / "meta";
         if (fs::exists(metaDir))
         {
             LOG_INFO("Full import mode: cleaning meta directory...");

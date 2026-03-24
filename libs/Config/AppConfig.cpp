@@ -21,7 +21,7 @@ SAppConfig SAppConfig::Defaults()
 SAppConfig SAppConfig::Load(const std::string& path) 
 {
     // Use filesystem::path to handle UTF-8 paths correctly on Windows
-    std::ifstream f(Utf8ToPath(path));
+    std::ifstream f(Utils::CStringUtils::Utf8ToPath(path));
     if (!f.is_open())
         throw CConfigError("Cannot open config: " + path);
 
@@ -97,7 +97,7 @@ void SAppConfig::Save(const std::string& path) const
         {"logging",  {{"level", logging.level}, {"file", logging.file},
                       {"progressInterval", logging.progressInterval}}}
     };
-    std::ofstream f(Utf8ToPath(path));
+    std::ofstream f(Utils::CStringUtils::Utf8ToPath(path));
     f << j.dump(2) << "\n";
 }
 
@@ -190,6 +190,11 @@ SFilterResult CBookFilter::ShouldInclude(const Inpx::SBookRecord& rec) const
     }
 
     return { true, "" };
+}
+
+std::filesystem::path CAppPaths::GetBookMetaDir(const std::filesystem::path& dbPath, int64_t id)
+{
+    return dbPath.parent_path() / "meta" / std::to_string(id);
 }
 
 } // namespace Librium::Config

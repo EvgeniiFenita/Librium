@@ -24,9 +24,14 @@ The web part follows a **Proxy-Backend** pattern to bridge the C++ Engine's TCP 
   - **Author Display**: Intelligent formatting (e.g., "Author A, Author B" or "Author A + N" for multiple authors).
   - **Progress Overlay**: Appears during initial import or manual library rebuilds.
 - **Backend (Node.js)**:
-  - **Process Management**: Automatically spawns and monitors the `Librium.exe` process (requires Node.js >= 18).
-  - **TCP Bridge**: Handles a persistent connection to the C++ Engine and manages a request queue with timeouts.
-  - **LRU Cover Cache**: Stores up to 50 MB of recently accessed covers in RAM (supports JPG, PNG, and WebP).
+  - **`server.js`** — Thin orchestrator: loads config, wires `lib/` modules and `routes/` together, starts the Express server.
+  - **`lib/engineProcess.js`** — Spawns and monitors the `Librium.exe` process lifecycle.
+  - **`lib/engineClient.js`** — Manages the persistent TCP connection to the C++ Engine: request queue with timeouts, Base64/JSON protocol decoding, and engine state machine (`starting` → `ready` → `importing` / `upgrading` → `crashed`).
+  - **`lib/coverCache.js`** — LRU in-memory cache. Stores up to **50 MB** of recently accessed covers in RAM (supports JPG, PNG, and WebP).
+  - **`routes/books.js`** — `GET /api/books` and `GET /api/books/:id` endpoints.
+  - **`routes/covers.js`** — `GET /covers/:id/cover` — serves cover images with LRU caching.
+  - **`routes/download.js`** — `GET /api/download/:id` — FB2 and optional EPUB download via fbc converter.
+  - **`routes/library.js`** — Import, upgrade, and stats endpoints.
   - **EPUB Conversion**: Optionally converts exported FB2 files to EPUB2 format using the **fbc** (fb2cng) converter. The converter is downloaded automatically by `RunWeb.py` and placed in the `tools/` directory. Controlled by `toolsDir` and `fb2cngExe` config fields. If the converter is absent, FB2 download remains available and EPUB buttons are hidden in the UI.
   - **Security**: Validates all incoming book IDs and sanitizes query parameters to prevent attacks.
   - **Static Server**: Serves the frontend files and cover images from the `meta/` directory.
@@ -41,9 +46,18 @@ web/
 │   ├── index.html         # Main SPA layout
 │   ├── style.css          # Dark-themed styles (Plex/Calibre inspired)
 │   └── app.js             # Frontend logic & state management
+├── lib/                   # Shared backend modules
+│   ├── engineProcess.js   # Engine process spawning and lifecycle
+│   ├── engineClient.js    # TCP connection, command queue, state machine
+│   └── coverCache.js      # LRU in-memory cover cache (50 MB cap)
+├── routes/                # Express route handlers (one file per concern)
+│   ├── books.js           # GET /api/books, GET /api/books/:id
+│   ├── covers.js          # GET /covers/:id/cover
+│   ├── download.js        # GET /api/download/:id (FB2 & EPUB)
+│   └── library.js         # import, upgrade, stats endpoints
 ├── tests/
 │   └── api.test.js        # Jest/Supertest API tests (source only; deps installed to out/)
-├── server.js              # Node.js Express server & TCP bridge
+├── server.js              # Thin orchestrator: wires lib/ and routes/, starts Express
 ├── package.json           # Node dependencies (Express, Jest)
 └── web_config.example.json  # Config template (copy to web_config.json and adjust for local use)
 ```

@@ -46,7 +46,7 @@ Follow these steps **in order** before writing any code:
 ## Coding & Formatting Style
 - **Braces**: ALWAYS use **Allman style** (opening brace on a NEW line) for classes, structs, functions, and control blocks. Exception: namespace opening brace stays on the **same line** as the declaration. Single-statement `if`/`else`/`for`/`while` bodies MAY omit braces.
 - **Namespaces**: Use C++20 nested namespace syntax (`namespace Librium::Db { ... }`). Always close with a comment.
-- **Unicode**: ALWAYS use `Librium::Config::Utf8ToPath()` when creating paths from strings. NEVER use `path.string()` on Windows; use `path.u8string()` if conversion is needed. **Exception**: `libs/Log/Logger.cpp` defines its own local `Utf8ToPath()` in an anonymous namespace to avoid a circular dependency — do NOT change this.
+- **Unicode**: ALWAYS use `Utils::CStringUtils::Utf8ToPath()` when creating paths from strings. NEVER use `path.string()` on Windows; use `path.u8string()` if conversion is needed.
 - **Thread Safety**: ALWAYS use `std::jthread` for thread lifecycle. Wrap thread entry functions in `try-catch` blocks to prevent `std::terminate`.
 - **Error Handling**: NEVER use `catch (...)`. ALWAYS catch at minimum `const std::exception&` and log the error using `LOG_ERROR` before handling or skipping. Silent exception swallowing is a build-breaking violation.
 - **RAII Compliance**: ALWAYS wrap third-party handles (sqlite3, sqlite3_stmt, zip_t, etc.) in RAII containers (like `std::unique_ptr` with custom deleters) IMMEDIATELY upon acquisition. Manual resource management (manual `close`/`finalize`) is strictly forbidden. Ownership must be established in the same scope as acquisition.
@@ -95,7 +95,7 @@ std::filesystem::path p(someUtf8String);
 ```
 Right:
 ```cpp
-auto p = Librium::Config::Utf8ToPath(someUtf8String);
+auto p = Utils::CStringUtils::Utf8ToPath(someUtf8String);
 ```
 
 ### Mistake 4 — Inline SQL strings in business logic
@@ -242,7 +242,7 @@ When refactoring or adapting tests to code changes:
 - **Database Architecture**: ALL SQL strings must be defined as `constexpr std::string_view` constants in `SqlQueries.hpp`. Inline SQL strings anywhere else in the codebase are **forbidden**. Database schema creation must be handled by the `CDatabaseSchema` class. Correct pattern:
   - In `SqlQueries.hpp`: `constexpr std::string_view kSelectBookById = "SELECT * FROM books WHERE id = ?";`
   - In the caller: `m_db->Execute(SqlQueries::kSelectBookById, params);`
-- **Database Layer Isolation**: Files in `libs/Indexer/`, `libs/Service/`, `libs/Query/`, and all files under `apps/` MUST NEVER include `<sqlite3.h>` directly. If you find yourself writing `sqlite3_` anywhere outside of `CSqliteDatabase` or `CSqliteStatement`, stop — you are in the wrong layer. Business logic consumers MUST interact with the database through role-specific interfaces: `IBookWriter` (for import/indexing) and `IBookReader` (for search/query). The only files permitted to call the raw SQLite C API are `CSqliteDatabase.cpp`, `CSqliteStatement.cpp`, and `SqliteFunctions.cpp`. `ISqlDatabase` and `ISqlStatement` are low-level interfaces internal to the Database module — do NOT use them outside of it.
+- **Database Layer Isolation**: Files in `libs/Indexer/`, `libs/Service/`, and all files under `apps/` MUST NEVER include `<sqlite3.h>` directly. If you find yourself writing `sqlite3_` anywhere outside of `CSqliteDatabase` or `CSqliteStatement`, stop — you are in the wrong layer. Business logic consumers MUST interact with the database through role-specific interfaces: `IBookWriter` (for import/indexing) and `IBookReader` (for search/query). The only files permitted to call the raw SQLite C API are `CSqliteDatabase.cpp`, `CSqliteStatement.cpp`, and `SqliteFunctions.cpp`. `ISqlDatabase` and `ISqlStatement` are low-level interfaces internal to the Database module — do NOT use them outside of it.
 - **Unicode Search**: All text searches MUST be case-insensitive for Cyrillic. This is achieved by using the `librium_upper()` custom SQLite function and searching against denormalized `search_title` or `search_name` columns. Never use `LIKE` on raw `title` or `name` columns for user queries.
 - **SQLite Binding**: Use `SQLITE_TRANSIENT` (not `SQLITE_STATIC`) when binding temporary string objects, to ensure SQLite copies the data before the binding call returns.
 - **SQLite Cursor Lifecycle**: Any `sqlite3_step()` returning `SQLITE_ROW` holds an open read cursor. `sqlite3_reset()` MUST be called immediately after reading the result — before the function returns. Failure causes `SQLITE_LOCKED` on subsequent DDL statements (`DROP INDEX`, `CREATE INDEX`) in the same connection. INSERT statements (`SQLITE_DONE`) do NOT hold cursors.

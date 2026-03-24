@@ -1,6 +1,7 @@
 #include "LibraryApi.hpp"
 #include "Database/Database.hpp"
 #include "Indexer/Indexer.hpp"
+#include "Utils/StringUtils.hpp"
 #include "Zip/ZipReader.hpp"
 #include "Log/Logger.hpp"
 #include <fstream>
@@ -60,12 +61,12 @@ std::filesystem::path CLibraryApi::ExportBook(int64_t id, const std::filesystem:
     std::string zipName = bookInfo->archiveName;
     if (zipName.size() < 4 || zipName.substr(zipName.size() - 4) != ".zip") zipName += ".zip";
 
-    auto zipPath = Config::Utf8ToPath(m_config.library.archivesDir) / Config::Utf8ToPath(zipName);
+    auto zipPath = Utils::CStringUtils::Utf8ToPath(m_config.library.archivesDir) / Utils::CStringUtils::Utf8ToPath(zipName);
     auto data = Zip::CZipReader::ReadEntry(zipPath, bookInfo->fileName);
 
     if (!std::filesystem::exists(outDir)) std::filesystem::create_directories(outDir);
 
-    auto outPath = outDir / Config::Utf8ToPath(bookInfo->fileName);
+    auto outPath = outDir / Utils::CStringUtils::Utf8ToPath(bookInfo->fileName);
     std::ofstream ofs(outPath, std::ios::binary);
     if (!ofs) throw std::runtime_error("Failed to open output file for writing");
     ofs.write(reinterpret_cast<const char*>(data.data()), data.size());
@@ -89,7 +90,7 @@ std::optional<SBookDetails> CLibraryApi::GetBook(int64_t id)
 
     try
     {
-        auto metaDir = Config::GetBookMetaDir(Config::Utf8ToPath(m_config.database.path), id);
+        auto metaDir = Config::CAppPaths::GetBookMetaDir(Utils::CStringUtils::Utf8ToPath(m_config.database.path), id);
         
         if (std::filesystem::exists(metaDir) && std::filesystem::is_directory(metaDir))
         {

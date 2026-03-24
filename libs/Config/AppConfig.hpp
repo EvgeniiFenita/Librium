@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Inpx/BookRecord.hpp"
+#include "Utils/StringUtils.hpp"
 
 #include <cstdint>
 #include <stdexcept>
@@ -10,16 +11,13 @@
 
 namespace Librium::Config {
 
-inline std::filesystem::path Utf8ToPath(const std::string& utf8Str)
+class CAppPaths
 {
-    // C++20 way to create a path from a UTF-8 string
-    return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(utf8Str.data()), utf8Str.size()));
-}
+public:
+    [[nodiscard]] static std::filesystem::path GetBookMetaDir(
+        const std::filesystem::path& dbPath, int64_t id);
+};
 
-inline std::filesystem::path GetBookMetaDir(const std::filesystem::path& dbPath, int64_t id)
-{
-    return dbPath.parent_path() / "meta" / std::to_string(id);
-}
 struct SFilterResult
 {
     bool        included{true};

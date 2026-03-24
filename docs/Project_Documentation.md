@@ -12,16 +12,16 @@ The project is organized into independent, reusable static libraries and a singl
 
 | Module | Responsibility | Dependencies |
 | :--- | :--- | :--- |
-| **Log** | Thread-safe singleton logger. Supports multiple outputs and static configuration. | None |
+| **Log** | Thread-safe singleton logger. Supports multiple outputs and static configuration. | **Utils** |
 | **Zip** | RAII-based ZIP archive management. Unified smart pointer interface for archives and files. | `libzip`, `zlib`, **Log** |
 | **Fb2** | XML parser for FictionBook 2.0 metadata using `pugixml`. Extracts text info (annotation, keywords, etc.) and cover images (base64-decoded). | `pugixml`, **Log**, **Utils** |
-| **Inpx** | High-speed parser for `.inpx` collection indices. | **Zip**, **Log** |
-| **Config** | JSON-based configuration and cross-platform path helpers (`Utf8ToPath`). | **Inpx**, `nlohmann_json` |
+| **Inpx** | High-speed parser for `.inpx` collection indices. | **Zip**, **Log**, **Utils** |
+| **Config** | JSON-based configuration, path helpers, `CAppPaths` utility class, and book filter logic. | **Inpx**, **Utils**, `nlohmann_json` |
+| **Utils** | Common technical utilities (Base64, Thread-safe queue, String helpers, `CStringUtils::Utf8ToPath`). No external dependencies. | None |
 | **Database** | Abstraction layer for SQL databases. Low-level SQL access is encapsulated in `ISqlDatabase`/`ISqlStatement` interfaces. Business consumers interact through role-specific interfaces: `IBookWriter` (import/indexing) and `IBookReader` (search/query). `CDatabase` implements both. Includes full query and search engine logic. | **Fb2**, **Inpx**, **Log**, `Sqlite3Lib` |
 | **Service** | Engine core using the Command pattern. Abstracts communication via `IRequest`/`IResponse` interfaces. | **Database**, **Indexer**, **Config**, **Inpx**, **Fb2**, **Zip**, **Log**, **Utils** |
 | **Protocol** | Implementation of communication formats (e.g., JSON over Base64). | **Service**, **Utils**, `nlohmann_json` |
 | **Transport** | Network communication layer (Localhost TCP via **Asio**). | **Log**, `asio` |
-| **Utils** | Common technical utilities (Base64, Thread-safe queue, String helpers). | None |
 
 ---
 
@@ -61,8 +61,17 @@ Librium/
 │   └── Unit/               ← Catch2 test suite (self-contained)
 ├── web/                    ← Web Interface (Node.js & Vanilla JS)
 │   ├── public/             ← Static frontend files
+│   ├── lib/                ← Shared backend modules
+│   │   ├── engineProcess.js  ← Engine process spawning/lifecycle
+│   │   ├── engineClient.js   ← TCP connection, command queue, state machine
+│   │   └── coverCache.js     ← LRU in-memory cover cache
+│   ├── routes/             ← Express route handlers
+│   │   ├── books.js          ← GET /api/books, GET /api/books/:id
+│   │   ├── covers.js         ← GET /covers/:id/cover
+│   │   ├── download.js       ← GET /api/download/:id (FB2 & EPUB)
+│   │   └── library.js        ← import, upgrade, stats endpoints
 │   ├── tests/              ← Jest/Supertest API tests (source only; deps go to out/)
-│   ├── server.js           ← Web Proxy & LRU Cache
+│   ├── server.js           ← Thin orchestrator: wires lib/ and routes/
 │   ├── package.json        ← Node dependencies (Express, Jest)
 │   └── web_config.example.json ← Config template (copy and adjust for local use)
 ├── Dockerfile.linux        ← Linux build environment
