@@ -92,12 +92,12 @@ python scripts/Run.py --preset x64-debug --clean
 
 ### Test Stages in `scripts/Test.py`
 1.  **Stage 1: UNIT**: Fast C++ unit tests (Catch2). Fully self-contained, no external scripts required.
-    - **Coverage**: Filters (genres/size/authors/keywords), string encoding (UTF-8/CP1251/UTF-16), Base64, thread-safe concurrency, database transactions, INPX streaming, ZIP RAII, logger configuration, query edge cases, config utilities.
+    - **Coverage**: Filters (genres/size/authors/keywords), string encoding (UTF-8/CP1251/UTF-16) and sanitization, Base64, thread-safe concurrency, database transactions and `get-book` field completeness, INPX streaming and edge cases, ZIP RAII and edge cases, FB2 cover extraction and encoding edge cases, logger configuration, search query parser, config utilities and edge cases.
     - **Crash Diagnostics**: `TestMain.cpp` writes `unit_tests.log` next to `UnitTests.exe` on every run for post-mortem analysis.
 2.  **Stage 2: SCENARIO**: Behavioral tests. 
     - Uses `LibraryGenerator.py` to create a "miniature" realistic library.
     - Communicates with `Librium.exe` via **TCP sockets**.
-    - Covers 7 scenario categories: search operators, query filters, parsing, upgrade/re-import, export, utility (covers), protocol error resilience.
+    - Covers 8 scenario categories: search operators, query filters, parsing & stats, upgrade/re-import, export, utility (covers), protocol error resilience, data integrity.
     - Includes **Smoke (Real)** test if `--real-library` path is provided.
 
 ---
