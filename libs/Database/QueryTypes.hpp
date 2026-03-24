@@ -61,4 +61,10 @@ struct SQueryResult
     SQueryParams             params;
 };
 
+struct SBookPath
+{
+    std::string archiveName;
+    std::string fileName;
+};
+
 } // namespace Librium::Db

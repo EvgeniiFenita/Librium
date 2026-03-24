@@ -4,6 +4,8 @@
 #include "Inpx/BookRecord.hpp"
 #include "Log/Logger.hpp"
 #include "Config/AppConfig.hpp"
+#include "IBookReader.hpp"
+#include "IBookWriter.hpp"
 #include "SqlDatabase.hpp"
 #include "SqlStatement.hpp"
 #include "QueryTypes.hpp"
@@ -17,12 +19,6 @@
 #include <unordered_map>
 
 namespace Librium::Db {
-
-struct SBookPath
-{
-    std::string archiveName;
-    std::string fileName;
-};
 
 class CDbError : public std::runtime_error
 {
@@ -60,7 +56,7 @@ struct SImportStats
     }
 };
 
-class CDatabase
+class CDatabase : public IBookWriter, public IBookReader
 {
 public:
     explicit CDatabase(const std::string& path, const Config::SImportConfig& cfg = Config::SImportConfig{});
@@ -69,38 +65,38 @@ public:
     CDatabase(const CDatabase&)            = delete;
     CDatabase& operator=(const CDatabase&) = delete;
 
-    void BeginTransaction();
-    void Commit();
-    void Rollback();
+    // IBookWriter
+    void BeginTransaction() override;
+    void Commit() override;
+    void Rollback() override;
 
     [[nodiscard]] int64_t InsertBook(
         const Inpx::SBookRecord& record,
-        const Fb2::SFb2Data&     fb2 = {});
+        const Fb2::SFb2Data&     fb2 = {}) override;
 
     [[nodiscard]] bool BookExists(
         const std::string& libId,
-        const std::string& archiveName);
+        const std::string& archiveName) override;
 
-    [[nodiscard]] std::vector<std::string> GetIndexedArchives();
-    void MarkArchiveIndexed(const std::string& archiveName);
+    [[nodiscard]] std::vector<std::string> GetIndexedArchives() override;
+    void MarkArchiveIndexed(const std::string& archiveName) override;
 
-    [[nodiscard]] std::optional<SBookPath> GetBookPath(int64_t bookId);
+    void DropIndexes() override;
+    void CreateIndexes() override;
+    void BeginBulkImport() override;
+    void EndBulkImport() override;
 
-    [[nodiscard]] int64_t CountBooks() const;
-    [[nodiscard]] int64_t CountAuthors() const;
+    // IBookReader
+    [[nodiscard]] int64_t CountBooks() const override;
+    [[nodiscard]] int64_t CountAuthors() const override;
 
-    [[nodiscard]] SQueryResult ExecuteQuery(const SQueryParams& params);
-    [[nodiscard]] std::optional<SBookResult> GetBookById(int64_t id);
+    [[nodiscard]] SQueryResult ExecuteQuery(const SQueryParams& params) override;
+    [[nodiscard]] std::optional<SBookResult> GetBookById(int64_t id) override;
+    [[nodiscard]] std::optional<SBookPath> GetBookPath(int64_t bookId) override;
 
-    ISqlDatabase* Handle()
-    {
-        return m_db.get();
-    }
+    // Diagnostic: returns number of book-related indexes in the schema
+    [[nodiscard]] int CountIndexes() const;
 
-    void DropIndexes();
-    void CreateIndexes();
-    void BeginBulkImport();
-    void EndBulkImport();
     void Exec(const std::string& sql);
 
 private:

@@ -19,7 +19,7 @@ CIndexer::CIndexer(Config::SAppConfig cfg)
     : m_cfg(std::move(cfg))
 {
 }
-std::vector<std::string> CIndexer::GetNewArchives(Db::CDatabase& db, const std::string& inpxPath) 
+std::vector<std::string> CIndexer::GetNewArchives(Db::IBookWriter& db, const std::string& inpxPath) 
 {
     auto indexed = db.GetIndexedArchives();
     std::unordered_set<std::string> indexedSet(indexed.begin(), indexed.end());
@@ -134,7 +134,7 @@ void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2)
     }
 }
 
-Db::SImportStats CIndexer::WriterThread(Db::CDatabase& db, size_t batchSize, IProgressReporter* reporter, size_t totalBooks) 
+Db::SImportStats CIndexer::WriterThread(Db::IBookWriter& db, size_t batchSize, IProgressReporter* reporter, size_t totalBooks) 
 {
     Db::SImportStats stats;
     size_t inBatch = 0;
@@ -241,7 +241,7 @@ namespace {
 class CImportGuard
 {
 public:
-    explicit CImportGuard(Db::CDatabase& db) : m_db(db) 
+    explicit CImportGuard(Db::IBookWriter& db) : m_db(db) 
     {
         m_db.BeginBulkImport();
         m_db.DropIndexes();
@@ -264,13 +264,13 @@ public:
     void MarkFinished() { m_finished = true; }
 
 private:
-    Db::CDatabase& m_db;
-    bool           m_finished{false};
+    Db::IBookWriter& m_db;
+    bool             m_finished{false};
 };
 
 } // namespace
 
-Db::SImportStats CIndexer::Run(Db::CDatabase& db, EImportMode mode, IProgressReporter* reporter) 
+Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, IProgressReporter* reporter) 
 {
     Config::CBookFilter filter(m_cfg.filters);
     

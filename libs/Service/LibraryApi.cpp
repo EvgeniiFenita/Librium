@@ -15,36 +15,46 @@ CLibraryApi::CLibraryApi(Config::SAppConfig cfg)
 
 CLibraryApi::~CLibraryApi() = default;
 
-Db::CDatabase& CLibraryApi::GetDatabase()
+void CLibraryApi::EnsureDatabase()
 {
     if (!m_db)
     {
         m_db = std::make_unique<Db::CDatabase>(m_config.database.path, m_config.import);
     }
+}
+
+Db::IBookReader& CLibraryApi::GetReader()
+{
+    EnsureDatabase();
+    return *m_db;
+}
+
+Db::IBookWriter& CLibraryApi::GetWriter()
+{
+    EnsureDatabase();
     return *m_db;
 }
 
 Db::SImportStats CLibraryApi::Import(Indexer::IProgressReporter* reporter)
 {
     Indexer::CIndexer indexer(m_config);
-    return indexer.Run(GetDatabase(), Indexer::EImportMode::Full, reporter);
+    return indexer.Run(GetWriter(), Indexer::EImportMode::Full, reporter);
 }
 
 Db::SImportStats CLibraryApi::Upgrade(Indexer::IProgressReporter* reporter)
 {
     Indexer::CIndexer indexer(m_config);
-    return indexer.Run(GetDatabase(), Indexer::EImportMode::Upgrade, reporter);
+    return indexer.Run(GetWriter(), Indexer::EImportMode::Upgrade, reporter);
 }
 
 Db::SQueryResult CLibraryApi::SearchBooks(const Db::SQueryParams& params)
 {
-    return GetDatabase().ExecuteQuery(params);
+    return GetReader().ExecuteQuery(params);
 }
 
 std::filesystem::path CLibraryApi::ExportBook(int64_t id, const std::filesystem::path& outDir)
 {
-    auto& db = GetDatabase();
-    auto bookInfo = db.GetBookPath(id);
+    auto bookInfo = GetReader().GetBookPath(id);
     if (!bookInfo) throw std::runtime_error("Book not found");
 
     std::string zipName = bookInfo->archiveName;
@@ -65,14 +75,13 @@ std::filesystem::path CLibraryApi::ExportBook(int64_t id, const std::filesystem:
 
 SAppStats CLibraryApi::GetStats()
 {
-    auto& db = GetDatabase();
-    return {db.CountBooks(), db.CountAuthors()};
+    auto& reader = GetReader();
+    return {reader.CountBooks(), reader.CountAuthors()};
 }
 
 std::optional<SBookDetails> CLibraryApi::GetBook(int64_t id)
 {
-    auto& db = GetDatabase();
-    auto book = db.GetBookById(id);
+    auto book = GetReader().GetBookById(id);
     if (!book) return std::nullopt;
 
     SBookDetails details;

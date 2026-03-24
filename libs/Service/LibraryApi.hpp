@@ -2,6 +2,8 @@
 
 #include "Config/AppConfig.hpp"
 #include "Indexer/Indexer.hpp"
+#include "Database/IBookReader.hpp"
+#include "Database/IBookWriter.hpp"
 #include "Database/QueryTypes.hpp"
 #include <filesystem>
 #include <optional>
@@ -40,7 +42,9 @@ public:
     std::optional<SBookDetails> GetBook(int64_t id);
 
 private:
-    Db::CDatabase& GetDatabase();
+    void EnsureDatabase();
+    Db::IBookReader& GetReader();
+    Db::IBookWriter& GetWriter();
 
     Config::SAppConfig m_config;
     std::unique_ptr<Db::CDatabase> m_db;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Config/AppConfig.hpp"
+#include "Database/IBookWriter.hpp"
 #include "Database/Database.hpp"
 #include "Fb2/Fb2Parser.hpp"
 #include "Inpx/BookRecord.hpp"
@@ -26,13 +27,13 @@ class CIndexer
 public:
     explicit CIndexer(Config::SAppConfig cfg);
 
-    [[nodiscard]] Db::SImportStats Run(Db::CDatabase& db, EImportMode mode, IProgressReporter* reporter = nullptr);
+    [[nodiscard]] Db::SImportStats Run(Db::IBookWriter& db, EImportMode mode, IProgressReporter* reporter = nullptr);
     void RequestStop()
     {
         m_stopRequested = true;
     }
 
-    [[nodiscard]] std::vector<std::string> GetNewArchives(Db::CDatabase& db, const std::string& inpxPath);
+    [[nodiscard]] std::vector<std::string> GetNewArchives(Db::IBookWriter& db, const std::string& inpxPath);
 
 private:
     Config::SAppConfig        m_cfg;
@@ -62,7 +63,7 @@ private:
     Utils::CThreadSafeQueue<SResultItem> m_resultQueue{k_resultQueueSize};
 
     void WorkerThread(const std::string& archivesDir, bool parseFb2);
-    Db::SImportStats WriterThread(Db::CDatabase& db, size_t batchSize, IProgressReporter* reporter, size_t totalBooks);
+    Db::SImportStats WriterThread(Db::IBookWriter& db, size_t batchSize, IProgressReporter* reporter, size_t totalBooks);
 };
 
 } // namespace Librium::Indexer

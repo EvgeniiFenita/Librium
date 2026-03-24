@@ -1,7 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include "Indexer/Indexer.hpp"
 #include "Database/Database.hpp"
-#include "Database/SqlQueries.hpp"
 #include "TestUtils.hpp"
 
 #include <filesystem>
@@ -77,12 +76,9 @@ TEST_CASE("Indexer handles 0 new books gracefully (Index Preservation)", "[index
     cfg.database.path = dbPath;
     cfg.library.inpxPath = inpxPath;
 
-    auto countIndexes= [](Librium::Db::CDatabase& database) -> int
+    auto countIndexes = [](Librium::Db::CDatabase& database) -> int
     {
-        auto stmt = database.Handle()->Prepare(std::string(Librium::Db::Sql::CountBookIndexes));
-        stmt->Step();
-        Librium::Db::CSqlStmtResetGuard guard(*stmt);
-        return stmt->IsRow() ? stmt->ColumnInt(0) : -1;
+        return database.CountIndexes();
     };
 
     // 1. Initialize DB and verify indexes exist
