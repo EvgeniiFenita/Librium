@@ -1,0 +1,26 @@
+{
+  "description": "Search: query with a title that matches nothing returns totalFound=0 and empty books list",
+  "library": [
+    { "title": "Real Book One",   "authors": ["Author,A,"] },
+    { "title": "Real Book Two",   "authors": ["Author,B,"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "Search for a title that does not exist",
+      "args": ["query", "--title", "XXXXXXXXXNONEXISTENT_TITLE_12345"],
+      "expected": {
+        "totalFound": 0,
+        "books": []
+      }
+    },
+    {
+      "description": "Search by non-existent author",
+      "args": ["query", "--author", "NoSuchAuthorEverWritten"],
+      "expected": {
+        "totalFound": 0,
+        "books": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "description": "Protocol: multiple sequential query requests on the same connection all succeed",
+  "library": [
+    { "title": "Sequential Book One",   "authors": ["Author,A,"] },
+    { "title": "Sequential Book Two",   "authors": ["Author,B,"] },
+    { "title": "Sequential Book Three", "authors": ["Author,C,"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    { "args": ["query", "--limit", "10"], "expected": { "totalFound": 3 } },
+    { "args": ["query", "--title", "Sequential"], "expected": { "totalFound": 3 } },
+    { "args": ["query", "--author", "Author"], "expected": { "totalFound": 3 } },
+    { "args": ["query", "--title", "One"],  "expected": { "totalFound": 1 } },
+    { "args": ["query", "--title", "Two"],  "expected": { "totalFound": 1 } },
+    { "args": ["query", "--title", "Three"],"expected": { "totalFound": 1 } },
+    { "args": ["query", "--title", "XYZNOTFOUND"], "expected": { "totalFound": 0 } },
+    { "args": ["stats"], "expected": { "total_books": 3 } },
+    { "args": ["query", "--limit", "1", "--offset", "0"], "expected": { "totalFound": 3 } },
+    { "args": ["query", "--limit", "1", "--offset", "1"], "expected": { "totalFound": 3 } },
+    { "args": ["query", "--limit", "1", "--offset", "2"], "expected": { "totalFound": 3 } }
+  ]
+}

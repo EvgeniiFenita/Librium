@@ -1,0 +1,33 @@
+{
+  "description": "Upgrade: new archive containing a mix of normal and deleted books - only non-deleted books are counted",
+  "library": [
+    { "title": "Existing Book One",   "authors": ["Author,A,"], "archive": "arch-old.zip" },
+    { "title": "Existing Book Two",   "authors": ["Author,A,"], "archive": "arch-old.zip" },
+    { "title": "New Normal Book",     "authors": ["Author,B,"], "archive": "arch-new.zip" },
+    { "title": "New Normal Book 2",   "authors": ["Author,B,"], "archive": "arch-new.zip" },
+    { "title": "New Deleted Book",    "authors": ["Author,C,"], "archive": "arch-new.zip", "deleted": true },
+    { "title": "New Deleted Book 2",  "authors": ["Author,C,"], "archive": "arch-new.zip", "deleted": true }
+  ],
+  "steps": [
+    {
+      "description": "Initial import: indexes arch-old and arch-new; skips 2 deleted books",
+      "args": ["import"],
+      "expected": { "status": "ok", "data": { "inserted": 4 } }
+    },
+    {
+      "description": "Stats reflect only 4 non-deleted books",
+      "args": ["stats"],
+      "expected": { "total_books": 4 }
+    },
+    {
+      "description": "Upgrade: all archives already indexed → 0 inserted",
+      "args": ["upgrade"],
+      "expected": { "status": "ok", "data": { "inserted": 0 } }
+    },
+    {
+      "description": "Stats unchanged after upgrade",
+      "args": ["stats"],
+      "expected": { "total_books": 4 }
+    }
+  ]
+}

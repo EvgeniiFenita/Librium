@@ -1,0 +1,31 @@
+{
+  "description": "Search: SQL special characters in query parameters do not crash the engine",
+  "library": [
+    { "title": "Normal Book",       "authors": ["Safe, Author"] },
+    { "title": "Book with Percent", "authors": ["Safe, Author"] },
+    { "title": "Book_Underscore",   "authors": ["Safe, Author"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "Query with SQL injection attempt in title - engine must not crash",
+      "args": ["query", "--title", "'; DROP TABLE books; --"],
+      "expected": { "totalFound": 0 }
+    },
+    {
+      "description": "Query with percent wildcard as literal title character",
+      "args": ["query", "--title", "50%"],
+      "expected": { "totalFound": 0 }
+    },
+    {
+      "description": "Query with apostrophe in author name - prepared statement handles it safely",
+      "args": ["query", "--author", "O'Brien"],
+      "expected": { "totalFound": 0 }
+    },
+    {
+      "description": "Engine remains alive after all injection attempts",
+      "args": ["stats"],
+      "expected": { "total_books": 3 }
+    }
+  ]
+}

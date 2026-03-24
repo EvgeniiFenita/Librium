@@ -1,0 +1,49 @@
+{
+  "description": "Filtering: genre search returns only books of the requested genre",
+  "library": [
+    { "title": "Sci-Fi Book One",   "authors": ["Author,A,"], "genres": ["sf"]       },
+    { "title": "Sci-Fi Book Two",   "authors": ["Author,B,"], "genres": ["sf"]       },
+    { "title": "Detective Novel",   "authors": ["Author,C,"], "genres": ["detective"] },
+    { "title": "Classic Prose",     "authors": ["Author,D,"], "genres": ["prose_classic"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "Genre=sf returns only sci-fi books",
+      "args": ["query", "--genre", "sf", "--limit", "10"],
+      "expected": {
+        "totalFound": 2,
+        "books": [
+          { "title": "Sci-Fi Book One" },
+          { "title": "Sci-Fi Book Two" }
+        ]
+      }
+    },
+    {
+      "description": "Exclusion: Detective Novel must NOT appear in sf genre results",
+      "args": ["query", "--title", "Detective Novel", "--genre", "sf", "--limit", "10"],
+      "expected": { "totalFound": 0 }
+    },
+    {
+      "description": "Genre=detective returns only detective novels",
+      "args": ["query", "--genre", "detective", "--limit", "10"],
+      "expected": {
+        "totalFound": 1,
+        "books": [ { "title": "Detective Novel" } ]
+      }
+    },
+    {
+      "description": "Exclusion: Sci-Fi books must NOT appear in detective genre results",
+      "args": ["query", "--title", "Sci-Fi Book One", "--genre", "detective", "--limit", "10"],
+      "expected": { "totalFound": 0 }
+    },
+    {
+      "description": "Genre=nonexistent returns no books",
+      "args": ["query", "--genre", "nonexistent_genre_xyz", "--limit", "10"],
+      "expected": {
+        "totalFound": 0,
+        "books": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "description": "Search: consecutive pages do not overlap and their union covers all results",
+  "library": [
+    { "title": "Page Book 01", "authors": ["Author,P,"] },
+    { "title": "Page Book 02", "authors": ["Author,P,"] },
+    { "title": "Page Book 03", "authors": ["Author,P,"] },
+    { "title": "Page Book 04", "authors": ["Author,P,"] },
+    { "title": "Page Book 05", "authors": ["Author,P,"] },
+    { "title": "Page Book 06", "authors": ["Author,P,"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "Page 1 (offset=0, limit=3): first 3 books",
+      "args": ["query", "--limit", "3", "--offset", "0"],
+      "expected": {
+        "totalFound": 6,
+        "books": [
+          { "title": "Page Book 01" },
+          { "title": "Page Book 02" },
+          { "title": "Page Book 03" }
+        ]
+      }
+    },
+    {
+      "description": "Page 2 (offset=3, limit=3): next 3 books -- must not overlap with page 1",
+      "args": ["query", "--limit", "3", "--offset", "3"],
+      "expected": {
+        "totalFound": 6,
+        "books": [
+          { "title": "Page Book 04" },
+          { "title": "Page Book 05" },
+          { "title": "Page Book 06" }
+        ]
+      }
+    },
+    {
+      "description": "Page 3 (offset=6, limit=3): beyond all results - empty books array",
+      "args": ["query", "--limit", "3", "--offset", "6"],
+      "expected": { "totalFound": 6, "books": [] }
+    },
+    {
+      "description": "Very large offset still reports correct totalFound",
+      "args": ["query", "--limit", "10", "--offset", "1000"],
+      "expected": { "totalFound": 6, "books": [] }
+    }
+  ]
+}

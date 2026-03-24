@@ -1,0 +1,48 @@
+{
+  "description": "Filtering: language + ratingMin + size filters all applied simultaneously",
+  "library": [
+    { "title": "English OK",       "authors": ["Author,A,"], "lang": "en", "rating": 5, "size": 150000 },
+    { "title": "English Low Rate", "authors": ["Author,B,"], "lang": "en", "rating": 1, "size": 150000 },
+    { "title": "English Too Big",  "authors": ["Author,C,"], "lang": "en", "rating": 5, "size": 600000 },
+    { "title": "Russian OK",       "authors": ["Author,D,"], "lang": "ru", "rating": 5, "size": 150000 },
+    { "title": "English Too Small","authors": ["Author,E,"], "lang": "en", "rating": 5, "size": 1000  }
+  ],
+  "config": {
+    "filters": {
+      "includeLanguages": ["en"],
+      "minFileSize": 50000,
+      "maxFileSize": 500000
+    }
+  },
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "Stats confirm only 2 books were indexed (en+size filter at import time)",
+      "args": ["stats"],
+      "expected": { "total_books": 2 }
+    },
+    {
+      "description": "Query with ratingMin=3 returns exactly the high-rated English book",
+      "args": ["query", "--ratingMin", "3", "--limit", "10"],
+      "expected": {
+        "totalFound": 1,
+        "books": [ { "title": "English OK" } ]
+      }
+    },
+    {
+      "description": "Exclusion check: Russian OK was filtered at import -- must not appear",
+      "args": ["query", "--title", "Russian OK", "--limit", "10"],
+      "expected": { "totalFound": 0 }
+    },
+    {
+      "description": "Exclusion check: English Too Big was filtered at import -- must not appear",
+      "args": ["query", "--title", "English Too Big", "--limit", "10"],
+      "expected": { "totalFound": 0 }
+    },
+    {
+      "description": "Exclusion check: English Low Rate excluded by ratingMin=3 at query time",
+      "args": ["query", "--title", "English Low Rate", "--ratingMin", "3", "--limit", "10"],
+      "expected": { "totalFound": 0 }
+    }
+  ]
+}

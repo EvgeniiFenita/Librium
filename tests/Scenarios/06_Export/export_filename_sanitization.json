@@ -1,0 +1,21 @@
+{
+  "description": "Export: book title/author containing Windows-illegal characters produces a valid file",
+  "library": [
+    {
+      "title": "My: \"Special?\" Book",
+      "authors": ["Author/Name, First"],
+      "lib_id": "77701"
+    }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "Export must succeed and the filename must have illegal chars replaced with _",
+      "args": ["export", "--id", "1", "--out", "{LIB}/exported_sanitized"],
+      "expected": { "status": "ok" },
+      "expected_file_exists": "data.file",
+      "expected_file_contains": { "path_from": "data.file", "text": "<FictionBook" },
+      "expected_text": ["My_"]
+    }
+  ]
+}

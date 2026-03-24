@@ -1,0 +1,32 @@
+{
+  "description": "Export: exporting multiple books from different archives - all files are valid FB2",
+  "library": [
+    { "title": "Book Alpha",   "authors": ["Writer,A,"], "archive": "arch-vol1.zip", "lib_id": "77711" },
+    { "title": "Book Beta",    "authors": ["Writer,B,"], "archive": "arch-vol2.zip", "lib_id": "77712" },
+    { "title": "Book Gamma",   "authors": ["Writer,C,"], "archive": "arch-vol3.zip", "lib_id": "77713" }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "Export book 1 from arch-vol1",
+      "args": ["export", "--id", "1", "--out", "{LIB}/multi_export"],
+      "expected": { "status": "ok" },
+      "expected_file_exists": "data.file",
+      "expected_file_contains": { "path_from": "data.file", "text": "<FictionBook" }
+    },
+    {
+      "description": "Export book 2 from arch-vol2",
+      "args": ["export", "--id", "2", "--out", "{LIB}/multi_export"],
+      "expected": { "status": "ok" },
+      "expected_file_exists": "data.file",
+      "expected_file_contains": { "path_from": "data.file", "text": "<FictionBook" }
+    },
+    {
+      "description": "Export book 3 from arch-vol3",
+      "args": ["export", "--id", "3", "--out", "{LIB}/multi_export"],
+      "expected": { "status": "ok" },
+      "expected_file_exists": "data.file",
+      "expected_file_contains": { "path_from": "data.file", "text": "<FictionBook" }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "description": "Get Book: book without a cover returns ok status and no cover path",
+  "library": [
+    {
+      "title": "Book Without Cover",
+      "authors": ["Author, NoCover"],
+      "lang": "en",
+      "rating": 3
+    }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "get-book should succeed even when there is no cover image",
+      "args": ["get-book", "--id", "1"],
+      "expected": {
+        "status": "ok",
+        "data": {
+          "title": "Book Without Cover"
+        }
+      }
+    }
+  ]
+}

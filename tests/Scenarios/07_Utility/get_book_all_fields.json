@@ -1,0 +1,43 @@
+{
+  "description": "Get Book: all metadata fields are returned when the book has complete data",
+  "library": [
+    {
+      "title": "Full Metadata Book",
+      "authors": ["Tolstoy, Leo"],
+      "genres": ["prose_classic"],
+      "series": "Collected Works",
+      "ser_no": 2,
+      "lib_id": "88801",
+      "keywords": "classic, russian, novel",
+      "lang": "ru",
+      "rating": 9,
+      "date": "2023-05-15",
+      "annotation": "A classic Russian novel about love and war."
+    }
+  ],
+  "config": {
+    "import": { "parseFb2": true }
+  },
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "get-book returns all expected fields including FB2 annotation",
+      "args": ["get-book", "--id", "1"],
+      "expected": {
+        "status": "ok",
+        "data": {
+          "title": "Full Metadata Book",
+          "authors": [ { "lastName": "Tolstoy", "firstName": "Leo" } ],
+          "genres": ["prose_classic"],
+          "series": "Collected Works",
+          "seriesNumber": 2,
+          "libId": "88801",
+          "keywords": "classic, russian, novel",
+          "language": "ru",
+          "rating": 9,
+          "annotation": "A classic Russian novel about love and war."
+        }
+      }
+    }
+  ]
+}

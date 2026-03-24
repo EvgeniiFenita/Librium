@@ -1,0 +1,34 @@
+{
+  "description": "Search: query with no parameters returns all books up to the limit",
+  "library": [
+    { "title": "Alpha Book",   "authors": ["Author,A,"] },
+    { "title": "Beta Book",    "authors": ["Author,B,"] },
+    { "title": "Gamma Book",   "authors": ["Author,C,"] },
+    { "title": "Delta Book",   "authors": ["Author,D,"] },
+    { "title": "Epsilon Book", "authors": ["Author,E,"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "Empty query with limit=10 returns all 5 books",
+      "args": ["query", "--limit", "10"],
+      "expected": {
+        "totalFound": 5,
+        "books": [
+          { "title": "Alpha Book" },
+          { "title": "Beta Book" },
+          { "title": "Gamma Book" },
+          { "title": "Delta Book" },
+          { "title": "Epsilon Book" }
+        ]
+      }
+    },
+    {
+      "description": "totalFound is correct even with limit=1",
+      "args": ["query", "--limit", "1"],
+      "expected": {
+        "totalFound": 5
+      }
+    }
+  ]
+}

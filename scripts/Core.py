@@ -7,6 +7,12 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
+# Ensure UTF-8 output on Windows (CP1252 terminal cannot encode Cyrillic/Greek etc.)
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 class CPaths:
     REPO_ROOT = Path(__file__).parent.parent.resolve()
     SCRIPTS_DIR = REPO_ROOT / "scripts"

@@ -1,0 +1,33 @@
+{
+  "description": "Integrity: importing the same library twice does not create duplicate books",
+  "library": [
+    { "title": "Unique Book One",   "authors": ["Author,A,"], "lib_id": "55501" },
+    { "title": "Unique Book Two",   "authors": ["Author,B,"], "lib_id": "55502" },
+    { "title": "Unique Book Three", "authors": ["Author,C,"], "lib_id": "55503" }
+  ],
+  "steps": [
+    {
+      "description": "First import",
+      "args": ["import"]
+    },
+    {
+      "description": "After first import: 3 books",
+      "args": ["stats"],
+      "expected": { "total_books": 3, "total_authors": 3 }
+    },
+    {
+      "description": "Second import of the same library",
+      "args": ["import"]
+    },
+    {
+      "description": "After second import: still exactly 3 books - no duplicates",
+      "args": ["stats"],
+      "expected": { "total_books": 3, "total_authors": 3 }
+    },
+    {
+      "description": "Query returns exactly 3 results",
+      "args": ["query", "--limit", "100"],
+      "expected": { "totalFound": 3 }
+    }
+  ]
+}

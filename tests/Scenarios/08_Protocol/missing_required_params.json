@@ -1,0 +1,31 @@
+{
+  "description": "Protocol: missing required parameters return error status without crashing the engine",
+  "library": [
+    { "title": "Param Test Book", "authors": ["Author, Test"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "export without --id must return an error",
+      "args": ["export", "--out", "{LIB}/out_no_id"],
+      "expect_error": true,
+      "expected": { "status": "error" }
+    },
+    {
+      "description": "Engine alive after missing --id",
+      "args": ["stats"],
+      "expected": { "total_books": 1 }
+    },
+    {
+      "description": "get-book without --id must return an error",
+      "args": ["get-book"],
+      "expect_error": true,
+      "expected": { "status": "error" }
+    },
+    {
+      "description": "Engine alive after missing get-book --id",
+      "args": ["stats"],
+      "expected": { "total_books": 1 }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "description": "Export: error when book ID does not exist in the database",
+  "library": [
+    { "title": "Only Book", "authors": ["Exporter, Test"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "Export a non-existent book ID - must return an error",
+      "args": ["export", "--id", "99999", "--out", "{LIB}/exported"],
+      "expect_error": true,
+      "expected": { "status": "error" }
+    },
+    {
+      "description": "Engine must remain alive after the failed export",
+      "args": ["stats"],
+      "expected": { "status": "ok" }
+    }
+  ]
+}

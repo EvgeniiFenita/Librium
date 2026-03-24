@@ -1,0 +1,33 @@
+{
+  "description": "Integrity: statistics (total_books, total_authors) are accurate after import and upgrade",
+  "library": [
+    { "title": "Stats Book One",   "authors": ["Author,First,"],  "archive": "arch1.zip" },
+    { "title": "Stats Book Two",   "authors": ["Author,First,"],  "archive": "arch1.zip" },
+    { "title": "Stats Book Three", "authors": ["Author,Second,"], "archive": "arch2.zip" },
+    { "title": "Stats Book Four",  "authors": ["Author,Second,"], "archive": "arch2.zip" },
+    { "title": "Stats Book Five",  "authors": ["Author,Third,"],  "archive": "arch2.zip" }
+  ],
+  "steps": [
+    {
+      "description": "After import: 5 books, 3 unique authors",
+      "args": ["import"]
+    },
+    {
+      "args": ["stats"],
+      "expected": { "total_books": 5, "total_authors": 3 }
+    },
+    {
+      "description": "Upgrade (no new archives): counts unchanged",
+      "args": ["upgrade"]
+    },
+    {
+      "args": ["stats"],
+      "expected": { "total_books": 5, "total_authors": 3 }
+    },
+    {
+      "description": "Query totalFound matches stats total_books",
+      "args": ["query", "--limit", "100"],
+      "expected": { "totalFound": 5 }
+    }
+  ]
+}

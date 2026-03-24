@@ -5,23 +5,31 @@ add_executable(UnitTests
     TestVersion.cpp
     TestZip.cpp
     TestZipInstance.cpp
+    TestZipEdgeCases.cpp
     TestInpx.cpp
     TestInpxExtra.cpp
+    TestInpxEdgeCases.cpp
     TestFb2.cpp
+    TestFb2Cover.cpp
+    TestFb2Encoding.cpp
     TestDb.cpp
     TestDbTransactions.cpp
     TestDatabaseQuery.cpp
     TestQueryEdgeCases.cpp
+    TestDatabaseGetBook.cpp
     TestConfig.cpp
     TestBookFilter.cpp
     TestConfigUtils.cpp
+    TestConfigEdgeCases.cpp
     TestLogger.cpp
     TestLoggerExtra.cpp
     TestIndexer.cpp
     TestStringUtils.cpp
+    TestStringUtilsSanitize.cpp
     TestBase64.cpp
     TestThreadSafeQueue.cpp
     TestSearchQueryParser.cpp
+    TestSearchQueryParserEdgeCases.cpp
     TestSqliteFunctions.cpp
 )
 

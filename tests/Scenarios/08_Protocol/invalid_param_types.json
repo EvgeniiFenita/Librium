@@ -1,0 +1,31 @@
+{
+  "description": "Protocol: invalid parameter types return error or a safe fallback without crashing the engine",
+  "library": [
+    { "title": "Type Test Book", "authors": ["Author, Test"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "get-book with non-numeric id string - engine must not crash",
+      "args": ["get-book", "--id", "not_a_number"],
+      "expect_error": true,
+      "expected": { "status": "error" }
+    },
+    {
+      "description": "Engine alive after invalid id type",
+      "args": ["stats"],
+      "expected": { "total_books": 1 }
+    },
+    {
+      "description": "export with non-numeric id - engine must not crash",
+      "args": ["export", "--id", "abc", "--out", "{LIB}/out_invalid"],
+      "expect_error": true,
+      "expected": { "status": "error" }
+    },
+    {
+      "description": "Engine alive after all invalid type requests",
+      "args": ["stats"],
+      "expected": { "total_books": 1 }
+    }
+  ]
+}

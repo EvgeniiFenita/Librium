@@ -1,0 +1,29 @@
+{
+  "description": "Upgrade: with multiple archives already indexed, upgrade inserts 0 books and skips all archives",
+  "library": [
+    { "title": "Vol1 Book One",   "authors": ["Author,A,"], "archive": "vol1.zip" },
+    { "title": "Vol1 Book Two",   "authors": ["Author,A,"], "archive": "vol1.zip" },
+    { "title": "Vol2 Book One",   "authors": ["Author,B,"], "archive": "vol2.zip" },
+    { "title": "Vol2 Book Two",   "authors": ["Author,B,"], "archive": "vol2.zip" }
+  ],
+  "steps": [
+    {
+      "args": ["import"],
+      "expected": { "status": "ok", "data": { "inserted": 4 } }
+    },
+    {
+      "args": ["stats"],
+      "expected": { "total_books": 4, "total_authors": 2 }
+    },
+    {
+      "description": "Upgrade with no new archives: nothing should be inserted",
+      "args": ["upgrade"],
+      "expected": { "status": "ok", "data": { "inserted": 0 } }
+    },
+    {
+      "description": "Stats are unchanged after no-op upgrade",
+      "args": ["stats"],
+      "expected": { "total_books": 4, "total_authors": 2 }
+    }
+  ]
+}

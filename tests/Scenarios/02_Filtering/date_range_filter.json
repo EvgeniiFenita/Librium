@@ -1,0 +1,68 @@
+{
+  "description": "Filtering: dateFrom and dateTo query parameters restrict results to the specified date range",
+  "library": [
+    { "title": "Old Book",     "authors": ["Author,A,"], "date": "2010-03-15" },
+    { "title": "Mid Book",     "authors": ["Author,B,"], "date": "2015-07-20" },
+    { "title": "New Book",     "authors": ["Author,C,"], "date": "2020-11-01" },
+    { "title": "Newest Book",  "authors": ["Author,D,"], "date": "2023-01-10" }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "dateFrom: books after 2016-01-01",
+      "args": ["query", "--dateFrom", "2016-01-01", "--limit", "10"],
+      "expected": {
+        "totalFound": 2,
+        "books": [
+          { "title": "New Book" },
+          { "title": "Newest Book" }
+        ]
+      }
+    },
+    {
+      "description": "Exclusion: Old Book must NOT appear in dateFrom=2016 results",
+      "args": ["query", "--title", "Old Book", "--dateFrom", "2016-01-01", "--limit", "10"],
+      "expected": { "totalFound": 0 }
+    },
+    {
+      "description": "dateTo: books before 2016-01-01",
+      "args": ["query", "--dateTo", "2015-12-31", "--limit", "10"],
+      "expected": {
+        "totalFound": 2,
+        "books": [
+          { "title": "Old Book" },
+          { "title": "Mid Book" }
+        ]
+      }
+    },
+    {
+      "description": "Exclusion: Newest Book must NOT appear in dateTo=2015 results",
+      "args": ["query", "--title", "Newest Book", "--dateTo", "2015-12-31", "--limit", "10"],
+      "expected": { "totalFound": 0 }
+    },
+    {
+      "description": "dateFrom + dateTo: inclusive range 2014-01-01 to 2021-01-01",
+      "args": ["query", "--dateFrom", "2014-01-01", "--dateTo", "2021-01-01", "--limit", "10"],
+      "expected": {
+        "totalFound": 2,
+        "books": [
+          { "title": "Mid Book" },
+          { "title": "New Book" }
+        ]
+      }
+    },
+    {
+      "description": "Exact single day: dateFrom == dateTo == 2015-07-20",
+      "args": ["query", "--dateFrom", "2015-07-20", "--dateTo", "2015-07-20", "--limit", "10"],
+      "expected": {
+        "totalFound": 1,
+        "books": [ { "title": "Mid Book" } ]
+      }
+    },
+    {
+      "description": "Exclusion: Old Book must NOT appear in exact single-day range for 2015-07-20",
+      "args": ["query", "--title", "Old Book", "--dateFrom", "2015-07-20", "--dateTo", "2015-07-20", "--limit", "10"],
+      "expected": { "totalFound": 0 }
+    }
+  ]
+}

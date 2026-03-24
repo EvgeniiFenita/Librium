@@ -1,0 +1,20 @@
+{
+  "description": "Get Book: error when requested book ID does not exist",
+  "library": [
+    { "title": "Existing Book", "authors": ["Author, Test"] }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "get-book for a non-existent ID must return an error status",
+      "args": ["get-book", "--id", "99999"],
+      "expect_error": true,
+      "expected": { "status": "error" }
+    },
+    {
+      "description": "Engine remains alive after the failed request",
+      "args": ["stats"],
+      "expected": { "total_books": 1 }
+    }
+  ]
+}
