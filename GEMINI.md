@@ -177,7 +177,7 @@ void Execute(std::string queryText);
 
 ## Build & Environment
 - **Generator**: Ninja (preferred) or Visual Studio 18 2026.
-- **Master Pipeline**: `python scripts/Run.py --preset <preset> [--real-library <path>] [--clean]`. ALWAYS use this script for building and testing. DO NOT use `Build.py` or `Test.py` directly.
+- **Master Pipeline**: `python scripts/Run.py --preset <preset> [--library <path>] [--web [--demo|--library <path>]] [--clean]`. ALWAYS use this script for building and testing.
 - **Presets**: `x64-debug`, `x64-release`, `linux-debug`, `linux-release`.
 - **Dependencies**: `vcpkg` in manifest mode. Requires `VCPKG_ROOT` env var.
 
@@ -199,8 +199,9 @@ Automation scripts in `scripts/` must follow these rules to maintain consistency
 - **Stages**: 
   1. **Unit**: Fast C++ tests via Catch2. Self-contained, no external scripts. Covers filters, encoding, Base64, concurrency, transactions, INPX (streaming & edge cases), ZIP (RAII & edge cases), FB2 (cover extraction & encoding edge cases), logger, search query parser, database `get-book` fields, string sanitization, config (utilities & edge cases).
   2. **Scenarios**: Data-driven behavioral tests using `LibraryGenerator` (synthetic data) and `ScenarioTester`. Communicates with `Librium.exe` via TCP. Covers 8 categories: search operators, query filters, parsing & stats, upgrade/re-import, export, utility (covers), protocol error resilience, data integrity.
-  3. **Web**: Backend API tests using **Jest + Supertest** with a mock TCP server (no real engine needed). Run via `python scripts/Run.py test --stage web`. Artifacts and `node_modules` go to `out/artifacts/<preset>/web_test/` — the `web/` source directory must NEVER receive test dependencies. The fbc EPUB converter is **not** downloaded during this stage; tests validate the "converter absent" path only.
-  4. **Smoke (Real)**: Optional full-scale import test on real `Lib.rus.ec` data (triggered by `--real-library`).
+  3. **Web**: Backend API tests using **Jest + Supertest** with a mock TCP server (no real engine needed). Run automatically as part of the default CI pipeline. Artifacts and `node_modules` go to `out/artifacts/<preset>/web_test/` — the `web/` source directory must NEVER receive test dependencies. The fbc EPUB converter is **not** downloaded during this stage; tests validate the "converter absent" path only. **Not supported in Docker mode** (silently skipped).
+  4. **Synthetic Smoke**: Automatic end-to-end import/search/export/covers cycle on a generated 100-book library. Always runs at the end of the CI pipeline, including in Docker mode. Output in `out/artifacts/<preset>/synthetic_run/`.
+  5. **Smoke (Real)**: Optional full-scale import test on real `Lib.rus.ec` data (triggered by `--library PATH` without `--web`). Runs instead of the CI pipeline.
 - **New Features**: Every new CLI command, search parameter, or SQLite function MUST have corresponding tests (Unit or Scenario).
 - **Artifacts**: All temporary data must stay in `out/artifacts/<preset>/`. NEVER create files in `libs/`, `apps/`, `tests/`, or `web/`.
 

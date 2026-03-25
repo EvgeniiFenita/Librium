@@ -48,14 +48,11 @@ Librium/
 │   ├── Utils/              ← Shared utilities (Base64, Queue, etc.)
 │   └── Zip/                ← Unicode-aware archive handling
 ├── scripts/                ← Unified Python automation pipeline
-│   ├── Run.py              ← Master entry point (orchestrator)
-│   ├── RunWeb.py           ← Web UI automation script
+│   ├── Run.py              ← Master entry point (build, test, web server, smoke test)
 │   ├── Core.py             ← Shared core logic & paths
 │   ├── LibraryGenerator.py ← Synthetic data generator
 │   ├── ScenarioTester.py   ← JSON scenario runner
-│   ├── SmokeTester.py      ← End-to-end validation
-│   ├── Build.py            ← Build shortcut wrapper
-│   └── Test.py             ← Test shortcut wrapper
+│   └── SmokeTester.py      ← End-to-end validation
 ├── tests/
 │   ├── Scenarios/          ← Data-driven E2E scenarios (.json), organized by category
 │   └── Unit/               ← Catch2 test suite (self-contained)
@@ -89,25 +86,31 @@ The project uses a unified Python-based pipeline for all platforms. **All tempor
 This is the recommended way to work with the project. It automatically handles build and all test stages.
 
 ```powershell
-# Build and run all tests (Unit + Integration) on Windows
+# Build and run all tests (Unit + Scenario + Web API) on Windows
 python scripts/Run.py --preset x64-release
 
-# Full pipeline on Linux (via Docker) including Real Library tests
-python scripts/Run.py --preset linux-release --real-library "C:/Path/To/Library"
+# Linux CI via Docker (Unit + Scenario only; web tests are skipped in Docker)
+python scripts/Run.py --preset linux-release
+
+# Smoke test against a real library
+python scripts/Run.py --preset x64-release --library "C:/Path/To/Library"
 
 # Clean build
 python scripts/Run.py --preset x64-debug --clean
 ```
 
-### Test Stages in `scripts/Test.py`
+### Test Stages
 1.  **Stage 1: UNIT**: Fast C++ unit tests (Catch2). Fully self-contained, no external scripts required.
     - **Coverage**: Filters (genres/size/authors/keywords), string encoding (UTF-8/CP1251/UTF-16) and sanitization, Base64, thread-safe concurrency, database transactions and `get-book` field completeness, INPX streaming and edge cases, ZIP RAII and edge cases, FB2 cover extraction and encoding edge cases, logger configuration, search query parser, config utilities and edge cases.
     - **Crash Diagnostics**: `TestMain.cpp` writes `unit_tests.log` next to `UnitTests.exe` on every run for post-mortem analysis.
-2.  **Stage 2: SCENARIO**: Behavioral tests. 
+2.  **Stage 2: SCENARIO**: Behavioral tests.
     - Uses `LibraryGenerator.py` to create a "miniature" realistic library.
     - Communicates with `Librium.exe` via **TCP sockets**.
     - Covers 8 scenario categories: search operators, query filters, parsing & stats, upgrade/re-import, export, utility (covers), protocol error resilience, data integrity.
-    - Includes **Smoke (Real)** test if `--real-library` path is provided.
+3.  **Stage 3: WEB API**: Jest/Supertest tests for the Node.js proxy. Run in an isolated artifact directory; the `web/` source directory is never touched.
+    - Not supported in Docker mode (silently skipped).
+4.  **Stage 4: SYNTHETIC SMOKE TEST**: Full end-to-end import/search/export cycle on a generated 100-book library. Validates the complete engine pipeline. Runs on every CI invocation, including Docker mode.
+5.  **Smoke (--library)**: Full end-to-end validation on a real `Lib.rus.ec` library. Triggered by passing `--library PATH` (without `--web`). Runs instead of the standard CI pipeline.
 
 ---
 
@@ -267,6 +270,6 @@ Librium includes a modern, dark-themed web interface for browsing and downloadin
 - **Detailed Docs**: See **[Web Interface Documentation](Web_Interface.md)**.
 - **Quick Start**:
   ```powershell
-  python scripts/RunWeb.py --preset x64-release --library "C:/Path/To/Library"
+  python scripts/Run.py --preset x64-release --web --library "C:/Path/To/Library"
   ```
 

@@ -32,7 +32,7 @@ The web part follows a **Proxy-Backend** pattern to bridge the C++ Engine's TCP 
   - **`routes/covers.js`** — `GET /covers/:id/cover` — serves cover images with LRU caching.
   - **`routes/download.js`** — `GET /api/download/:id` — FB2 and optional EPUB download via fbc converter.
   - **`routes/library.js`** — Import, upgrade, and stats endpoints.
-  - **EPUB Conversion**: Optionally converts exported FB2 files to EPUB2 format using the **fbc** (fb2cng) converter. The converter is downloaded automatically by `RunWeb.py` and placed in the `tools/` directory. Controlled by `toolsDir` and `fb2cngExe` config fields. If the converter is absent, FB2 download remains available and EPUB buttons are hidden in the UI.
+  - **EPUB Conversion**: Optionally converts exported FB2 files to EPUB2 format using the **fbc** (fb2cng) converter. The converter is downloaded automatically by `Run.py --web` and placed in the `tools/` directory. Controlled by `toolsDir` and `fb2cngExe` config fields. If the converter is absent, FB2 download remains available and EPUB buttons are hidden in the UI.
   - **Security**: Validates all incoming book IDs and sanitizes query parameters to prevent attacks.
   - **Static Server**: Serves the frontend files and cover images from the `meta/` directory.
 
@@ -79,16 +79,16 @@ The frontend requests books in batches of 40. The `IntersectionObserver` pre-fet
 ## 4. Usage & Deployment
 
 ### Local Development / Windows
-The easiest way to run the web interface is using the provided Python automation script.
+The easiest way to run the web interface is using the unified automation script.
 
 **With a real library:**
 ```powershell
-python scripts/RunWeb.py --preset x64-release --library "C:\Path\To\Your\Library"
+python scripts/Run.py --preset x64-release --web --library "C:\Path\To\Your\Library"
 ```
 
 **With a synthetic demo library (~350 books, no real data required):**
 ```powershell
-python scripts/RunWeb.py --demo
+python scripts/Run.py --web --demo
 ```
 
 The `--demo` flag generates a synthetic library on the first run and reuses it on subsequent runs. All generated files are placed under `out/artifacts/web/demo_lib/`.
@@ -146,10 +146,10 @@ The web interface includes a backend API test suite to ensure security and relia
 - Path traversal, ID validation, export error paths, LRU cover cache, engine mock responses.
 
 ### Running Tests
-To run all web-related tests, use the master automation script:
+Web API tests run as part of the standard CI pipeline:
 
 ```powershell
-python scripts/Run.py test --stage web
+python scripts/Run.py --preset x64-debug
 ```
 
-This will automatically prepare the environment, install dependencies, and execute the test suite.
+This will automatically prepare the isolated test environment, install npm dependencies in `out/artifacts/<preset>/web_test/`, and execute the test suite. The `web/` source directory is never modified.

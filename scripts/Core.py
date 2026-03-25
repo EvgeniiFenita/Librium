@@ -65,6 +65,10 @@ class CUI:
         print(f">>> {msg}", flush=True)
 
     @staticmethod
+    def warn(msg: str):
+        print(f"[!] WARN: {msg}", flush=True, file=sys.stderr)
+
+    @staticmethod
     def error(msg: str):
         print(f"\n[!] ERROR: {msg}", flush=True, file=sys.stderr)
 
