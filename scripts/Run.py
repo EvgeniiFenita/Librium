@@ -29,6 +29,9 @@ examples:
   # Linux CI via Docker (unit + scenario only; web tests are skipped)
   python Run.py --preset linux-debug
 
+  # Build linux-release and create a self-contained deployment Docker image
+  python Run.py --preset linux-release --image
+
   # Smoke test against a real library
   python Run.py --preset x64-release --library "D:/lib.rus.ec"
 
@@ -451,6 +454,184 @@ def run_gen(extra_args: list) -> bool:
     return CRunner.run_python("LibraryGenerator.py", extra_args, exit_on_fail=False)
 
 
+def _download_fbc_linux_amd64(tools_dir: Path) -> bool:
+    """
+    Download the fbc EPUB converter for linux-amd64 into tools_dir.
+    Forces the linux-amd64 target regardless of the host platform so that
+    the deployment image is always built for the correct architecture.
+    """
+    import urllib.request
+    import json
+    import zipfile
+
+    exe_name = "fbc"
+    if (tools_dir / exe_name).exists():
+        CUI.info("EPUB converter (fbc) already present in staging context.")
+        return True
+
+    CUI.info("Downloading EPUB converter (fbc) for linux-amd64...")
+    tools_dir.mkdir(parents=True, exist_ok=True)
+
+    asset_pattern = "linux-amd64.zip"
+
+    try:
+        release_url = "https://api.github.com/repos/rupor-github/fb2cng/releases/latest"
+        with urllib.request.urlopen(
+            urllib.request.Request(release_url, headers={"User-Agent": "Librium-Runner"})
+        ) as response:
+            release_data = json.loads(response.read().decode())
+
+        asset = next(
+            (
+                a for a in release_data["assets"]
+                if a["name"].startswith("fbc-") and a["name"].endswith(asset_pattern)
+            ),
+            None,
+        )
+        if not asset:
+            CUI.error(f"Could not find fbc asset matching {asset_pattern}")
+            return False
+
+        archive_path = tools_dir / asset["name"]
+        CUI.info(f"Downloading {asset['browser_download_url']}...")
+        urllib.request.urlretrieve(asset["browser_download_url"], archive_path)
+
+        CUI.info(f"Extracting {archive_path.name}...")
+        resolved_tools_dir = tools_dir.resolve()
+        with zipfile.ZipFile(archive_path, "r") as zip_ref:
+            for member in zip_ref.infolist():
+                target_path = (tools_dir / member.filename).resolve()
+                if not target_path.is_relative_to(resolved_tools_dir):
+                    raise Exception(f"Zip slip attempt detected: {member.filename}")
+                zip_ref.extract(member, tools_dir)
+
+        archive_path.unlink()
+
+        fbc_path = tools_dir / exe_name
+        if not fbc_path.exists():
+            CUI.error("fbc binary not found in archive after extraction.")
+            return False
+
+        fbc_path.chmod(0o755)
+        CUI.info("EPUB converter installed successfully.")
+        return True
+
+    except Exception as e:
+        CUI.error(f"Failed to download EPUB converter: {e}")
+        return False
+
+
+def run_build_image(preset: str) -> bool:
+    """
+    Package the compiled linux binary and web server into a self-contained
+    deployment Docker image and save it as a gzip-compressed tar to
+    out/build/<preset>/librium-image.tar.gz.
+
+    Expects the project to already be built (binary must exist at the standard
+    path for the given preset). Call this after run_docker() succeeds.
+    """
+    import gzip as gz
+
+    CUI.banner(f"LIBRIUM DEPLOYMENT IMAGE [Preset: {preset}]")
+
+    build_dir = CPaths.get_build_dir(preset)
+    # Always a Linux ELF — no .exe extension, no config subdirectory —
+    # regardless of the host platform the script runs on.
+    binary_path = build_dir / "apps" / "Librium" / "Librium"
+
+    if not binary_path.exists():
+        CUI.error(
+            f"Librium binary not found: {binary_path}\n"
+            "Build the project first (run without --image to verify the build succeeds)."
+        )
+        return False
+
+    context_dir = build_dir / "image-context"
+    if context_dir.exists():
+        shutil.rmtree(context_dir)
+    context_dir.mkdir(parents=True)
+
+    CUI.step(1, "PREPARING DOCKER BUILD CONTEXT")
+
+    # Copy the compiled C++ binary
+    bin_dir = context_dir / "bin"
+    bin_dir.mkdir()
+    shutil.copy2(binary_path, bin_dir / "Librium")
+    CUI.info(f"Copied binary: {binary_path}")
+
+    # Copy web server source files (skip tests/ and node_modules — npm installs inside Docker)
+    web_src = CPaths.REPO_ROOT / "web"
+    web_dst = context_dir / "web"
+    web_dst.mkdir()
+    skip = {"node_modules", "tests"}
+    for item in web_src.iterdir():
+        if item.name in skip:
+            continue
+        dest = web_dst / item.name
+        if item.is_dir():
+            shutil.copytree(item, dest)
+        else:
+            shutil.copy2(item, dest)
+    CUI.info("Copied web server files.")
+
+    # Copy the container startup script
+    entrypoint_src = CPaths.REPO_ROOT / "deploy" / "entrypoint.sh"
+    shutil.copy2(entrypoint_src, context_dir / "entrypoint.sh")
+    CUI.info("Copied entrypoint.sh.")
+
+    # Download fbc EPUB converter for linux-amd64 (image must be self-contained)
+    CUI.step(2, "DOWNLOADING EPUB CONVERTER (linux-amd64)")
+    if not _download_fbc_linux_amd64(context_dir / "tools"):
+        shutil.rmtree(context_dir)
+        CUI.error("Cannot build a self-contained image without the EPUB converter.")
+        return False
+
+    # Build the Docker deployment image
+    image_tag = "librium:latest"
+    dockerfile = CPaths.REPO_ROOT / "Dockerfile.deploy"
+    CUI.step(3, f"BUILDING DOCKER IMAGE [{image_tag}]")
+    if not CRunner.run(
+        ["docker", "build", "-t", image_tag, "-f", str(dockerfile), str(context_dir)],
+        exit_on_fail=False,
+    ):
+        shutil.rmtree(context_dir)
+        CUI.error("Docker image build failed.")
+        return False
+
+    # Save and compress the image
+    output_path = build_dir / "librium-image.tar.gz"
+    CUI.step(4, f"SAVING IMAGE → {output_path}")
+    try:
+        save_proc = subprocess.Popen(
+            ["docker", "save", image_tag],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        with gz.open(str(output_path), "wb") as f:
+            shutil.copyfileobj(save_proc.stdout, f)
+        save_proc.wait()
+        if save_proc.returncode != 0:
+            err = save_proc.stderr.read().decode(errors="replace")
+            shutil.rmtree(context_dir)
+            CUI.error(f"docker save failed: {err}")
+            return False
+    except Exception as e:
+        shutil.rmtree(context_dir)
+        CUI.error(f"Failed to save image: {e}")
+        return False
+
+    shutil.rmtree(context_dir)
+
+    CUI.info(f"Image saved: {output_path}")
+    CUI.info("Deploy instructions:")
+    CUI.info("  1. Copy librium-image.tar.gz and deploy/docker-compose.yml to the target Linux machine.")
+    CUI.info("  2. docker load -i librium-image.tar.gz")
+    CUI.info("  3. Edit docker-compose.yml (set library path and INPX file name).")
+    CUI.info("  4. docker compose up -d")
+    CUI.info("  5. Open http://<server-ip>:8080 from any device on the local network.")
+    return True
+
+
 def run_docker(preset: str, clean: bool) -> bool:
     """
     Route the CI pipeline into a Linux Docker container.
@@ -532,6 +713,16 @@ def _parse_args():
             "Only valid with --web. The library is reused on subsequent runs."
         ),
     )
+    parser.add_argument(
+        "--image",
+        action="store_true",
+        help=(
+            "After a successful linux-* build, package the compiled binary and web server "
+            "into a self-contained deployment Docker image. "
+            "Saves the image to out/build/<preset>/librium-image.tar.gz. "
+            "Requires a linux-* preset; incompatible with --web, --library, and --demo."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -540,6 +731,10 @@ def _parse_args():
         parser.error("--demo requires --web")
     if args.web and not args.demo and not args.library:
         parser.error("--web requires either --demo or --library PATH")
+    if args.image and not args.preset.startswith("linux"):
+        parser.error("--image requires a linux-* preset (linux-debug or linux-release)")
+    if args.image and (args.web or args.library or args.demo):
+        parser.error("--image cannot be combined with --web, --library, or --demo")
 
     return args
 
@@ -592,6 +787,11 @@ def main():
         if not success:
             CUI.banner("FAILED")
             sys.exit(1)
+        if args.image:
+            if not run_build_image(args.preset):
+                CUI.banner("FAILED")
+                sys.exit(1)
+            CUI.banner("COMPLETED SUCCESSFULLY")
         return
 
     elif in_docker:

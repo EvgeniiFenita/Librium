@@ -1,0 +1,28 @@
+# Librium deployment template.
+#
+# Usage:
+#   1. Load the image:
+#        docker load -i librium-image.tar.gz
+#   2. Set LIBRIUM_LIBRARY_PATH to the path of your library folder on the host.
+#   3. Set the volume paths below accordingly.
+#   4. Start the service:
+#        docker compose up -d
+#   5. Open http://<server-ip>:8080 from any device on the local network.
+#
+# The .inpx file and archives directory are detected automatically.
+# On first start, Librium will index the library — this may take several minutes.
+# Progress is logged to /data/librium.log inside the container (mapped to the data volume).
+
+services:
+  librium:
+    image: librium:latest
+    container_name: librium
+    ports:
+      - "8080:8080"          # <host-port>:<container-port>
+    volumes:
+      - /path/to/library:/library:ro   # library folder (read-only)
+      - /path/to/data:/data            # database, logs, covers, temp files
+    environment:
+      - LIBRIUM_LIBRARY_PATH=/library
+      - WEB_PORT=8080
+    restart: unless-stopped

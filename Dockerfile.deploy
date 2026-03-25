@@ -1,0 +1,34 @@
+# Deployment image for Librium.
+# Built from pre-compiled artifacts — no toolchain, no source code.
+# Produced by: python scripts/Run.py --preset linux-release --image
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Node.js (>=18) and runtime dependencies required by the C++ binary
+RUN apt-get update && apt-get install -y \
+    nodejs \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
+
+# --- Web server ---
+# Copy source first so npm install is a separate layer
+COPY web/ /app/web/
+WORKDIR /app/web
+RUN npm install --production --silent
+
+# --- C++ engine binary ---
+COPY bin/Librium /app/librium/Librium
+RUN chmod +x /app/librium/Librium
+
+# --- EPUB converter ---
+COPY tools/ /app/tools/
+RUN chmod +x /app/tools/fbc
+
+# --- Container startup script ---
+COPY entrypoint.sh /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+
+EXPOSE 8080
+
+ENTRYPOINT ["/entrypoint.sh"]

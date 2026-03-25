@@ -49,7 +49,7 @@ Librium/
 │   ├── Utils/              ← Shared utilities (Base64, Queue, etc.)
 │   └── Zip/                ← Unicode-aware archive handling
 ├── scripts/                ← Unified Python automation pipeline
-│   ├── Run.py              ← Master entry point (build, test, web server, smoke test)
+│   ├── Run.py              ← Master entry point (build, test, web server, smoke test, image)
 │   ├── Core.py             ← Shared core logic & paths
 │   ├── LibraryGenerator.py ← Synthetic data generator
 │   ├── ScenarioTester.py   ← JSON scenario runner
@@ -72,7 +72,11 @@ Librium/
 │   ├── server.js           ← Thin orchestrator: wires lib/ and routes/
 │   ├── package.json        ← Node dependencies (Express, Jest)
 │   └── web_config.example.json ← Config template (copy and adjust for local use)
-├── Dockerfile.linux        ← Linux build environment
+├── deploy/                 ← Deployment templates
+│   ├── docker-compose.yml  ← Ready-to-use Compose template for production deployment
+│   └── entrypoint.sh       ← Container startup script (auto-detects INPX and archives)
+├── Dockerfile.linux        ← Linux build environment (toolchain image)
+├── Dockerfile.deploy       ← Deployment image (runtime only, no toolchain)
 ├── CMakeLists.txt          ← Root build configuration
 └── CMakePresets.json       ← Cross-platform build presets
 ```
@@ -92,6 +96,9 @@ python scripts/Run.py --preset x64-release
 
 # Linux CI via Docker (Unit + Scenario only; web tests are skipped in Docker)
 python scripts/Run.py --preset linux-release
+
+# Build linux-release and create a self-contained deployment Docker image
+python scripts/Run.py --preset linux-release --image
 
 # Smoke test against a real library
 python scripts/Run.py --preset x64-release --library "C:/Path/To/Library"
@@ -274,3 +281,57 @@ Librium includes a modern, dark-themed web interface for browsing and downloadin
   python scripts/Run.py --preset x64-release --web --library "C:/Path/To/Library"
   ```
 
+---
+
+## 10. Docker Deployment
+
+Librium can be packaged into a self-contained Docker image for deployment on any Linux machine. The image includes the compiled C++ engine, the Node.js web server with all dependencies, and the `fbc` EPUB converter. No internet access or build toolchain is required on the target machine.
+
+### Building the Image
+
+Run the following command on a Windows machine with Docker Desktop installed:
+
+```powershell
+python scripts/Run.py --preset linux-release --image
+```
+
+This will:
+1. Build the C++ engine inside the `Dockerfile.linux` build container.
+2. Run the full CI test suite (unit + scenario + synthetic smoke).
+3. Download the `fbc` EPUB converter for `linux-amd64`.
+4. Build the `librium:latest` deployment image (`Dockerfile.deploy`) from the compiled artifacts.
+5. Save the image to `out/build/linux-release/librium-image.tar.gz`.
+
+### Deploying on a Linux Machine
+
+```bash
+# 1. Load the image
+docker load -i librium-image.tar.gz
+
+# 2. Copy deploy/docker-compose.yml and edit it
+#    Set the library path and data directory:
+volumes:
+  - /path/to/library:/library:ro
+  - /path/to/data:/data
+
+# 3. Start the service
+docker compose up -d
+```
+
+The web interface will be available at `http://<server-ip>:8080` from any device on the local network.
+
+### Configuration
+
+All configuration is done via environment variables in `docker-compose.yml`:
+
+| Variable | Required | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `LIBRIUM_LIBRARY_PATH` | ✅ | — | Path to the library folder **inside** the container (e.g. `/library`) |
+| `LIBRIUM_INPX_FILE` | — | auto-detected | Name of the `.inpx` file. Detected automatically if not set. |
+| `LIBRIUM_ARCHIVES_DIR` | — | auto-detected | Path to the folder with ZIP archives. Prefers `lib.rus.ec/` subfolder; falls back to `LIBRIUM_LIBRARY_PATH`. |
+| `WEB_PORT` | — | `8080` | HTTP port for the web interface. |
+| `LIBRIUM_PORT` | — | `9001` | Internal TCP port for C++ engine communication. |
+
+On first start, Librium indexes the library. This may take several minutes for large collections. Progress is written to `/data/librium.log`.
+
+> **Performance note**: If the library is on a Windows NTFS drive accessed via WSL2 (`/mnt/c/...`), indexing will be significantly slower due to the 9P filesystem bridge. For best performance, copy the library to the native Linux filesystem first.
