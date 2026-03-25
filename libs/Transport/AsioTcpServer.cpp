@@ -6,6 +6,8 @@ using asio::ip::tcp;
 
 namespace Librium::Transport {
 
+constexpr char kMessageDelimiter = '\n';
+
 CAsioTcpServer::CAsioTcpServer(uint16_t port, MessageHandlerFactory factory)
     : m_port(port), m_factory(std::move(factory))
 {
@@ -29,7 +31,7 @@ void CAsioTcpServer::Run()
         auto sendCallback = [&socket](const std::string& msg)
         {
             asio::error_code error;
-            asio::write(socket, asio::buffer(msg + "\n"), error);
+            asio::write(socket, asio::buffer(msg + kMessageDelimiter), error);
             if (error)
             {
                 LOG_ERROR("Failed to write async message: {}", error.message());
@@ -44,7 +46,7 @@ void CAsioTcpServer::Run()
         while (true)
         {
             asio::error_code error;
-            asio::read_until(socket, buffer, '\n', error);
+            asio::read_until(socket, buffer, kMessageDelimiter, error);
 
             if (error == asio::error::eof || error == asio::error::connection_reset)
             {

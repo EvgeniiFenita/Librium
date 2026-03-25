@@ -242,11 +242,11 @@ class CSmokeTester:
                 resp = self._read_response(sock_file)
                 if resp and resp.get("status") == "ok":
                     file_path = resp.get("data", {}).get("file")
-                    if not file_path or not os.path.exists(file_path):
+                    if not file_path or not Path(file_path).exists():
                         CUI.error(f"[{idx}/10] Export failed: file not found at {file_path}")
                         export_errors += 1
                         continue
-                    size = os.path.getsize(file_path)
+                    size = Path(file_path).stat().st_size
                     CUI.info(f"[{idx}/10] Exported ID {book_id}: {size / 1024:.1f} KB")
                 else:
                     CUI.error(f"[{idx}/10] Export failed for ID {book_id}: {resp.get('error') if resp else 'No response'}")

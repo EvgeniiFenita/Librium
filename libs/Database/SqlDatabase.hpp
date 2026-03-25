@@ -3,6 +3,7 @@
 #include "SqlStatement.hpp"
 #include <memory>
 #include <string>
+#include <string_view>
 
 namespace Librium::Db {
 
@@ -11,8 +12,8 @@ class ISqlDatabase
 public:
     virtual ~ISqlDatabase() = default;
 
-    virtual void Exec(const std::string& sql) = 0;
-    [[nodiscard]] virtual std::unique_ptr<ISqlStatement> Prepare(const std::string& sql) = 0;
+    virtual void Exec(std::string_view sql) = 0;
+    [[nodiscard]] virtual std::unique_ptr<ISqlStatement> Prepare(std::string_view sql) = 0;
 
     virtual void BeginTransaction() = 0;
     virtual void Commit() = 0;

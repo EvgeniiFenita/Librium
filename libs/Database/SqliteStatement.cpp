@@ -34,9 +34,9 @@ void CSqliteStatement::BindInt64(int index, int64_t value)
     Check(sqlite3_bind_int64(m_stmt.get(), index, value), "BindInt64");
 }
 
-void CSqliteStatement::BindText(int index, const std::string& value)
+void CSqliteStatement::BindText(int index, std::string_view value)
 {
-    Check(sqlite3_bind_text(m_stmt.get(), index, value.c_str(), -1, SQLITE_TRANSIENT), "BindText");
+    Check(sqlite3_bind_text(m_stmt.get(), index, value.data(), static_cast<int>(value.size()), SQLITE_TRANSIENT), "BindText");
 }
 
 void CSqliteStatement::BindNull(int index)

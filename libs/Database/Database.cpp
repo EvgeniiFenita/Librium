@@ -37,8 +37,8 @@ void CDatabase::BeginBulkImport()
 {
     try
     {
-        m_db->Exec(std::string(Sql::PragmaJournalOff));
-        m_db->Exec(std::string(Sql::PragmaSyncOff));
+        m_db->Exec(Sql::PragmaJournalOff);
+        m_db->Exec(Sql::PragmaSyncOff);
         LOG_INFO("Database switched to bulk import mode (journal=OFF, sync=OFF)");
     }
     catch (const std::exception& e)
@@ -52,13 +52,14 @@ void CDatabase::EndBulkImport()
 {
     try
     {
-        m_db->Exec(std::string(Sql::PragmaWal));
-        m_db->Exec(std::string(Sql::PragmaSyncNormal));
+        m_db->Exec(Sql::PragmaWal);
+        m_db->Exec(Sql::PragmaSyncNormal);
         LOG_INFO("Database restored to WAL mode after bulk import");
     }
     catch (const std::exception& e)
     {
         LOG_ERROR("EndBulkImport failed: {}", e.what());
+        throw;
     }
 }
 
@@ -424,7 +425,7 @@ struct SQueryBindValues
     std::string series;
 };
 
-void BindQueryParamsCustom(ISqlStatement* stmt, const SQueryParams& params, const SQueryBindValues& binds)
+int BindQueryParamsCustom(ISqlStatement* stmt, const SQueryParams& params, const SQueryBindValues& binds)
 {
     int idx = 1;
     if (!binds.title.empty()) stmt->BindText(idx++, binds.title);
@@ -438,6 +439,7 @@ void BindQueryParamsCustom(ISqlStatement* stmt, const SQueryParams& params, cons
     if (!params.dateTo.empty()) stmt->BindText(idx++, params.dateTo);
     if (params.ratingMin > 0) stmt->BindInt(idx++, params.ratingMin);
     if (params.ratingMax > 0) stmt->BindInt(idx++, params.ratingMax);
+    return idx;
 }
 
 SBookResult ReadBookRow(ISqlStatement* stmt, ISqlDatabase* db)
@@ -533,16 +535,20 @@ SQueryResult CDatabase::ExecuteQuery(const SQueryParams& params)
 
     // Fetch books
     std::string orderLimitSql{Sql::QueryOrderTitle};
-    if (params.limit > 0) 
-    {
-        orderLimitSql += "LIMIT " + std::to_string(params.limit) + " OFFSET " + std::to_string(params.offset);
-    }
+    const bool hasLimit = params.limit > 0;
+    if (hasLimit)
+        orderLimitSql += Sql::QueryLimitOffset;
 
     try
     {
         std::string fullSelectSql = selectSql + joinSql + whereSql + orderLimitSql;
         auto stmt = m_db->Prepare(fullSelectSql);
-        BindQueryParamsCustom(stmt.get(), params, binds);
+        const int nextIdx = BindQueryParamsCustom(stmt.get(), params, binds);
+        if (hasLimit)
+        {
+            stmt->BindInt64(nextIdx,     static_cast<int64_t>(params.limit));
+            stmt->BindInt64(nextIdx + 1, static_cast<int64_t>(params.offset));
+        }
 
         stmt->Step();
         CSqlStmtResetGuard selectGuard(*stmt);

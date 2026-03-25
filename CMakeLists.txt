@@ -24,8 +24,6 @@ endif()
 include(FetchContent)
 
 # FetchContent is only kept for SQLite3 as we need to build it from amalgamation
-include(FetchContent)
-
 find_package(nlohmann_json CONFIG REQUIRED)
 find_package(pugixml CONFIG REQUIRED)
 find_package(libzip CONFIG REQUIRED)

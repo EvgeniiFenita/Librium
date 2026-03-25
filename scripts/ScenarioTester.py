@@ -119,8 +119,8 @@ class CScenarioTester:
                     try:
                         sock_file.close()
                         sock.close()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        CUI.warn(f"Failed to close socket before reconnect: {e}")
                     sock = _connect_to_engine()
                     if not sock:
                         process.terminate()
@@ -153,13 +153,14 @@ class CScenarioTester:
                     if sock_file:
                         sock_file.write("quit\n")
                         sock_file.flush()
-                except Exception:
+                except Exception as e:
+                    CUI.warn(f"Failed to send quit command, terminating process: {e}")
                     process.terminate()
                 finally:
                     try:
                         if sock: sock.close()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        CUI.warn(f"Failed to close socket during cleanup: {e}")
 
         duration = time.time() - start_time
         print(f"  --> OK ({duration:.2f}s)\n")

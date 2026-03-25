@@ -18,6 +18,10 @@ public:
     explicit CFileOutput(const std::string& path)
     {
         m_file.open(Utils::CStringUtils::Utf8ToPath(path), std::ios::app);
+        if (!m_file.is_open())
+        {
+            std::fputs(("WARNING: Cannot open log file: " + path + "\n").c_str(), stderr);
+        }
     }
 
     void Write(const std::string& message) override

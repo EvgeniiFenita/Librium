@@ -343,19 +343,48 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, IProgressR
 
     std::jthread producer([this, work = std::move(preparedWork)]() mutable
     {
-        for (auto& [archiveName, records] : work)
+        try
         {
-            if (m_stopRequested) break;
-            m_workQueue.Push(SWorkItem{archiveName, std::move(records)});
+            for (auto& [archiveName, records] : work)
+            {
+                if (m_stopRequested) break;
+                m_workQueue.Push(SWorkItem{archiveName, std::move(records)});
+            }
+            m_workQueue.Close();
         }
-        m_workQueue.Close();
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("Producer thread failed: {}", e.what());
+            m_workQueue.Close();
+        }
     });
 
     std::vector<std::jthread> workers;
     for (int i = 0; i < workerCount; ++i)
-        workers.emplace_back([this]() { WorkerThread(m_cfg.library.archivesDir, m_cfg.import.parseFb2); });
+        workers.emplace_back([this]()
+        {
+            try
+            {
+                WorkerThread(m_cfg.library.archivesDir, m_cfg.import.parseFb2);
+            }
+            catch (const std::exception& e)
+            {
+                LOG_ERROR("Worker thread failed: {}", e.what());
+            }
+        });
 
-    std::jthread closer([&]() { for (auto& w : workers) w.join(); m_resultQueue.Close(); });
+    std::jthread closer([&]()
+    {
+        try
+        {
+            for (auto& w : workers) w.join();
+            m_resultQueue.Close();
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("Closer thread failed: {}", e.what());
+        }
+    });
 
     auto startTime = std::chrono::high_resolution_clock::now();
     Db::SImportStats stats = WriterThread(db, m_cfg.import.transactionBatchSize, reporter, totalToProcess);

@@ -29,7 +29,7 @@ CZipReader::CZipReader(const std::filesystem::path& path)
     : m_path(path)
 {
     auto u8path = path.u8string();
-    auto pathStr = reinterpret_cast<const char*>(u8path.c_str());
+    std::string pathStr(u8path.begin(), u8path.end());
     LOG_DEBUG("Opening zip handle: {}", pathStr);
     
     zip_t* za = nullptr;
@@ -51,6 +51,7 @@ CZipReader::CZipReader(const std::filesystem::path& path)
         zip_error_fini(&zerr);
         throw CZipError("Cannot open zip from source '" + std::string(pathStr) + "': " + msg);
     }
+    m_za.reset(za);
     zip_error_fini(&zerr);
 #else
     int err = 0;
@@ -63,30 +64,33 @@ CZipReader::CZipReader(const std::filesystem::path& path)
         zip_error_fini(&zerr);
         throw CZipError("Cannot open zip '" + std::string(pathStr) + "': " + msg);
     }
-#endif
     m_za.reset(za);
+#endif
 }
 
 std::vector<uint8_t> CZipReader::ReadEntry(const std::string& entryName) const
 {
+    const auto u8 = m_path.u8string();
+    const std::string pathStr(u8.begin(), u8.end());
+
     zip_file_ptr zf(zip_fopen(m_za.get(), entryName.c_str(), 0));
     if (!zf)
     {
-        throw CZipError("Cannot open entry '" + entryName + "' in " + reinterpret_cast<const char*>(m_path.u8string().c_str()));
+        throw CZipError("Cannot open entry '" + entryName + "' in " + pathStr);
     }
 
     struct zip_stat st;
     zip_stat_init(&st);
     if (zip_stat(m_za.get(), entryName.c_str(), 0, &st) != 0)
     {
-        throw CZipError("Cannot stat entry '" + entryName + "' in " + reinterpret_cast<const char*>(m_path.u8string().c_str()));
+        throw CZipError("Cannot stat entry '" + entryName + "' in " + pathStr);
     }
 
     std::vector<uint8_t> buffer(st.size);
     auto bytesRead = zip_fread(zf.get(), buffer.data(), st.size);
     if (bytesRead < 0 || static_cast<zip_uint64_t>(bytesRead) != st.size)
     {
-        throw CZipError("Failed to read entire entry '" + entryName + "' in " + reinterpret_cast<const char*>(m_path.u8string().c_str()));
+        throw CZipError("Failed to read entire entry '" + entryName + "' in " + pathStr);
     }
 
     return buffer;

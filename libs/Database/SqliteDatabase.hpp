@@ -18,8 +18,8 @@ public:
     CSqliteDatabase(const CSqliteDatabase&) = delete;
     CSqliteDatabase& operator=(const CSqliteDatabase&) = delete;
 
-    void Exec(const std::string& sql) override;
-    [[nodiscard]] std::unique_ptr<ISqlStatement> Prepare(const std::string& sql) override;
+    void Exec(std::string_view sql) override;
+    [[nodiscard]] std::unique_ptr<ISqlStatement> Prepare(std::string_view sql) override;
 
     void BeginTransaction() override;
     void Commit() override;

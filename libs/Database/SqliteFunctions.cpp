@@ -1,6 +1,7 @@
 #include "SqliteFunctions.hpp"
 #include "Log/Logger.hpp"
 #include <sqlite3.h>
+#include <stdexcept>
 #include <string>
 #include <cctype>
 
@@ -130,7 +131,10 @@ void RegisterSqliteFunctions(sqlite3* db)
     );
 
     if (rc != SQLITE_OK)
+    {
         LOG_ERROR("Failed to register librium_upper(): {}", sqlite3_errmsg(db));
+        throw std::runtime_error("Failed to register SQLite function librium_upper()");
+    }
     else
         LOG_DEBUG("Registered SQLite function librium_upper()");
 }

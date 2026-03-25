@@ -259,6 +259,7 @@ When refactoring or adapting tests to code changes:
     - **Protocol Layer**: Only `libs/Protocol` (JSON/Base64). Must be the ONLY place for `nlohmann/json` dependency.
     - **Service Layer**: Clean business logic. Must ONLY use `IRequest` and `IResponse` interfaces for communication. Interacts with `Database` to fulfill requests.
 - **Deliberate Exception — Config Layer**: `libs/Config/AppConfig.cpp` also uses `nlohmann/json` for reading and writing the application configuration file (`config.json`). This is a sanctioned exception to the "Protocol only" rule because the Config layer must be able to persist its own data format independently of the IPC Protocol layer. Do NOT add `nlohmann/json` to any other module.
+- **Deliberate Exception — Log Layer**: `libs/Log/Logger.cpp` may use `std::fputs`/`std::fflush` to `stdout`/`stderr` directly. This is a sanctioned exception to the "no `std::cout`/`std::cerr` in `libs/`" rule — the logging infrastructure itself must be able to emit output even when no higher-level logger is available (e.g., to warn that a log file failed to open). Do NOT add direct console I/O to any other module in `libs/`.
 
 ### Threading & Performance Rules
 - **Ownership**: Use `std::unique_ptr` for managing object ownership. Raw pointers are allowed only for non-owning access (observers).

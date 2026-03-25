@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 namespace Librium::Db {
 
@@ -15,7 +16,7 @@ public:
 
     virtual void BindInt(int index, int value) = 0;
     virtual void BindInt64(int index, int64_t value) = 0;
-    virtual void BindText(int index, const std::string& value) = 0;
+    virtual void BindText(int index, std::string_view value) = 0;
     virtual void BindNull(int index) = 0;
 
     virtual void Step() = 0;

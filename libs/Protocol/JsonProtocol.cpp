@@ -189,7 +189,7 @@ public:
             auto singleBook = m_data["books"][0];
             if (!book.coverPath.empty())
             {
-                singleBook["cover"] = reinterpret_cast<const char*>(book.coverPath.c_str());
+                singleBook["cover"] = std::string(book.coverPath.begin(), book.coverPath.end());
             }
             m_data = singleBook;
         }

@@ -21,7 +21,7 @@ class CInpParser
 public:
     [[nodiscard]] std::vector<SBookRecord> Parse(const std::string& inpxPath);
 
-    SInpParseStats ParseStreaming(const std::string& inpxPath, const std::function<bool(SBookRecord&&)>& onBook);
+    [[nodiscard]] SInpParseStats ParseStreaming(const std::string& inpxPath, const std::function<bool(SBookRecord&&)>& onBook);
 
     [[nodiscard]] static size_t CountLines(const std::string& inpxPath);
 

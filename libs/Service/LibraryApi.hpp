@@ -30,16 +30,16 @@ public:
     explicit CLibraryApi(Config::SAppConfig cfg);
     ~CLibraryApi();
 
-    Db::SImportStats Import(Indexer::IProgressReporter* reporter);
-    Db::SImportStats Upgrade(Indexer::IProgressReporter* reporter);
+    [[nodiscard]] Db::SImportStats Import(Indexer::IProgressReporter* reporter);
+    [[nodiscard]] Db::SImportStats Upgrade(Indexer::IProgressReporter* reporter);
 
-    Db::SQueryResult SearchBooks(const Db::SQueryParams& params);
+    [[nodiscard]] Db::SQueryResult SearchBooks(const Db::SQueryParams& params);
 
-    std::filesystem::path ExportBook(int64_t id, const std::filesystem::path& outDir);
+    [[nodiscard]] std::filesystem::path ExportBook(int64_t id, const std::filesystem::path& outDir);
 
-    SAppStats GetStats();
+    [[nodiscard]] SAppStats GetStats();
 
-    std::optional<SBookDetails> GetBook(int64_t id);
+    [[nodiscard]] std::optional<SBookDetails> GetBook(int64_t id);
 
 private:
     void EnsureDatabase();

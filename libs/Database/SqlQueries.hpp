@@ -286,5 +286,6 @@ constexpr std::string_view QueryWhereId = "WHERE b.id = ? ";
 
 // Order and Limit
 constexpr std::string_view QueryOrderTitle = "ORDER BY b.title ";
+constexpr std::string_view QueryLimitOffset = "LIMIT ? OFFSET ? ";
 
 } // namespace Librium::Db::Sql

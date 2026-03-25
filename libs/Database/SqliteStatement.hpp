@@ -20,7 +20,7 @@ public:
 
     void BindInt(int index, int value) override;
     void BindInt64(int index, int64_t value) override;
-    void BindText(int index, const std::string& value) override;
+    void BindText(int index, std::string_view value) override;
     void BindNull(int index) override;
 
     void Step() override;

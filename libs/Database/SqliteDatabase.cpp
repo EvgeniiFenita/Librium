@@ -27,18 +27,19 @@ CSqliteDatabase::CSqliteDatabase(const std::string& path, int64_t cacheSize, int
 
     // Performance optimizations
     Exec(std::string(Sql::PragmaCacheSizePrefix) + std::to_string(cacheSize));
-    Exec(std::string(Sql::PragmaTempStore));
+    Exec(Sql::PragmaTempStore);
     Exec(std::string(Sql::PragmaMmapSizePrefix) + std::to_string(mmapSize));
-    Exec(std::string(Sql::PragmaBusyTimeout));
+    Exec(Sql::PragmaBusyTimeout);
 }
 
 CSqliteDatabase::~CSqliteDatabase() = default;
 
-void CSqliteDatabase::Exec(const std::string& sql)
+void CSqliteDatabase::Exec(std::string_view sql)
 {
     LOG_DEBUG("Executing SQL: {}", sql);
+    const std::string sqlStr(sql);
     char* err = nullptr;
-    if (sqlite3_exec(m_db.get(), sql.c_str(), nullptr, nullptr, &err) != SQLITE_OK)
+    if (sqlite3_exec(m_db.get(), sqlStr.c_str(), nullptr, nullptr, &err) != SQLITE_OK)
     {
         std::string msg = err ? err : "Unknown error";
         if (err) sqlite3_free(err);
@@ -47,31 +48,31 @@ void CSqliteDatabase::Exec(const std::string& sql)
     }
 }
 
-std::unique_ptr<ISqlStatement> CSqliteDatabase::Prepare(const std::string& sql)
+std::unique_ptr<ISqlStatement> CSqliteDatabase::Prepare(std::string_view sql)
 {
     LOG_DEBUG("Preparing SQL: {}", sql);
     sqlite3_stmt* raw = nullptr;
-    if (sqlite3_prepare_v2(m_db.get(), sql.c_str(), -1, &raw, nullptr) != SQLITE_OK)
+    if (sqlite3_prepare_v2(m_db.get(), sql.data(), static_cast<int>(sql.size()), &raw, nullptr) != SQLITE_OK)
     {
         std::string msg = sqlite3_errmsg(m_db.get());
-        throw CDbError("Failed to prepare statement: " + msg + " | Query: " + sql);
+        throw CDbError("Failed to prepare statement: " + msg + " | Query: " + std::string(sql));
     }
     return std::make_unique<CSqliteStatement>(raw);
 }
 
 void CSqliteDatabase::BeginTransaction()
 {
-    Exec(std::string(Sql::BeginTransaction));
+    Exec(Sql::BeginTransaction);
 }
 
 void CSqliteDatabase::Commit()
 {
-    Exec(std::string(Sql::CommitTransaction));
+    Exec(Sql::CommitTransaction);
 }
 
 void CSqliteDatabase::Rollback()
 {
-    Exec(std::string(Sql::RollbackTransaction));
+    Exec(Sql::RollbackTransaction);
 }
 
 int64_t CSqliteDatabase::LastInsertRowId() const
