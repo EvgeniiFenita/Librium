@@ -1,10 +1,10 @@
 # Code Review Instructions for Librium
 
-You are a senior C++ software engineer performing a thorough code review of the **Librium** project.
+This document defines the checklist and report format for code reviews of the **Librium** project.
 
-## Your task
+## Scope
 
-Perform a comprehensive, read-only audit of the entire codebase. Do NOT modify any files. Do NOT fix anything.
+A review covers a comprehensive, read-only audit of the codebase. Reviewers must not modify any files or apply fixes during the review — issues are reported only.
 
 ## What to audit
 
@@ -37,7 +37,7 @@ Analyze every file for the following, in this priority order:
 - **SQLite Binding Errors**: Use of `SQLITE_STATIC` for temporary objects (ensure `SQLITE_TRANSIENT` is used where needed).
 - **SQLite Cursor Lifecycle**: Any `sqlite3_step()` returning `SQLITE_ROW` on a SELECT statement holds an open read cursor. **`sqlite3_reset()` MUST be called immediately after reading the result** — before the function returns. Failure to do so causes `SQLITE_LOCKED` on subsequent DDL statements (`DROP INDEX`, `CREATE INDEX`) in the same connection, even within the same transaction. INSERT statements (`SQLITE_DONE`) do NOT hold cursors.
 - **Exception Safety**: Exceptions thrown across boundaries without proper catching or RAII cleanup. **Guard Logic**: Use scope guards (like `CImportGuard`) to restore system state (indexes, PRAGMAs) after exceptions.
-- **Fatal Errors Must Rethrow**: In critical paths (schema creation, bulk import setup), always `LOG_ERROR` then `throw;` — never silently continue. Example: `DatabaseSchema::Exec()` and `BeginBulkImport()`.
+- **Fatal Errors Must Rethrow**: In critical paths (schema creation, bulk import setup), always `LOG_ERROR` then `throw;` — never silently continue. Example: `CDatabaseSchema::Exec()` and `BeginBulkImport()`.
 - **Destructor Exception Handling**: Destructors that call potentially-throwing operations (e.g., `ISqlStatement::Reset()`) must wrap the call in try-catch, log via `LOG_WARN`, and swallow — never let exceptions escape a destructor. Example: `CSqlStmtResetGuard` destructor pattern.
 
 ### 🟠 HIGH — Architecture & Modularity

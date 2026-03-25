@@ -75,7 +75,7 @@ CAppService::CAppService(Config::SAppConfig cfg)
 If you introduced a **new domain structure** that needs to be returned, you must update the `Protocol` layer to know how to serialize it.
 
 Update `CJsonResponse` in `libs/Protocol/JsonProtocol.cpp`:
-1. Add a new `SetData` overload to `IResponse.hpp`.
+1. Add a new `SetData` overload to `libs/Service/Response.hpp`.
 2. Implement the serialization logic in `JsonProtocol.cpp` using `nlohmann::json`.
 
 ## 6. Integration Test

@@ -1,6 +1,6 @@
 # Commit Message Guidelines for Librium
 
-To maintain a clean and informative git history, all commit messages must follow these rules. These guidelines are designed to help the AI assistant and developers create high-signal, descriptive commit messages based on actual code changes.
+To maintain a clean and informative git history, all commit messages must follow these rules. These guidelines are designed to help developers create high-signal, descriptive commit messages based on actual code changes.
 
 ## Message Format
 
@@ -18,7 +18,7 @@ Optional (but recommended for complex changes):
 - **Docs**: Documentation changes (e.g., `Docs: Update project overview`).
 - **Build**: Changes to build system, dependencies, or CI/CD (e.g., `Build: Add Linux preset to CMakePresets.json`).
 
-## How to Generate a "Beautiful" Commit Message (AI Instructions)
+## How to Generate a "Beautiful" Commit Message
 
 When asked to "make a beautiful commit" or "describe changes," follow these steps:
 
@@ -43,7 +43,7 @@ When asked to "make a beautiful commit" or "describe changes," follow these step
 
 ## Workflow & Authorization
 
-- **No Auto-Commits**: The AI assistant must NEVER stage or commit changes automatically. 
+- **No Auto-Commits**: Commits must NEVER be staged or applied automatically.
 - **Explicit Request**: Commits are performed ONLY when the user explicitly provides a directive (e.g., "Commit these changes," "Make a beautiful commit").
 - **Draft First**: Before committing, the assistant should propose a draft message and ask for confirmation if the change is complex.
 

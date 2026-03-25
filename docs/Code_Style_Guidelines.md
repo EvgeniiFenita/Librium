@@ -1,8 +1,8 @@
-# LLM Rules for Code Generation (C++20)
+# Code Style Guidelines (C++20)
 
-This file defines strict rules for **LLM systems generating C++ code** in this repository.
+This file defines strict rules for **C++ code** in this repository.
 
-LLM must follow these rules **without exceptions**.
+All contributors must follow these rules **without exceptions**.
 
 ---
 

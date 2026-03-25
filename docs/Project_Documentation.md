@@ -19,6 +19,7 @@ The project is organized into independent, reusable static libraries and a singl
 | **Config** | JSON-based configuration, path helpers, `CAppPaths` utility class, and book filter logic. | **Inpx**, **Utils**, `nlohmann_json` |
 | **Utils** | Common technical utilities (Base64, Thread-safe queue, String helpers, `CStringUtils::Utf8ToPath`). No external dependencies. | None |
 | **Database** | Abstraction layer for SQL databases. Low-level SQL access is encapsulated in `ISqlDatabase`/`ISqlStatement` interfaces. Business consumers interact through role-specific interfaces: `IBookWriter` (import/indexing) and `IBookReader` (search/query). `CDatabase` implements both. Includes full query and search engine logic. | **Fb2**, **Inpx**, **Log**, `Sqlite3Lib` |
+| **Indexer** | Multi-threaded book indexing engine. Producer/Worker/Writer pipeline for FB2 parsing and mass import. `CImportGuard` ensures safe state restoration on failures. | **Database**, **Config**, **Inpx**, **Zip**, **Fb2**, **Log** |
 | **Service** | Engine core using the Command pattern. Abstracts communication via `IRequest`/`IResponse` interfaces. | **Database**, **Indexer**, **Config**, **Inpx**, **Fb2**, **Zip**, **Log**, **Utils** |
 | **Protocol** | Implementation of communication formats (e.g., JSON over Base64). | **Service**, **Utils**, `nlohmann_json` |
 | **Transport** | Network communication layer (Localhost TCP via **Asio**). | **Log**, `asio` |
@@ -101,7 +102,7 @@ python scripts/Run.py --preset x64-debug --clean
 
 ### Test Stages
 1.  **Stage 1: UNIT**: Fast C++ unit tests (Catch2). Fully self-contained, no external scripts required.
-    - **Coverage**: Filters (genres/size/authors/keywords), string encoding (UTF-8/CP1251/UTF-16) and sanitization, Base64, thread-safe concurrency, database transactions and `get-book` field completeness, INPX streaming and edge cases, ZIP RAII and edge cases, FB2 cover extraction and encoding edge cases, logger configuration, search query parser, config utilities and edge cases.
+    - **Coverage**: Filters (genres/size/authors/keywords), string encoding (UTF-8/CP1251/UTF-16) and sanitization, Base64, thread-safe concurrency, database transactions and `get-book` field completeness, database query logic, SQLite custom functions (`librium_upper`), indexer pipeline, INPX streaming and edge cases, ZIP RAII and edge cases, FB2 cover extraction and encoding edge cases, logger configuration, search query parser, config utilities and edge cases, version parsing.
     - **Crash Diagnostics**: `TestMain.cpp` writes `unit_tests.log` next to `UnitTests.exe` on every run for post-mortem analysis.
 2.  **Stage 2: SCENARIO**: Behavioral tests.
     - Uses `LibraryGenerator.py` to create a "miniature" realistic library.
@@ -207,7 +208,7 @@ All searches are **Unicode-aware and case-insensitive** for Cyrillic characters 
 
 To ensure Windows compatibility with non-ASCII paths:
 - **Never** use `std::filesystem::path::string()` for paths that might contain Unicode.
-- **Always** use `Librium::Config::Utf8ToPath(std::string)` when converting UTF-8 (from JSON/CLI) to a path object.
+- **Always** use `Utils::CStringUtils::Utf8ToPath(str)` when converting UTF-8 (from JSON/CLI) to a path object.
 - **Zip Archives**: The `ZipReader` is specialized to handle Unicode paths on Windows using Win32 wide-character APIs.
 
 ---
