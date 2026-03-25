@@ -151,7 +151,7 @@ TEST_CASE("CInpParser streaming parse", "[inpx]")
         CInpParser parser;
         std::vector<std::string> titles;
 
-        parser.ParseStreaming(pathStr, [&](SBookRecord&& rec)
+        (void)parser.ParseStreaming(pathStr, [&](SBookRecord&& rec)
         {
             titles.push_back(rec.title);
             return true;
@@ -169,7 +169,7 @@ TEST_CASE("CInpParser streaming parse", "[inpx]")
         CInpParser parser;
         int count = 0;
 
-        parser.ParseStreaming(pathStr, [&](SBookRecord&&)
+        (void)parser.ParseStreaming(pathStr, [&](SBookRecord&&)
         {
             ++count;
             return false; // stop after first book
@@ -181,7 +181,7 @@ TEST_CASE("CInpParser streaming parse", "[inpx]")
     SECTION("LastStats() reflects streaming results")
     {
         CInpParser parser;
-        parser.ParseStreaming(pathStr, [](SBookRecord&&) { return true; });
+        (void)parser.ParseStreaming(pathStr, [](SBookRecord&&) { return true; });
 
         REQUIRE(parser.LastStats().totalLines   == 3);
         REQUIRE(parser.LastStats().parsedOk     == 2);

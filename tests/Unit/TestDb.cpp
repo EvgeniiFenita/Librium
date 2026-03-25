@@ -69,3 +69,48 @@ TEST_CASE("Database basic operations", "[db]")
     }
 }
 
+TEST_CASE("Database bulk import operations", "[db][bulk]")
+{
+    CTempDir tempDir;
+    std::string dbPath = (tempDir.GetPath() / "bulk_test.db").string();
+    Db::CDatabase db(dbPath);
+
+    SECTION("DropIndexes reduces index count")
+    {
+        const int initialCount = db.CountIndexes();
+        REQUIRE(initialCount > 0);
+
+        db.DropIndexes();
+
+        REQUIRE(db.CountIndexes() == 0);
+    }
+
+    SECTION("CreateIndexes restores index count")
+    {
+        db.DropIndexes();
+        db.CreateIndexes();
+
+        REQUIRE(db.CountIndexes() > 0);
+    }
+
+    SECTION("BeginBulkImport and EndBulkImport do not throw")
+    {
+        REQUIRE_NOTHROW(db.BeginBulkImport());
+        REQUIRE_NOTHROW(db.EndBulkImport());
+    }
+
+    SECTION("Full bulk cycle: insert works without indexes")
+    {
+        db.BeginBulkImport();
+        db.DropIndexes();
+
+        auto rec = MakeRec("bulk1", "Bulk Book");
+        (void)db.InsertBook(rec);
+
+        db.CreateIndexes();
+        db.EndBulkImport();
+
+        REQUIRE(db.CountBooks() == 1);
+    }
+}
+

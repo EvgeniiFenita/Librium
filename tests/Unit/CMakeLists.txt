@@ -31,6 +31,9 @@ add_executable(UnitTests
     TestSearchQueryParser.cpp
     TestSearchQueryParserEdgeCases.cpp
     TestSqliteFunctions.cpp
+    TestProtocol.cpp
+    TestAppService.cpp
+    TestLibraryApi.cpp
 )
 
 target_include_directories(UnitTests PRIVATE
@@ -43,6 +46,8 @@ target_link_libraries(UnitTests PRIVATE
     Log
     Indexer
     Utils
+    Protocol
+    Service
     Catch2::Catch2
 )
 
@@ -50,6 +55,10 @@ target_compile_definitions(UnitTests PRIVATE
     # Defined for backwards compatibility if needed, but tests now manage their own temp dirs
     LIBRIUM_TEST_DATA_DIR="${CMAKE_CURRENT_BINARY_DIR}"
 )
+
+if(MSVC)
+    target_compile_options(UnitTests PRIVATE /FS)
+endif()
 
 include(CTest)
 include(Catch)

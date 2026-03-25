@@ -102,8 +102,8 @@ python scripts/Run.py --preset x64-debug --clean
 
 ### Test Stages
 1.  **Stage 1: UNIT**: Fast C++ unit tests (Catch2). Fully self-contained, no external scripts required.
-    - **Coverage**: Filters (genres/size/authors/keywords), string encoding (UTF-8/CP1251/UTF-16) and sanitization, Base64, thread-safe concurrency, database transactions and `get-book` field completeness, database query logic, SQLite custom functions (`librium_upper`), indexer pipeline, INPX streaming and edge cases, ZIP RAII and edge cases, FB2 cover extraction and encoding edge cases, logger configuration, search query parser, config utilities and edge cases, version parsing.
-    - **Crash Diagnostics**: `TestMain.cpp` writes `unit_tests.log` next to `UnitTests.exe` on every run for post-mortem analysis.
+    - **Coverage**: Filters (genres/size/authors/keywords), string encoding (UTF-8/CP1251/UTF-16) and sanitization, Base64, thread-safe concurrency, database transactions and `get-book` field completeness, database query logic, SQLite custom functions (`librium_upper`), indexer pipeline (`CIndexer::Run()`, `CIndexer::RequestStop()`), INPX streaming and edge cases, ZIP RAII and edge cases, FB2 cover extraction and encoding edge cases, logger configuration and concurrent logging, search query parser, config utilities and edge cases, version parsing, JSON Protocol serialization (`CJsonProtocol`), App Service action dispatching (`CAppService`), Library API operations (`CLibraryApi`), Database bulk import and index operations.
+    - **Crash Diagnostics**: `TestMain.cpp` calls `CLogger::Setup(Debug, "unit_tests.log")` — all test log output is written to `unit_tests.log` next to `UnitTests.exe` for post-mortem analysis. Console stays clean.
 2.  **Stage 2: SCENARIO**: Behavioral tests.
     - Uses `LibraryGenerator.py` to create a "miniature" realistic library.
     - Communicates with `Librium.exe` via **TCP sockets**.

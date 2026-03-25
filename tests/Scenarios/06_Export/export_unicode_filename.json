@@ -1,0 +1,19 @@
+{
+  "description": "Export book with Cyrillic title and author: filename is sanitized correctly",
+  "library": [
+    {
+      "title": "Война и мир",
+      "authors": ["Толстой,Лев,"],
+      "lib_id": "77777"
+    }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "args": ["export", "--id", "1", "--out", "{LIB}/exported_unicode"],
+      "expected": { "status": "ok" },
+      "expected_file_exists": "data.file",
+      "expected_file_contains": { "path_from": "data.file", "text": "<FictionBook" }
+    }
+  ]
+}

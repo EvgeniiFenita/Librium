@@ -62,6 +62,105 @@ TEST_CASE("Indexer basic operations", "[indexer]")
     }
 }
 
+TEST_CASE("Indexer Run() in Full mode imports books from a real archive", "[indexer]")
+{
+    CTempDir tempDir;
+
+    std::string fb2Content = "<?xml version=\"1.0\"?><FictionBook><description></description><body><section><p>Test</p></section></body></FictionBook>";
+
+    CreateTestZip(tempDir.GetPath() / "fb2-testarch.zip", {{"testbook1.fb2", fb2Content}});
+
+    constexpr char SEP = '\x04';
+    std::string inpLine;
+    inpLine += "TestAuthor,First,:";
+    inpLine += SEP; inpLine += "sf:";
+    inpLine += SEP; inpLine += "Test Book Title";
+    inpLine += SEP;
+    inpLine += SEP;
+    inpLine += SEP; inpLine += "testbook1";
+    inpLine += SEP; inpLine += "100000";
+    inpLine += SEP; inpLine += "111111";
+    inpLine += SEP; inpLine += "0";
+    inpLine += SEP; inpLine += "fb2";
+    inpLine += SEP; inpLine += "2024-01-01";
+    inpLine += SEP; inpLine += "ru";
+    inpLine += SEP; inpLine += "4";
+    inpLine += SEP;
+    inpLine += SEP;
+    inpLine += "\r\n";
+
+    CreateTestZip(tempDir.GetPath() / "test.inpx", {
+        {"fb2-testarch.zip.inp", inpLine},
+        {"collection.info", "Test Library\ntest\n65536\n"},
+        {"version.info", "20240101\r\n"}
+    });
+
+    SAppConfig cfg;
+    cfg.database.path              = (tempDir.GetPath() / "test_run.db").string();
+    cfg.library.inpxPath           = (tempDir.GetPath() / "test.inpx").string();
+    cfg.library.archivesDir        = tempDir.GetPath().string();
+    cfg.import.parseFb2            = false;
+    cfg.import.threadCount         = 1;
+    cfg.import.transactionBatchSize = 100;
+
+    CDatabase db(cfg.database.path);
+    CIndexer indexer(cfg);
+    auto stats = indexer.Run(db, EImportMode::Full, nullptr);
+
+    REQUIRE(stats.booksInserted == 1);
+    REQUIRE(db.CountBooks() == 1);
+    REQUIRE(db.GetIndexedArchives().size() == 1);
+}
+
+TEST_CASE("Indexer RequestStop() prevents book import", "[indexer]")
+{
+    CTempDir tempDir;
+
+    std::string fb2Content = "<?xml version=\"1.0\"?><FictionBook><description></description><body><section><p>Test</p></section></body></FictionBook>";
+
+    CreateTestZip(tempDir.GetPath() / "fb2-stoparch.zip", {{"testbook2.fb2", fb2Content}});
+
+    constexpr char SEP = '\x04';
+    std::string inpLine;
+    inpLine += "TestAuthor,First,:";
+    inpLine += SEP; inpLine += "sf:";
+    inpLine += SEP; inpLine += "Test Book For Stop";
+    inpLine += SEP;
+    inpLine += SEP;
+    inpLine += SEP; inpLine += "testbook2";
+    inpLine += SEP; inpLine += "100000";
+    inpLine += SEP; inpLine += "222222";
+    inpLine += SEP; inpLine += "0";
+    inpLine += SEP; inpLine += "fb2";
+    inpLine += SEP; inpLine += "2024-01-01";
+    inpLine += SEP; inpLine += "ru";
+    inpLine += SEP; inpLine += "4";
+    inpLine += SEP;
+    inpLine += SEP;
+    inpLine += "\r\n";
+
+    CreateTestZip(tempDir.GetPath() / "stop.inpx", {
+        {"fb2-stoparch.zip.inp", inpLine},
+        {"collection.info", "Stop Library\nstop\n65536\n"},
+        {"version.info", "20240101\r\n"}
+    });
+
+    SAppConfig cfg;
+    cfg.database.path              = (tempDir.GetPath() / "test_stop.db").string();
+    cfg.library.inpxPath           = (tempDir.GetPath() / "stop.inpx").string();
+    cfg.library.archivesDir        = tempDir.GetPath().string();
+    cfg.import.parseFb2            = false;
+    cfg.import.threadCount         = 1;
+    cfg.import.transactionBatchSize = 100;
+
+    CDatabase db(cfg.database.path);
+    CIndexer indexer(cfg);
+    indexer.RequestStop();
+    (void)indexer.Run(db, EImportMode::Full, nullptr);
+
+    REQUIRE(db.CountBooks() == 0);
+}
+
 TEST_CASE("Indexer handles 0 new books gracefully (Index Preservation)", "[indexer]")
 {
     CTempDir tempDir;

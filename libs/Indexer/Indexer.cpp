@@ -283,7 +283,7 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, IProgressR
     Inpx::CInpParser scanner;
     std::vector<std::string> archivesToMark;
 
-    scanner.ParseStreaming(m_cfg.library.inpxPath, [&](Inpx::SBookRecord&& rec) 
+    [[maybe_unused]] const auto scanStats = scanner.ParseStreaming(m_cfg.library.inpxPath, [&](Inpx::SBookRecord&& rec) 
     {
         if (m_stopRequested) return false;
         

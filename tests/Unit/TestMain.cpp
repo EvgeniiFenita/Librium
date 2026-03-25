@@ -3,8 +3,8 @@
 
 int main(int argc, char* argv[]) 
 {
-    // Initialize logging for unit tests: Debug level for detailed traces.
-    Librium::Log::CLogger::Setup(Librium::Log::ELogLevel::Debug);
+    // Redirect all log output to a file so test runs stay clean.
+    Librium::Log::CLogger::Setup(Librium::Log::ELogLevel::Debug, "unit_tests.log");
 
     int result = Catch::Session().run(argc, argv);
 

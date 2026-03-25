@@ -587,6 +587,12 @@ def main():
             )
             sys.exit(1)
         success = run_docker(args.preset, args.clean)
+        # The CI pipeline inside Docker already printed its own completion banner.
+        # Only emit a local failure banner if Docker itself exited with an error.
+        if not success:
+            CUI.banner("FAILED")
+            sys.exit(1)
+        return
 
     elif in_docker:
         # Running inside the Docker container itself

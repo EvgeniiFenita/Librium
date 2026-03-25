@@ -171,6 +171,43 @@ TEST_CASE("CInpParser: keywords field is correctly parsed", "[inpx][edge]")
     REQUIRE(books[0].keywords == "space, adventure, robots");
 }
 
+TEST_CASE("CInpParser: .inp file with truncated lines is parsed gracefully", "[inpx][edge]")
+{
+    CTempDir tempDir;
+    std::filesystem::path inpxPath = tempDir.GetPath() / "truncated.inpx";
+
+    // A severely truncated line — far fewer fields than expected
+    std::string truncatedContent = std::string("Author,X,:\x04genre:\x04Title Only") + "\r\n";
+
+    CreateTestZip(inpxPath, {
+        {"fb2-trunc.zip.inp", truncatedContent},
+        {"collection.info", "Truncated\ntr\n65536\n"},
+        {"version.info", "20240101\r\n"}
+    });
+
+    auto u8path = inpxPath.u8string();
+    CInpParser parser;
+    // Should not throw — truncated lines are either skipped or partially parsed
+    REQUIRE_NOTHROW(parser.Parse(std::string(u8path.begin(), u8path.end())));
+}
+
+TEST_CASE("CInpParser: completely empty .inp file produces no books", "[inpx][edge]")
+{
+    CTempDir tempDir;
+    std::filesystem::path inpxPath = tempDir.GetPath() / "empty_inp.inpx";
+
+    CreateTestZip(inpxPath, {
+        {"fb2-empty.zip.inp", ""},  // empty .inp file
+        {"collection.info", "Empty INP\nei\n65536\n"},
+        {"version.info", "20240101\r\n"}
+    });
+
+    auto u8path = inpxPath.u8string();
+    CInpParser parser;
+    auto books = parser.Parse(std::string(u8path.begin(), u8path.end()));
+    REQUIRE(books.empty());
+}
+
 TEST_CASE("CInpParser: book with series and series number is parsed", "[inpx][edge]")
 {
     CTempDir tempDir;

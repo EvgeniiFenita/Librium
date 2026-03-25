@@ -81,8 +81,6 @@ void CLogger::Setup(ELogLevel level, const std::string& file)
     std::vector<std::unique_ptr<ILogOutput>> newOutputs;
     if (!file.empty())
         newOutputs.push_back(std::make_unique<CFileOutput>(file));
-    else
-        newOutputs.push_back(std::make_unique<CConsoleOutput>());
 
     auto& logger = CLogger::Instance();
     logger.m_level.store(level, std::memory_order_relaxed);

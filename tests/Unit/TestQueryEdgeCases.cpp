@@ -296,6 +296,66 @@ TEST_CASE("BookQuery pagination offset", "[query]")
     }
 }
 
+TEST_CASE("BookQuery combined title and rating filter", "[query]")
+{
+    CTempDir tempDir;
+    std::string dbPath = (tempDir.GetPath() / "test_q_combined.db").string();
+
+    {
+        Db::CDatabase db(dbPath);
+        AddBookEdge(db, "1", "Science Fiction Adventure", "ru", "sf",    3, "2020-01-01");
+        AddBookEdge(db, "2", "Adventure Story",           "ru", "prose", 5, "2020-01-01");
+        AddBookEdge(db, "3", "Science Fiction Classic",   "ru", "sf",    5, "2020-01-01");
+
+        SECTION("Title filter alone returns two books")
+        {
+            Db::SQueryParams p;
+            p.title = "Science Fiction";
+            auto res = db.ExecuteQuery(p);
+            REQUIRE(res.totalFound == 2);
+        }
+
+        SECTION("Rating filter alone returns two books")
+        {
+            Db::SQueryParams p;
+            p.ratingMin = 5;
+            auto res = db.ExecuteQuery(p);
+            REQUIRE(res.totalFound == 2);
+        }
+
+        SECTION("Combined title + rating returns one book")
+        {
+            Db::SQueryParams p;
+            p.title     = "Science Fiction";
+            p.ratingMin = 5;
+            auto res = db.ExecuteQuery(p);
+            REQUIRE(res.totalFound == 1);
+            REQUIRE(res.books[0].title == "Science Fiction Classic");
+        }
+    }
+}
+
+TEST_CASE("BookQuery contradictory rating range returns empty result", "[query]")
+{
+    CTempDir tempDir;
+    std::string dbPath = (tempDir.GetPath() / "test_q_contradict.db").string();
+
+    {
+        Db::CDatabase db(dbPath);
+        AddBookEdge(db, "1", "High Rated", "ru", "sf", 5, "2020-01-01");
+        AddBookEdge(db, "2", "Low Rated",  "ru", "sf", 3, "2020-01-01");
+
+        SECTION("ratingMin=5 and ratingMax=2 returns empty")
+        {
+            Db::SQueryParams p;
+            p.ratingMin = 5;
+            p.ratingMax = 2;
+            auto res = db.ExecuteQuery(p);
+            REQUIRE(res.totalFound == 0);
+        }
+    }
+}
+
 TEST_CASE("CDatabase::GetBookById", "[db]")
 {
     CTempDir tempDir;

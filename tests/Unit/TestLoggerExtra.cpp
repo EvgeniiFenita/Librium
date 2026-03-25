@@ -1,10 +1,14 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "Log/Logger.hpp"
+#include "TestUtils.hpp"
 
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <thread>
+#include <vector>
+#include <atomic>
 
 using namespace Librium::Log;
 
@@ -163,4 +167,44 @@ TEST_CASE("CLogger Debug level passes all messages", "[logger]")
     REQUIRE(content.find("error_msg") != std::string::npos);
 
     std::filesystem::remove(tmp);
+}
+
+TEST_CASE("CLogger concurrent logging from multiple threads", "[logger][concurrent]")
+{
+    Librium::Tests::CTempDir tempDir;
+    const std::string logPath = (tempDir.GetPath() / "concurrent_log_test.log").string();
+
+    CLogger::Instance().ClearOutputs();
+    CLogger::Instance().SetLevel(ELogLevel::Debug);
+    CLogger::Instance().AddFileOutput(logPath);
+
+    {
+        std::vector<std::jthread> threads;
+        threads.reserve(4);
+
+        for (int threadId = 0; threadId < 4; ++threadId)
+        {
+            threads.emplace_back([threadId]()
+            {
+                for (int msgIndex = 0; msgIndex < 25; ++msgIndex)
+                {
+                    LOG_INFO("thread{}-msg{}", threadId, msgIndex);
+                }
+            });
+        }
+        // std::jthread auto-joins on destruction
+    }
+
+    CLogger::Instance().ClearOutputs();
+
+    std::string content = ReadFileContent(logPath);
+
+    int lineCount = 0;
+    for (const char c : content)
+    {
+        if (c == '\n')
+            ++lineCount;
+    }
+
+    REQUIRE(lineCount >= 100);
 }

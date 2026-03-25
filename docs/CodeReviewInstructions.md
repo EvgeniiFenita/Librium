@@ -89,7 +89,7 @@ For EVERY violation found, cite the file, line number, and the offending code sn
 - **CMake**: Missing warning flags or hardcoded absolute paths. Target names must be PascalCase.
 - **Test Gaps**: Modules with no negative tests (e.g., corrupted ZIP or malformed INPX).
 - **Scenario Coverage**: Every new feature or fix should have a new `.json` scenario in `tests/Scenarios/`.
-- **Unit Test Coverage**: `tests/Unit/` covers filters (genres/size/authors), string encoding (UTF-8/CP1251/UTF-16), Base64, thread-safe concurrency, database transactions, INPX streaming, ZIP RAII, logger configuration, query edge cases, and config utilities. New modules should have matching unit tests.
+- **Unit Test Coverage**: `tests/Unit/` covers filters (genres/size/authors/keywords), string encoding (UTF-8/CP1251/UTF-16), Base64, thread-safe concurrency, database transactions and bulk import/index operations, INPX streaming and edge cases, ZIP RAII, logger configuration and concurrent logging, query edge cases and combined filters, config utilities, JSON Protocol serialization (`CJsonProtocol`), App Service command dispatching (`CAppService`), Library API operations (`CLibraryApi`), and Indexer background tasks (`CIndexer::Run()`, `CIndexer::RequestStop()`). New modules should have matching unit tests.
 - **Keyword Filtering**: `SFiltersConfig::excludeKeywords` is parsed, serialized, and applied in `CBookFilter::ShouldInclude()` via substring matching against `rec.keywords`. Unit tests covering positive matches, partial matches, empty-keywords passthrough, and exclusion reason are in `tests/Unit/TestBookFilter.cpp`.
 
 ---

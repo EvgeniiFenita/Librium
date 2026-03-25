@@ -42,4 +42,25 @@ TEST_CASE("SqliteFunctions: librium_upper", "[db][unicode]")
     {
         REQUIRE(testUpper("Mixed Текст 123!") == "MIXED ТЕКСТ 123!");
     }
+
+    SECTION("Empty string returns empty string")
+    {
+        REQUIRE(testUpper("") == "");
+    }
+
+    SECTION("NULL input returns empty string")
+    {
+        auto testNull = [&]() -> bool
+        {
+            auto stmt = db.Prepare("SELECT librium_upper(NULL)");
+            stmt->Step();
+            return stmt->ColumnText(0).empty();
+        };
+        REQUIRE(testNull());
+    }
+
+    SECTION("Non-letter characters and emoji are returned with ASCII part uppercased")
+    {
+        REQUIRE(testUpper("hello🌍") == "HELLO🌍");
+    }
 }

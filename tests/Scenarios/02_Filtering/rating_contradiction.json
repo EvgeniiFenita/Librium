@@ -1,0 +1,19 @@
+{
+  "description": "Contradictory rating range: ratingMin > ratingMax yields empty result",
+  "library": [
+    { "title": "Low Rated",  "authors": ["Author,A,"], "rating": 2 },
+    { "title": "Mid Rated",  "authors": ["Author,B,"], "rating": 5 },
+    { "title": "High Rated", "authors": ["Author,C,"], "rating": 8 }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "ratingMin=8 and ratingMax=2 yields empty result (rating >= 8 AND rating <= 2 is impossible)",
+      "args": ["query", "--ratingMin", "8", "--ratingMax", "2", "--limit", "10"],
+      "expected": {
+        "totalFound": 0,
+        "books": []
+      }
+    }
+  ]
+}
