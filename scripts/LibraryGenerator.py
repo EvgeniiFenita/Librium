@@ -10,8 +10,22 @@ import zipfile
 import uuid
 import random
 import argparse
+import base64
+import io
+import colorsys
+import subprocess
 from datetime import datetime
 from pathlib import Path
+
+def _ensure_pillow():
+    """Install Pillow if not available."""
+    try:
+        import PIL
+    except ImportError:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "Pillow", "--quiet"])
+
+_ensure_pillow()
+from PIL import Image, ImageDraw, ImageFont
 
 # Add the scripts directory to path to import Core
 sys.path.append(str(Path(__file__).parent))
@@ -116,6 +130,73 @@ class CLibraryGenerator:
         
         return str(self.lib_path)
 
+    def _generate_cover_image(self, book_id, title, author):
+        """Generate a 200x300 JPEG cover with book ID, title, and author. Returns base64 string."""
+        W, H = 200, 300
+
+        # Deterministic hue from book_id for a repeatable unique color
+        hue = (book_id * 137) % 360 / 360.0
+        r_bg, g_bg, b_bg = colorsys.hls_to_rgb(hue, 0.35, 0.55)
+        r_top, g_top, b_top = colorsys.hls_to_rgb(hue, 0.20, 0.55)
+        bg_color = (int(r_bg * 255), int(g_bg * 255), int(b_bg * 255))
+        top_color = (int(r_top * 255), int(g_top * 255), int(b_top * 255))
+
+        img = Image.new("RGB", (W, H), bg_color)
+        draw = ImageDraw.Draw(img)
+
+        # Top band with darker background for the ID
+        top_band_h = 60
+        draw.rectangle([(0, 0), (W, top_band_h)], fill=top_color)
+
+        font = ImageFont.load_default()
+
+        # ID — large centered text in top band
+        id_text = f"#{book_id}"
+        bbox = draw.textbbox((0, 0), id_text, font=font)
+        tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        # Scale up by drawing at 2x with a simple approach: draw it 3 times offset for "bold"
+        id_x = (W - tw * 2) // 2
+        id_y = (top_band_h - th * 2) // 2
+        for dx in range(2):
+            for dy in range(2):
+                draw.text((id_x + dx, id_y + dy), id_text, fill=(255, 255, 255), font=font)
+
+        # Title — word-wrapped in the center area
+        words = title.split()
+        lines, line = [], ""
+        for word in words:
+            test = f"{line} {word}".strip()
+            bbox = draw.textbbox((0, 0), test, font=font)
+            if bbox[2] - bbox[0] > W - 16 and line:
+                lines.append(line)
+                line = word
+            else:
+                line = test
+        if line:
+            lines.append(line)
+
+        line_h = 12
+        total_h = len(lines) * line_h
+        start_y = top_band_h + (H - top_band_h - 40 - total_h) // 2
+        for i, l in enumerate(lines):
+            bbox = draw.textbbox((0, 0), l, font=font)
+            lw = bbox[2] - bbox[0]
+            draw.text(((W - lw) // 2, start_y + i * line_h), l, fill=(255, 255, 255), font=font)
+
+        # Bottom band with author
+        bottom_band_h = 40
+        draw.rectangle([(0, H - bottom_band_h), (W, H)], fill=top_color)
+        author_parts = [p.strip() for p in author.split(",")]
+        author_display = f"{author_parts[1]} {author_parts[0]}" if len(author_parts) >= 2 else author_parts[0]
+        bbox = draw.textbbox((0, 0), author_display, font=font)
+        aw = bbox[2] - bbox[0]
+        draw.text(((W - aw) // 2, H - bottom_band_h + (bottom_band_h - 10) // 2),
+                  author_display, fill=(220, 220, 220), font=font)
+
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=85)
+        return base64.b64encode(buf.getvalue()).decode("ascii")
+
     def _generate_fb2(self, book):
         annotation_xml = f"<annotation><p>{book['annotation']}</p></annotation>" if book['annotation'] else ""
         keywords_xml = f"<keywords>{book['keywords']}</keywords>" if book['keywords'] else ""
@@ -133,9 +214,12 @@ class CLibraryGenerator:
         binary_xml = ""
         if book.get('has_cover'):
             cover_xml = '<coverpage><image l:href="#cover.jpg"/></coverpage>'
-            # Tiny 1x1 black JPEG in base64
-            tiny_jpg_b64 = "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
-            binary_xml = f'<binary id="cover.jpg" content-type="image/jpeg">{tiny_jpg_b64}</binary>'
+            cover_b64 = self._generate_cover_image(
+                book_id=int(book['lib_id']),
+                title=book['title'],
+                author=book['authors'][0] if book['authors'] else ""
+            )
+            binary_xml = f'<binary id="cover.jpg" content-type="image/jpeg">{cover_b64}</binary>'
 
         return f"""<?xml version="1.0" encoding="utf-8"?>
 <FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
