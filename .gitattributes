@@ -1,0 +1,8 @@
+# Normalize line endings for all text files on checkout
+* text=auto
+
+# Shell scripts must use LF (Unix) line endings — required for Docker/Linux execution
+*.sh eol=lf
+
+# Python scripts use LF for consistent behaviour across Windows and Linux
+*.py eol=lf

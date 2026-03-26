@@ -29,7 +29,7 @@ The web part follows a **Proxy-Backend** pattern to bridge the C++ Engine's TCP 
   - **`lib/engineClient.js`** — Manages the persistent TCP connection to the C++ Engine: request queue with timeouts, Base64/JSON protocol decoding, and engine state machine (`starting` → `ready` → `importing` / `upgrading` → `crashed`).
   - **`lib/coverCache.js`** — LRU in-memory cache. Stores up to **50 MB** of recently accessed covers in RAM (supports JPG, PNG, and WebP).
   - **`routes/books.js`** — `GET /api/books` and `GET /api/books/:id` endpoints.
-  - **`routes/covers.js`** — `GET /covers/:id/cover` — serves cover images with LRU caching.
+  - **`routes/covers.js`** — `GET /covers/:id/:filename` — serves cover images with LRU caching.
   - **`routes/download.js`** — `GET /api/download/:id` — FB2 and optional EPUB download via fbc converter.
   - **`routes/library.js`** — Import, upgrade, and stats endpoints.
   - **EPUB Conversion**: Optionally converts exported FB2 files to EPUB2 format using the **fbc** (fb2cng) converter. The converter is downloaded automatically by `Run.py --web` and placed in the `tools/` directory. Controlled by `toolsDir` and `fb2cngExe` config fields. If the converter is absent, FB2 download remains available and EPUB buttons are hidden in the UI.
@@ -52,7 +52,7 @@ web/
 │   └── coverCache.js      # LRU in-memory cover cache (50 MB cap)
 ├── routes/                # Express route handlers (one file per concern)
 │   ├── books.js           # GET /api/books, GET /api/books/:id
-│   ├── covers.js          # GET /covers/:id/cover
+│   ├── covers.js          # GET /covers/:id/:filename
 │   ├── download.js        # GET /api/download/:id (FB2 & EPUB)
 │   └── library.js         # import, upgrade, stats endpoints
 ├── tests/
