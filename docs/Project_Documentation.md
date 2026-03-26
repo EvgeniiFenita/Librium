@@ -322,15 +322,96 @@ The web interface will be available at `http://<server-ip>:8080` from any device
 
 ### Configuration
 
-All configuration is done via environment variables in `docker-compose.yml`:
+There are two ways to configure the engine — they can be combined: the config file takes full priority when present, and env vars serve as the fallback.
 
-| Variable | Required | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `LIBRIUM_LIBRARY_PATH` | ✅ | — | Path to the library folder **inside** the container (e.g. `/library`) |
-| `LIBRIUM_INPX_FILE` | — | auto-detected | Name of the `.inpx` file. Detected automatically if not set. |
-| `LIBRIUM_ARCHIVES_DIR` | — | auto-detected | Path to the folder with ZIP archives. Prefers `lib.rus.ec/` subfolder; falls back to `LIBRIUM_LIBRARY_PATH`. |
-| `WEB_PORT` | — | `8080` | HTTP port for the web interface. |
-| `LIBRIUM_PORT` | — | `9001` | Internal TCP port for C++ engine communication. |
+#### Option A — Config file (recommended for advanced settings)
+
+Place a `librium_config.json` file in your data directory on the host machine (the folder mapped to `/data` inside the container). If the file is found at `/data/librium_config.json` on container startup, it is used as-is and all `LIBRIUM_*` import/filter/logging env vars are ignored.
+
+This is the most convenient approach when you need to configure filter lists (e.g. `excludeLanguages`, `excludeAuthors`). A full config example:
+
+```json
+{
+    "database": { "path": "/data/library.db" },
+    "library": {
+        "inpxPath": "/library/collection.inpx",
+        "archivesDir": "/library/lib.rus.ec"
+    },
+    "import": {
+        "parseFb2": true,
+        "threadCount": 8,
+        "transactionBatchSize": 1000,
+        "sqliteCacheSize": -64000,
+        "sqliteMmapSize": 268435456
+    },
+    "filters": {
+        "excludeLanguages": ["ru", "uk"],
+        "includeLanguages": [],
+        "excludeGenres": [],
+        "includeGenres": [],
+        "minFileSize": 0,
+        "maxFileSize": 0,
+        "excludeAuthors": [],
+        "excludeKeywords": []
+    },
+    "logging": {
+        "level": "info",
+        "file": "/data/librium.log",
+        "progressInterval": 1000
+    }
+}
+```
+
+> **Note**: `library.inpxPath` and `library.archivesDir` must use the container-side paths (e.g. `/library/...`). The `LIBRIUM_LIBRARY_PATH` env var must still be set for the auto-detection logic to run.
+
+#### Option B — Environment variables (convenient for simple overrides)
+
+Uncomment and edit the relevant lines in `docker-compose.yml`. All parameters are optional with sensible defaults. Array values use comma-separated strings.
+
+**Library detection** (auto-detected if not set):
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `LIBRIUM_LIBRARY_PATH` | *(required)* | Path to the library folder **inside** the container (e.g. `/library`) |
+| `LIBRIUM_INPX_FILE` | auto-detected | Name of the `.inpx` file inside `LIBRIUM_LIBRARY_PATH`. |
+| `LIBRIUM_ARCHIVES_DIR` | auto-detected | Path to the folder with ZIP archives. Prefers `lib.rus.ec/` subfolder. |
+
+**Network**:
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `WEB_PORT` | `8080` | HTTP port for the web interface. |
+| `LIBRIUM_PORT` | `9001` | Internal TCP port for C++ engine communication. |
+
+**Import tuning**:
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `LIBRIUM_THREAD_COUNT` | `4` | Number of worker threads for parallel indexing. |
+| `LIBRIUM_PARSE_FB2` | `true` | Extract metadata and covers from FB2 files. |
+| `LIBRIUM_TRANSACTION_BATCH_SIZE` | `1000` | Number of books per SQLite transaction. |
+| `LIBRIUM_SQLITE_CACHE_SIZE` | `-64000` | SQLite cache size (negative = KB, positive = pages). |
+| `LIBRIUM_SQLITE_MMAP_SIZE` | `268435456` | SQLite memory-mapped I/O size in bytes (256 MB). |
+
+**Filters** (comma-separated language/genre codes or name substrings):
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `LIBRIUM_EXCLUDE_LANGUAGES` | *(empty)* | Language codes to exclude, e.g. `ru,uk,be`. |
+| `LIBRIUM_INCLUDE_LANGUAGES` | *(empty)* | Language codes to include (whitelist). |
+| `LIBRIUM_EXCLUDE_GENRES` | *(empty)* | Genre codes to exclude, e.g. `sf_humor,poetry`. |
+| `LIBRIUM_INCLUDE_GENRES` | *(empty)* | Genre codes to include (whitelist). |
+| `LIBRIUM_EXCLUDE_AUTHORS` | *(empty)* | Author name substrings to exclude. |
+| `LIBRIUM_EXCLUDE_KEYWORDS` | *(empty)* | Keyword substrings to exclude. |
+| `LIBRIUM_MIN_FILE_SIZE` | `0` | Minimum file size in bytes (`0` = no limit). |
+| `LIBRIUM_MAX_FILE_SIZE` | `0` | Maximum file size in bytes (`0` = no limit). |
+
+**Logging**:
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `LIBRIUM_LOG_LEVEL` | `info` | Log verbosity: `debug`, `info`, `warn`, `error`. |
+| `LIBRIUM_LOG_PROGRESS_INTERVAL` | `1000` | Progress report interval in milliseconds. |
 
 On first start, Librium indexes the library. This may take several minutes for large collections. Progress is written to `/data/librium.log`.
 

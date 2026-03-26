@@ -3,15 +3,28 @@
 # Usage:
 #   1. Load the image:
 #        docker load -i librium-image.tar.gz
-#   2. Set LIBRIUM_LIBRARY_PATH to the path of your library folder on the host.
-#   3. Set the volume paths below accordingly.
-#   4. Start the service:
+#   2. Set the volume paths below to point to your library and data directories.
+#   3. Start the service:
 #        docker compose up -d
-#   5. Open http://<server-ip>:8080 from any device on the local network.
+#   4. Open http://<server-ip>:8080 from any device on the local network.
 #
 # The .inpx file and archives directory are detected automatically.
 # On first start, Librium will index the library — this may take several minutes.
 # Progress is logged to /data/librium.log inside the container (mapped to the data volume).
+#
+# ── CONFIGURATION ────────────────────────────────────────────────────────────
+#
+# Option A — Config file (recommended for advanced settings):
+#   Place a librium_config.json file in your data directory (/path/to/data/).
+#   If the file is present at /data/librium_config.json inside the container,
+#   it takes full priority and all LIBRIUM_* env vars below are ignored.
+#   This is the easiest way to set filter lists (excludeLanguages, etc.).
+#
+# Option B — Environment variables (convenient for simple overrides):
+#   Uncomment and edit the relevant lines in the environment section below.
+#   Array values use comma-separated strings: LIBRIUM_EXCLUDE_LANGUAGES=ru,uk,be
+#
+# ─────────────────────────────────────────────────────────────────────────────
 
 services:
   librium:
@@ -21,8 +34,38 @@ services:
       - "8080:8080"          # <host-port>:<container-port>
     volumes:
       - /path/to/library:/library:ro   # library folder (read-only)
-      - /path/to/data:/data            # database, logs, covers, temp files
+      - /path/to/data:/data            # database, logs, covers, config override
     environment:
+      # ── Required ──────────────────────────────────────────────────────────
       - LIBRIUM_LIBRARY_PATH=/library
+
+      # ── Library detection (auto-detected if not set) ──────────────────────
+      # - LIBRIUM_INPX_FILE=collection.inpx     # .inpx filename inside LIBRARY_PATH
+      # - LIBRIUM_ARCHIVES_DIR=/library/lib.rus.ec  # explicit path to ZIP archives
+
+      # ── Network ───────────────────────────────────────────────────────────
       - WEB_PORT=8080
+      # - LIBRIUM_PORT=9001                     # internal C++ engine TCP port
+
+      # ── Import tuning ─────────────────────────────────────────────────────
+      # - LIBRIUM_THREAD_COUNT=4                # worker threads (default: 4)
+      # - LIBRIUM_PARSE_FB2=true                # extract FB2 metadata (default: true)
+      # - LIBRIUM_TRANSACTION_BATCH_SIZE=1000   # books per SQLite transaction
+      # - LIBRIUM_SQLITE_CACHE_SIZE=-64000      # SQLite cache, KB if negative
+      # - LIBRIUM_SQLITE_MMAP_SIZE=268435456    # SQLite mmap size, bytes (256 MB)
+
+      # ── Filters (comma-separated language/genre codes or name substrings) ─
+      # - LIBRIUM_EXCLUDE_LANGUAGES=            # e.g. ru,uk,be  — exclude these
+      # - LIBRIUM_INCLUDE_LANGUAGES=            # e.g. en        — allow only these
+      # - LIBRIUM_EXCLUDE_GENRES=               # e.g. sf_humor,poetry
+      # - LIBRIUM_INCLUDE_GENRES=               # e.g. sf,detective
+      # - LIBRIUM_EXCLUDE_AUTHORS=              # substring match, e.g. Petrov
+      # - LIBRIUM_EXCLUDE_KEYWORDS=             # substring match
+      # - LIBRIUM_MIN_FILE_SIZE=0               # bytes; 0 = no limit
+      # - LIBRIUM_MAX_FILE_SIZE=0               # bytes; 0 = no limit
+
+      # ── Logging ───────────────────────────────────────────────────────────
+      # - LIBRIUM_LOG_LEVEL=info                # debug | info | warn | error
+      # - LIBRIUM_LOG_PROGRESS_INTERVAL=1000    # progress report interval, ms
+
     restart: unless-stopped
