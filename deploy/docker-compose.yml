@@ -26,6 +26,10 @@
 #
 # ─────────────────────────────────────────────────────────────────────────────
 
+# IMPORTANT: For the container to start automatically after a system reboot, the Docker
+# daemon itself must be enabled as a systemd service (standard on Ubuntu 24.04):
+#   sudo systemctl enable docker
+#
 services:
   librium:
     image: librium:latest

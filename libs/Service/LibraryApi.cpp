@@ -77,7 +77,7 @@ std::filesystem::path CLibraryApi::ExportBook(int64_t id, const std::filesystem:
 SAppStats CLibraryApi::GetStats()
 {
     auto& reader = GetReader();
-    return {reader.CountBooks(), reader.CountAuthors()};
+    return {reader.CountBooks(), reader.CountAuthors(), reader.CountIndexedArchives()};
 }
 
 std::optional<SBookDetails> CLibraryApi::GetBook(int64_t id)

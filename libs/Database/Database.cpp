@@ -331,6 +331,14 @@ int64_t CDatabase::CountAuthors() const
     return stmt->IsRow() ? stmt->ColumnInt64(0) : 0;
 }
 
+int64_t CDatabase::CountIndexedArchives() const
+{
+    auto stmt = m_db->Prepare(std::string(Sql::CountIndexedArchives));
+    stmt->Step();
+    CSqlStmtResetGuard guard(*stmt);
+    return stmt->IsRow() ? stmt->ColumnInt64(0) : 0;
+}
+
 int CDatabase::CountIndexes() const
 {
     auto stmt = m_db->Prepare(std::string(Sql::CountBookIndexes));

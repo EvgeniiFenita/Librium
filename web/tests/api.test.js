@@ -175,6 +175,21 @@ describe('API Endpoints (Mocked Engine)', () => {
         expect(res.body.total_books).toBe(42);
     });
 
+    it('should forward indexed_archives from engine stats response', async () => {
+        engineResponses.push({ status: 'ok', data: { total_books: 100, total_authors: 50, indexed_archives: 7 } });
+        const res = await request(httpServer).get('/api/stats');
+        expect(res.status).toBe(200);
+        expect(res.body.indexed_archives).toBe(7);
+    });
+
+    it('should return stats with indexed_archives zero when engine omits the field', async () => {
+        engineResponses.push({ status: 'ok', data: { total_books: 5 } });
+        const res = await request(httpServer).get('/api/stats');
+        expect(res.status).toBe(200);
+        expect(res.body.total_books).toBe(5);
+        expect(res.body.indexed_archives).toBeUndefined();
+    });
+
     it('should return 500 if engine returns an error', async () => {
         engineResponses.push({ status: 'error', error: 'Internal C++ Error' });
         const res = await request(httpServer).get('/api/stats');

@@ -13,6 +13,7 @@ public:
 
     [[nodiscard]] virtual int64_t CountBooks() const = 0;
     [[nodiscard]] virtual int64_t CountAuthors() const = 0;
+    [[nodiscard]] virtual int64_t CountIndexedArchives() const = 0;
 
     [[nodiscard]] virtual SQueryResult ExecuteQuery(const SQueryParams& params) = 0;
     [[nodiscard]] virtual std::optional<SBookResult> GetBookById(int64_t id) = 0;

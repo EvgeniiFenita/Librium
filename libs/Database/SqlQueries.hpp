@@ -229,6 +229,12 @@ constexpr std::string_view CountBooks = "SELECT COUNT(*) FROM books";
 // Total count of authors in DB
 constexpr std::string_view CountAuthors = "SELECT COUNT(*) FROM authors";
 
+// Total count of fully indexed archives
+constexpr std::string_view CountIndexedArchives = "SELECT COUNT(*) FROM archives WHERE last_indexed IS NOT NULL";
+
+// Integrity check — returns "ok" if the database is not corrupt
+constexpr std::string_view IntegrityCheck = "PRAGMA integrity_check(1)";
+
 // Count of book-related indexes (used by tests to verify index lifecycle)
 constexpr std::string_view CountBookIndexes = "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name LIKE 'idx_books_%'";
 

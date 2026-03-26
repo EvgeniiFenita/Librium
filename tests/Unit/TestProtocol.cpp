@@ -120,6 +120,7 @@ TEST_CASE("CJsonProtocol::Process with valid stats action returns ok", "[protoco
     REQUIRE(json["status"] == "ok");
     REQUIRE(json["data"]["total_books"] == 0);
     REQUIRE(json["data"]["total_authors"] == 0);
+    REQUIRE(json["data"]["indexed_archives"] == 0);
 }
 
 TEST_CASE("CJsonProtocol::Process with query action returns books list", "[protocol]")

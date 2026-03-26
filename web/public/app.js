@@ -401,6 +401,7 @@ async function checkInitialStatus() {
         startPolling();
       } else {
         updateStatsBadge(stats);
+        updateInterruptedImportBanner(stats);
         hideImportOverlay();
         loadBooks(true);
       }
@@ -432,6 +433,7 @@ function startPolling() {
         clearInterval(pollTimer);
         const stats = await api('/api/stats');
         updateStatsBadge(stats);
+        updateInterruptedImportBanner(stats);
         hideImportOverlay();
         resetUpgradeButton();
         loadBooks(true);
@@ -488,6 +490,17 @@ function updateStatsBadge(stats) {
   const badge = document.getElementById('stats-badge');
   const count = stats.total_books ?? 0;
   badge.textContent = count > 0 ? `${count.toLocaleString()} books` : '';
+}
+
+function updateInterruptedImportBanner(stats) {
+  const banner = document.getElementById('interrupted-import-banner');
+  const hasBooks = (stats.total_books ?? 0) > 0;
+  const hasIndexed = (stats.indexed_archives ?? 0) > 0;
+  if (hasBooks && !hasIndexed) {
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
 }
 
 // --- INIT ---

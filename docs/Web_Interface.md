@@ -23,6 +23,7 @@ The web part follows a **Proxy-Backend** pattern to bridge the C++ Engine's TCP 
   - **Book Modal**: Shows full book metadata, large cover (correctly sized), annotation, and download buttons. **📥 FB2** is always available; **📥 EPUB** appears only when the fbc converter is configured on the server.
   - **Author Display**: Intelligent formatting (e.g., "Author A, Author B" or "Author A + N" for multiple authors).
   - **Progress Overlay**: Appears during initial import or manual library rebuilds.
+  - **Interrupted Import Banner**: Displayed on page load if the engine reports books in the database but no indexed archives (`total_books > 0` and `indexed_archives = 0`). This indicates an import was interrupted by a system reboot or crash. The banner prompts the user to press **Upgrade** to complete indexing.
 - **Backend (Node.js)**:
   - **`server.js`** — Thin orchestrator: loads config, wires `lib/` modules and `routes/` together, starts the Express server.
   - **`lib/engineProcess.js`** — Spawns and monitors the `Librium.exe` process lifecycle.
@@ -31,7 +32,7 @@ The web part follows a **Proxy-Backend** pattern to bridge the C++ Engine's TCP 
   - **`routes/books.js`** — `GET /api/books` and `GET /api/books/:id` endpoints.
   - **`routes/covers.js`** — `GET /covers/:id/:filename` — serves cover images with LRU caching.
   - **`routes/download.js`** — `GET /api/download/:id` — FB2 and optional EPUB download via fbc converter.
-  - **`routes/library.js`** — Import, upgrade, and stats endpoints.
+  - **`routes/library.js`** — Import, upgrade, stats endpoints. The `/api/stats` response forwards all fields from the engine's `stats` command, including `total_books`, `total_authors`, and `indexed_archives`.
   - **EPUB Conversion**: Optionally converts exported FB2 files to EPUB2 format using the **fbc** (fb2cng) converter. The converter is downloaded automatically by `Run.py --web` and placed in the `tools/` directory. Controlled by `toolsDir` and `fb2cngExe` config fields. If the converter is absent, FB2 download remains available and EPUB buttons are hidden in the UI.
   - **Security**: Validates all incoming book IDs and sanitizes query parameters to prevent attacks.
   - **Static Server**: Serves the frontend files and cover images from the `meta/` directory.

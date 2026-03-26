@@ -69,6 +69,62 @@ TEST_CASE("Database basic operations", "[db]")
     }
 }
 
+TEST_CASE("Database CountIndexedArchives", "[db]")
+{
+    CTempDir tempDir;
+    std::string dbPath = (tempDir.GetPath() / "indexed.db").string();
+    Db::CDatabase db(dbPath);
+
+    SECTION("Returns zero on empty database")
+    {
+        REQUIRE(db.CountIndexedArchives() == 0);
+    }
+
+    SECTION("Returns one after marking a single archive")
+    {
+        db.MarkArchiveIndexed("arch_a");
+        REQUIRE(db.CountIndexedArchives() == 1);
+    }
+
+    SECTION("Returns correct count after marking multiple archives")
+    {
+        db.MarkArchiveIndexed("arch_a");
+        db.MarkArchiveIndexed("arch_b");
+        REQUIRE(db.CountIndexedArchives() == 2);
+    }
+
+    SECTION("Marking the same archive twice does not increase count")
+    {
+        db.MarkArchiveIndexed("arch_a");
+        db.MarkArchiveIndexed("arch_a");
+        REQUIRE(db.CountIndexedArchives() == 1);
+    }
+}
+
+TEST_CASE("Database integrity check passes on fresh and populated database", "[db][integrity]")
+{
+    CTempDir tempDir;
+    std::string dbPath = (tempDir.GetPath() / "integrity.db").string();
+
+    SECTION("Fresh database opens without throw")
+    {
+        REQUIRE_NOTHROW([&]{ Db::CDatabase db(dbPath); }());
+    }
+
+    SECTION("Populated database reopens without throw")
+    {
+        {
+            Db::CDatabase db(dbPath);
+            auto rec = MakeRec("int1", "Integrity Book");
+            db.BeginTransaction();
+            (void)db.InsertBook(rec);
+            db.Commit();
+        }
+        // Reopen — CDatabaseSchema::Create() runs integrity_check internally
+        REQUIRE_NOTHROW([&]{ Db::CDatabase db2(dbPath); }());
+    }
+}
+
 TEST_CASE("Database bulk import operations", "[db][bulk]")
 {
     CTempDir tempDir;

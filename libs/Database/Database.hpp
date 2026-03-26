@@ -89,6 +89,7 @@ public:
     // IBookReader
     [[nodiscard]] int64_t CountBooks() const override;
     [[nodiscard]] int64_t CountAuthors() const override;
+    [[nodiscard]] int64_t CountIndexedArchives() const override;
 
     [[nodiscard]] SQueryResult ExecuteQuery(const SQueryParams& params) override;
     [[nodiscard]] std::optional<SBookResult> GetBookById(int64_t id) override;

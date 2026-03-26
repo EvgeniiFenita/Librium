@@ -52,7 +52,7 @@ The `IRequest` interface provides safe access to request parameters without know
 The `IResponse` interface is used to send the result back. It is overloaded for various domain structures:
 - `SetData(Db::SImportStats)`
 - `SetData(Db::SQueryResult)`
-- `SetData(SAppStats)`
+- `SetData(SAppStats)` — stats result with fields: `totalBooks`, `totalAuthors`, `indexedArchives`. Serialized to JSON as `total_books`, `total_authors`, `indexed_archives`.
 - `SetData(SBookDetails)`
 - `SetError(message)`
 - `SetProgress(processed, total)` — used for intermediate updates.

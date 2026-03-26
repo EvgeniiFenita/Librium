@@ -18,7 +18,7 @@ The project is organized into independent, reusable static libraries and a singl
 | **Inpx** | High-speed parser for `.inpx` collection indices. | **Zip**, **Log**, **Utils** |
 | **Config** | JSON-based configuration, path helpers, `CAppPaths` utility class, and book filter logic. | **Inpx**, **Utils**, `nlohmann_json` |
 | **Utils** | Common technical utilities (Base64, Thread-safe queue, String helpers, `CStringUtils::Utf8ToPath`). No external dependencies. | None |
-| **Database** | Abstraction layer for SQL databases. Low-level SQL access is encapsulated in `ISqlDatabase`/`ISqlStatement` interfaces. Business consumers interact through role-specific interfaces: `IBookWriter` (import/indexing) and `IBookReader` (search/query). `CDatabase` implements both. Includes full query and search engine logic. | **Fb2**, **Inpx**, **Log**, `Sqlite3Lib` |
+| **Database** | Abstraction layer for SQL databases. Low-level SQL access is encapsulated in `ISqlDatabase`/`ISqlStatement` interfaces. Business consumers interact through role-specific interfaces: `IBookWriter` (import/indexing) and `IBookReader` (search/query/statistics). `CDatabase` implements both. Includes full query and search engine logic. On startup, `CDatabaseSchema::Create()` runs `PRAGMA integrity_check(1)` on non-empty databases to detect filesystem-level corruption before index creation. | **Fb2**, **Inpx**, **Log**, `Sqlite3Lib` |
 | **Indexer** | Multi-threaded book indexing engine. Producer/Worker/Writer pipeline for FB2 parsing and mass import. `CImportGuard` ensures safe state restoration on failures. | **Database**, **Config**, **Inpx**, **Zip**, **Fb2**, **Log** |
 | **Service** | Engine core using the Command pattern. Abstracts communication via `IRequest`/`IResponse` interfaces. | **Database**, **Indexer**, **Config**, **Inpx**, **Fb2**, **Zip**, **Log**, **Utils** |
 | **Protocol** | Implementation of communication formats (e.g., JSON over Base64). | **Service**, **Utils**, `nlohmann_json` |
@@ -196,7 +196,7 @@ During long operations (`import`, `upgrade`), the engine emits periodic updates:
 | `import` | *none* | Full library re-indexing using paths from config. |
 | `upgrade`| *none* | Incremental update (add only new archives). |
 | `query`  | `title`, `author`, `genre`, `series`, `language`, `lib-id`, `archive`, `date-from`, `date-to`, `rating-min`, `rating-max`, `with-annotation`, `limit`, `offset` | Search books in the database. Supports search operators in `title`, `author`, and `series`. |
-| `stats`  | *none* | Get database summary (books/authors count). |
+| `stats`  | *none* | Get database summary (books count, authors count, indexed archives count). |
 | `get-book` | `id` (int) | Get full metadata of a single book by ID. Includes `"cover"` path if available. |
 | `export` | `id` (int), `out` (directory path) | Extract a book from a ZIP archive into the specified directory. Response includes `data.file` — absolute path to the extracted file. |
 
@@ -223,7 +223,7 @@ To ensure Windows compatibility with non-ASCII paths:
 ## 7. Performance & Robustness
 
 ### High-Performance Import
-- **Bulk Write Mode**: During mass indexing, the database toggles `PRAGMA journal_mode = OFF` and `PRAGMA synchronous = OFF` via `BeginBulkImport()`. This provides a 30-50% speed boost. The `CImportGuard` RAII object ensures WAL mode and synchronous=NORMAL are restored even if the process crashes.
+- **Bulk Write Mode**: During mass indexing, the database toggles `PRAGMA journal_mode = OFF` and `PRAGMA synchronous = OFF` via `BeginBulkImport()`. This provides a 30-50% speed boost. The `CImportGuard` RAII object ensures WAL mode and synchronous=NORMAL are restored when the process exits gracefully (SIGTERM, exception, or normal exit). On hard kills (SIGKILL, power loss), destructors do not run — recovery is handled by `CDatabaseSchema::Create()` on the next startup: it runs `PRAGMA journal_mode=WAL` to fix the persisted mode and runs `PRAGMA integrity_check(1)` to detect page-level corruption before index creation.
 - **Optimized Page Size**: New databases are initialized with `PRAGMA page_size = 16384` to reduce B-Tree depth and improve disk I/O for millions of records.
 - **Archive-Aware Scheduling**: The indexer groups all books by archive during pre-scan. Each `SWorkItem` in the work queue represents a complete archive batch — all books from one ZIP. A worker thread picks up an entire batch, opens the ZIP exactly once, processes all books sequentially, then closes it. This eliminates redundant ZIP opens caused by multiple threads competing for the same archive.
 - **Fast Upgrade**: The `upgrade` command automatically skips archives that are already marked as indexed in the database, reducing incremental update time from minutes to seconds.
@@ -319,6 +319,13 @@ docker compose up -d
 ```
 
 The web interface will be available at `http://<server-ip>:8080` from any device on the local network.
+
+> **Important**: For the container to start automatically after a system reboot, the Docker daemon must be enabled in systemd. On Ubuntu 24.04 installed via official packages this is the default, but verify with:
+> ```bash
+> sudo systemctl is-enabled docker    # should print "enabled"
+> sudo systemctl enable docker        # enable if it isn't
+> ```
+> The `restart: unless-stopped` policy in `docker-compose.yml` only takes effect once the Docker daemon itself is running.
 
 ### Configuration
 
@@ -416,3 +423,11 @@ Uncomment and edit the relevant lines in `docker-compose.yml`. All parameters ar
 On first start, Librium indexes the library. This may take several minutes for large collections. Progress is written to `/data/librium.log`.
 
 > **Performance note**: If the library is on a Windows NTFS drive accessed via WSL2 (`/mnt/c/...`), indexing will be significantly slower due to the 9P filesystem bridge. For best performance, copy the library to the native Linux filesystem first.
+
+### Interrupted Import Recovery
+
+If the system was rebooted while an import was in progress, Librium recovers automatically:
+
+1. **Engine startup**: `CDatabaseSchema::Create()` runs on every startup. It sets `PRAGMA journal_mode=WAL` (fixing any persisted `OFF` mode from a killed import), and runs `PRAGMA integrity_check(1)` to detect page-level corruption before rebuilding indexes. If the database is corrupt, the engine exits with a clear error message directing the user to delete `library.db` and re-import.
+2. **Import state**: Archives are only marked as indexed at the very end of a successful import. After a reboot, all archives appear un-indexed, so pressing **Upgrade** causes a full re-scan and completes the interrupted import. Already-written books are skipped via `BookExists()`.
+3. **UI banner**: If the engine reports `total_books > 0` but `indexed_archives = 0`, the frontend displays a warning banner prompting the user to press **Upgrade** to complete indexing.

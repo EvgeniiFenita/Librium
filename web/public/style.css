@@ -140,6 +140,17 @@ body { background: var(--bg-primary); color: var(--text-primary); font-family: s
 }
 .modal-close:hover { color: var(--text-primary); }
 
+/* Import warning banner */
+.import-warning-banner {
+  background: rgba(229, 160, 13, 0.15);
+  border-bottom: 1px solid rgba(229, 160, 13, 0.4);
+  color: var(--accent);
+  text-align: center;
+  padding: 8px 24px;
+  font-size: 0.85rem;
+}
+.import-warning-banner strong { font-weight: 600; }
+
 /* Utilities */
 .hidden { display: none !important; }
 .sentinel { height: 20px; width: 100%; margin-top: 20px; }

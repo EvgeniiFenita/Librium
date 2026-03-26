@@ -172,7 +172,8 @@ public:
     {
         m_data = {
             {"total_books", stats.totalBooks},
-            {"total_authors", stats.totalAuthors}
+            {"total_authors", stats.totalAuthors},
+            {"indexed_archives", stats.indexedArchives}
         };
     }
 

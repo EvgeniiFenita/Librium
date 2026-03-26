@@ -15,8 +15,9 @@ namespace Librium::Db { class CDatabase; }
 namespace Librium::Service {
 
 struct SAppStats {
-    int64_t totalBooks = 0;
-    int64_t totalAuthors = 0;
+    int64_t totalBooks      = 0;
+    int64_t totalAuthors    = 0;
+    int64_t indexedArchives = 0;
 };
 
 struct SBookDetails {

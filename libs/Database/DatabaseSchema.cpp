@@ -36,6 +36,33 @@ void CDatabaseSchema::Create(ISqlDatabase& db)
         }
     }
 
+    // If books exist in the database, run an integrity check before rebuilding indexes.
+    // A hard crash during import (journal_mode=OFF + synchronous=OFF) can leave SQLite
+    // pages partially written. Detecting this early produces a clear error message instead
+    // of a confusing SQLITE_CORRUPT failure inside CREATE INDEX.
+    {
+        auto countStmt = db.Prepare(std::string(Sql::CountBooks));
+        countStmt->Step();
+        const int64_t bookCount = countStmt->IsRow() ? countStmt->ColumnInt64(0) : 0;
+
+        if (bookCount > 0)
+        {
+            auto checkStmt = db.Prepare(std::string(Sql::IntegrityCheck));
+            checkStmt->Step();
+            const std::string result = checkStmt->IsRow() ? checkStmt->ColumnText(0) : "";
+
+            if (result != "ok")
+            {
+                LOG_ERROR(
+                    "Database integrity check failed: {}. "
+                    "The database file may be corrupted due to a power loss during import. "
+                    "Delete the database file and run a full import to recover.",
+                    result);
+                throw CDbError("Database integrity check failed: " + result);
+            }
+        }
+    }
+
     Exec(db, Sql::CreateIndexBooksTitle.data());
     Exec(db, Sql::CreateIndexBooksLang.data());
     Exec(db, Sql::CreateIndexBooksSearchTitle.data());
