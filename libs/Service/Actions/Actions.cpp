@@ -6,9 +6,89 @@
 
 namespace Librium::Service {
 
-// ----------------------------------------------------------------------------
-// IMPORT
-// ----------------------------------------------------------------------------
+namespace {
+
+bool RequireParam(const IRequest& req, IResponse& res, const char* key, const std::string& error)
+{
+    if (req.HasParam(key))
+    {
+        return true;
+    }
+
+    res.SetError(error);
+    return false;
+}
+
+void LoadStringParam(const IRequest& req, const char* key, std::string& target)
+{
+    if (req.HasParam(key))
+    {
+        target = req.GetString(key);
+    }
+}
+
+template<typename TValue>
+void LoadIntParam(const IRequest& req, const char* key, TValue& target)
+{
+    if (req.HasParam(key))
+    {
+        target = static_cast<TValue>(req.GetInt(key));
+    }
+}
+
+void LoadBoolParam(const IRequest& req, const char* key, bool& target)
+{
+    if (req.HasParam(key))
+    {
+        target = req.GetBool(key);
+    }
+}
+
+Db::SQueryParams BuildQueryParams(const IRequest& req)
+{
+    Db::SQueryParams queryParams;
+
+    LoadStringParam(req, "title", queryParams.title);
+    LoadStringParam(req, "author", queryParams.author);
+    LoadStringParam(req, "genre", queryParams.genre);
+    LoadStringParam(req, "series", queryParams.series);
+    LoadStringParam(req, "language", queryParams.language);
+    LoadStringParam(req, "libId", queryParams.libId);
+    LoadStringParam(req, "archiveName", queryParams.archiveName);
+    LoadStringParam(req, "dateFrom", queryParams.dateFrom);
+    LoadStringParam(req, "dateTo", queryParams.dateTo);
+
+    LoadIntParam(req, "ratingMin", queryParams.ratingMin);
+    LoadIntParam(req, "ratingMax", queryParams.ratingMax);
+    LoadBoolParam(req, "withAnnotation", queryParams.withAnnotation);
+    LoadIntParam(req, "limit", queryParams.limit);
+    LoadIntParam(req, "offset", queryParams.offset);
+
+    return queryParams;
+}
+
+std::string BuildExportFilename(const Service::SBookDetails& book)
+{
+    std::string author = "Unknown";
+    if (!book.book.authors.empty())
+    {
+        author = book.book.authors[0].lastName;
+        if (!book.book.authors[0].firstName.empty())
+        {
+            author += " " + book.book.authors[0].firstName;
+        }
+        if (author.empty())
+        {
+            author = "Unknown";
+        }
+    }
+
+    const std::string title = book.book.title.empty() ? "Unknown" : book.book.title;
+    return Utils::CStringUtils::SanitizeFilename(author + " - " + title + "." + book.book.fileExt);
+}
+
+} // namespace
+
 void CImportAction::Execute(CAppService& service, const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     (void)req;
@@ -16,9 +96,6 @@ void CImportAction::Execute(CAppService& service, const IRequest& req, IResponse
     res.SetData(stats);
 }
 
-// ----------------------------------------------------------------------------
-// UPGRADE
-// ----------------------------------------------------------------------------
 void CUpgradeAction::Execute(CAppService& service, const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     (void)req;
@@ -26,49 +103,19 @@ void CUpgradeAction::Execute(CAppService& service, const IRequest& req, IRespons
     res.SetData(stats);
 }
 
-// ----------------------------------------------------------------------------
-// QUERY
-// ----------------------------------------------------------------------------
 void CQueryAction::Execute(CAppService& service, const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     (void)reporter;
-    Db::SQueryParams qp;
-    
-    if (req.HasParam("title"))    qp.title = req.GetString("title");
-    if (req.HasParam("author"))   qp.author = req.GetString("author");
-    if (req.HasParam("genre"))    qp.genre = req.GetString("genre");
-    if (req.HasParam("series"))   qp.series = req.GetString("series");
-    if (req.HasParam("language")) qp.language = req.GetString("language");
-    if (req.HasParam("libId"))    qp.libId = req.GetString("libId");
-    if (req.HasParam("archiveName")) qp.archiveName = req.GetString("archiveName");
-    if (req.HasParam("dateFrom")) qp.dateFrom = req.GetString("dateFrom");
-    if (req.HasParam("dateTo"))   qp.dateTo = req.GetString("dateTo");
-    
-    if (req.HasParam("ratingMin")) qp.ratingMin = static_cast<int>(req.GetInt("ratingMin"));
-    if (req.HasParam("ratingMax")) qp.ratingMax = static_cast<int>(req.GetInt("ratingMax"));
-    if (req.HasParam("withAnnotation")) qp.withAnnotation = req.GetBool("withAnnotation");
-    
-    if (req.HasParam("limit"))    qp.limit = req.GetInt("limit");
-    if (req.HasParam("offset"))   qp.offset = req.GetInt("offset");
-
-    auto result = service.GetApi().SearchBooks(qp);
+    auto result = service.GetApi().SearchBooks(BuildQueryParams(req));
     res.SetData(result);
 }
 
-// ----------------------------------------------------------------------------
-// EXPORT
-// ----------------------------------------------------------------------------
 void CExportAction::Execute(CAppService& service, const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     (void)reporter;
-    if (!req.HasParam("id"))
+    if (!RequireParam(req, res, "id", "Missing book 'id'") ||
+        !RequireParam(req, res, "out", "Missing 'out' directory"))
     {
-        res.SetError("Missing book 'id'");
-        return;
-    }
-    if (!req.HasParam("out"))
-    {
-        res.SetError("Missing 'out' directory");
         return;
     }
 
@@ -84,22 +131,8 @@ void CExportAction::Execute(CAppService& service, const IRequest& req, IResponse
             return;
         }
 
-        std::string author;
-        if (!bookOpt->book.authors.empty())
-        {
-            author = bookOpt->book.authors[0].lastName;
-            if (!bookOpt->book.authors[0].firstName.empty())
-            {
-                author += " " + bookOpt->book.authors[0].firstName;
-            }
-        }
-        if (author.empty()) author = "Unknown";
-        
-        std::string title = bookOpt->book.title.empty() ? "Unknown" : bookOpt->book.title;
-        std::string filename = Utils::CStringUtils::SanitizeFilename(author + " - " + title + "." + bookOpt->book.fileExt);
-
         auto outPath = service.GetApi().ExportBook(id, outDir);
-        res.SetDataExport(outPath, filename);
+        res.SetDataExport(outPath, BuildExportFilename(*bookOpt));
     }
     catch (const std::exception& e)
     {
@@ -107,9 +140,6 @@ void CExportAction::Execute(CAppService& service, const IRequest& req, IResponse
     }
 }
 
-// ----------------------------------------------------------------------------
-// STATS
-// ----------------------------------------------------------------------------
 void CStatsAction::Execute(CAppService& service, const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     (void)req;
@@ -118,15 +148,11 @@ void CStatsAction::Execute(CAppService& service, const IRequest& req, IResponse&
     res.SetData(stats);
 }
 
-// ----------------------------------------------------------------------------
-// GET-BOOK
-// ----------------------------------------------------------------------------
 void CGetBookAction::Execute(CAppService& service, const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     (void)reporter;
-    if (!req.HasParam("id"))
+    if (!RequireParam(req, res, "id", "Missing 'id' parameter"))
     {
-        res.SetError("Missing 'id' parameter");
         return;
     }
 
