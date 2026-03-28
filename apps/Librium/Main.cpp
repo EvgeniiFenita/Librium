@@ -116,7 +116,7 @@ int main(int argc, char* argv[])
             return [engine, sendCallback](const std::string& request) {
                 // Factory that creates a reporter bound to the current response
                 CJsonProtocol::ReporterFactory reporterFactory = [](Librium::Service::IResponse& res) {
-                    return std::make_unique<CProtocolProgressReporter>(res);
+                    return std::make_shared<CProtocolProgressReporter>(res);
                 };
                 
                 // Process the request using the JSON protocol handler

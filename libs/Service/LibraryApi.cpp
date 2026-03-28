@@ -40,14 +40,14 @@ Db::IBookWriter& CLibraryApi::GetWriter()
     return *m_db;
 }
 
-Db::SImportStats CLibraryApi::Import(Indexer::IProgressReporter* reporter)
+Db::SImportStats CLibraryApi::Import(const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     LOG_INFO("CLibraryApi::Import");
     Indexer::CIndexer indexer(m_config);
     return indexer.Run(GetWriter(), Indexer::EImportMode::Full, reporter);
 }
 
-Db::SImportStats CLibraryApi::Upgrade(Indexer::IProgressReporter* reporter)
+Db::SImportStats CLibraryApi::Upgrade(const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     LOG_INFO("CLibraryApi::Upgrade");
     Indexer::CIndexer indexer(m_config);

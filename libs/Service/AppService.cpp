@@ -25,7 +25,7 @@ void CAppService::RegisterAction(std::unique_ptr<IServiceAction> action)
     }
 }
 
-void CAppService::Dispatch(const IRequest& req, IResponse& res, Indexer::IProgressReporter* reporter)
+void CAppService::Dispatch(const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     try
     {

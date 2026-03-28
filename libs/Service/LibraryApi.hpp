@@ -31,8 +31,8 @@ public:
     explicit CLibraryApi(Config::SAppConfig cfg);
     ~CLibraryApi();
 
-    [[nodiscard]] Db::SImportStats Import(Indexer::IProgressReporter* reporter);
-    [[nodiscard]] Db::SImportStats Upgrade(Indexer::IProgressReporter* reporter);
+    [[nodiscard]] Db::SImportStats Import(const std::shared_ptr<Indexer::IProgressReporter>& reporter);
+    [[nodiscard]] Db::SImportStats Upgrade(const std::shared_ptr<Indexer::IProgressReporter>& reporter);
 
     [[nodiscard]] Db::SQueryResult SearchBooks(const Db::SQueryParams& params);
 

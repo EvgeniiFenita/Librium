@@ -9,7 +9,7 @@ namespace Librium::Service {
 // ----------------------------------------------------------------------------
 // IMPORT
 // ----------------------------------------------------------------------------
-void CImportAction::Execute(CAppService& service, const IRequest& req, IResponse& res, Indexer::IProgressReporter* reporter)
+void CImportAction::Execute(CAppService& service, const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     (void)req;
     auto stats = service.GetApi().Import(reporter);
@@ -19,7 +19,7 @@ void CImportAction::Execute(CAppService& service, const IRequest& req, IResponse
 // ----------------------------------------------------------------------------
 // UPGRADE
 // ----------------------------------------------------------------------------
-void CUpgradeAction::Execute(CAppService& service, const IRequest& req, IResponse& res, Indexer::IProgressReporter* reporter)
+void CUpgradeAction::Execute(CAppService& service, const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     (void)req;
     auto stats = service.GetApi().Upgrade(reporter);
@@ -29,7 +29,7 @@ void CUpgradeAction::Execute(CAppService& service, const IRequest& req, IRespons
 // ----------------------------------------------------------------------------
 // QUERY
 // ----------------------------------------------------------------------------
-void CQueryAction::Execute(CAppService& service, const IRequest& req, IResponse& res, Indexer::IProgressReporter* reporter)
+void CQueryAction::Execute(CAppService& service, const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     (void)reporter;
     Db::SQueryParams qp;
@@ -58,7 +58,7 @@ void CQueryAction::Execute(CAppService& service, const IRequest& req, IResponse&
 // ----------------------------------------------------------------------------
 // EXPORT
 // ----------------------------------------------------------------------------
-void CExportAction::Execute(CAppService& service, const IRequest& req, IResponse& res, Indexer::IProgressReporter* reporter)
+void CExportAction::Execute(CAppService& service, const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     (void)reporter;
     if (!req.HasParam("id"))
@@ -110,7 +110,7 @@ void CExportAction::Execute(CAppService& service, const IRequest& req, IResponse
 // ----------------------------------------------------------------------------
 // STATS
 // ----------------------------------------------------------------------------
-void CStatsAction::Execute(CAppService& service, const IRequest& req, IResponse& res, Indexer::IProgressReporter* reporter)
+void CStatsAction::Execute(CAppService& service, const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     (void)req;
     (void)reporter;
@@ -121,7 +121,7 @@ void CStatsAction::Execute(CAppService& service, const IRequest& req, IResponse&
 // ----------------------------------------------------------------------------
 // GET-BOOK
 // ----------------------------------------------------------------------------
-void CGetBookAction::Execute(CAppService& service, const IRequest& req, IResponse& res, Indexer::IProgressReporter* reporter)
+void CGetBookAction::Execute(CAppService& service, const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     (void)reporter;
     if (!req.HasParam("id"))

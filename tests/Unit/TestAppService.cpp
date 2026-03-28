@@ -63,7 +63,7 @@ class CThrowingAction : public Service::IServiceAction
 public:
     std::string GetName() const override { return "throw-test"; }
     void Execute(Service::CAppService&, const Service::IRequest&,
-                 Service::IResponse&, Indexer::IProgressReporter*) override
+                 Service::IResponse&, const std::shared_ptr<Indexer::IProgressReporter>&) override
     {
         throw std::runtime_error("deliberate test exception");
     }
@@ -74,7 +74,7 @@ class CSuccessAction : public Service::IServiceAction
 public:
     std::string GetName() const override { return "success-test"; }
     void Execute(Service::CAppService&, const Service::IRequest&,
-                 Service::IResponse& res, Indexer::IProgressReporter*) override
+                 Service::IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>&) override
     {
         Service::SAppStats stats;
         stats.totalBooks = 42;
@@ -87,7 +87,7 @@ class CSuccessAction2 : public Service::IServiceAction
 public:
     std::string GetName() const override { return "success-test"; }
     void Execute(Service::CAppService&, const Service::IRequest&,
-                 Service::IResponse& res, Indexer::IProgressReporter*) override
+                 Service::IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>&) override
     {
         Service::SAppStats stats;
         stats.totalBooks = 99;

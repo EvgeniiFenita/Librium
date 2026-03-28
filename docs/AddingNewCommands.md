@@ -13,10 +13,11 @@ class CMyNewAction : public IServiceAction
 public:
     std::string GetName() const override { return "my-action"; }
     
-    void Execute(CAppService& service, 
-                 const IRequest& req, 
-                 IResponse& res, 
-                 Indexer::IProgressReporter* reporter) override
+    void Execute(CAppService& service,
+                 const IRequest& req,
+                 IResponse& res,
+                 std::shared_ptr<Indexer::IProgressReporter> reporter) override
+
     {
         // 1. Extract parameters
         std::string name = req.GetString("name", "default");

@@ -135,7 +135,7 @@ void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2)
     }
 }
 
-Db::SImportStats CIndexer::WriterThread(Db::IBookWriter& db, size_t batchSize, IProgressReporter* reporter, size_t totalBooks,
+Db::SImportStats CIndexer::WriterThread(Db::IBookWriter& db, size_t batchSize, const std::shared_ptr<IProgressReporter>& reporter, size_t totalBooks,
     const std::unordered_map<std::string, size_t>& archiveSizes)
 {
     Db::SImportStats stats;
@@ -300,7 +300,8 @@ private:
 
 } // namespace
 
-Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, IProgressReporter* reporter) 
+Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, const std::shared_ptr<IProgressReporter>& reporter)
+ 
 {
     Config::CBookFilter filter(m_cfg.filters);
     

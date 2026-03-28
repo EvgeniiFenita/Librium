@@ -241,13 +241,13 @@ std::string CJsonProtocol::Process(
         CJsonRequest req(parsed);
         CJsonResponse res(sendCallback);
 
-        std::unique_ptr<Indexer::IProgressReporter> reporter;
+        std::shared_ptr<Indexer::IProgressReporter> reporter;
         if (reporterFactory)
         {
             reporter = reporterFactory(res);
         }
 
-        service.Dispatch(req, res, reporter.get());
+        service.Dispatch(req, res, reporter);
 
         std::string responseStr = res.ToJson().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         LOG_DEBUG("OUTGOING: {}", responseStr);

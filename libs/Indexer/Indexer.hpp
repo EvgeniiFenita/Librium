@@ -9,6 +9,7 @@
 #include "ProgressReporter.hpp"
 
 #include <atomic>
+#include <memory>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -28,7 +29,7 @@ class CIndexer
 public:
     explicit CIndexer(Config::SAppConfig cfg);
 
-    [[nodiscard]] Db::SImportStats Run(Db::IBookWriter& db, EImportMode mode, IProgressReporter* reporter = nullptr);
+    [[nodiscard]] Db::SImportStats Run(Db::IBookWriter& db, EImportMode mode, const std::shared_ptr<IProgressReporter>& reporter = nullptr);
     void RequestStop()
     {
         m_stopRequested = true;
@@ -67,7 +68,7 @@ private:
     Db::SImportStats WriterThread(
         Db::IBookWriter& db,
         size_t batchSize,
-        IProgressReporter* reporter,
+        const std::shared_ptr<IProgressReporter>& reporter,
         size_t totalBooks,
         const std::unordered_map<std::string, size_t>& archiveSizes);
 };

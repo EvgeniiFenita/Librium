@@ -16,7 +16,7 @@ class CJsonProtocol
 {
 public:
     using SendCallback = std::function<void(const std::string&)>;
-    using ReporterFactory = std::function<std::unique_ptr<Librium::Indexer::IProgressReporter>(Service::IResponse&)>;
+    using ReporterFactory = std::function<std::shared_ptr<Librium::Indexer::IProgressReporter>(Service::IResponse&)>;
 
     [[nodiscard]] static std::string Process(
         const std::string& base64Request, 

@@ -19,7 +19,7 @@ public:
 
     void RegisterAction(std::unique_ptr<IServiceAction> action);
     
-    void Dispatch(const IRequest& req, IResponse& res, Indexer::IProgressReporter* reporter = nullptr);
+    void Dispatch(const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter = nullptr);
 
     CLibraryApi& GetApi();
 

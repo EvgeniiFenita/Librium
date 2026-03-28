@@ -4,6 +4,7 @@
 #include "Response.hpp"
 #include "Indexer/ProgressReporter.hpp"
 #include <string>
+#include <memory>
 
 namespace Librium::Service {
 
@@ -14,7 +15,7 @@ class IServiceAction
 public:
     virtual ~IServiceAction() = default;
     virtual std::string GetName() const = 0;
-    virtual void Execute(CAppService& service, const IRequest& req, IResponse& res, Indexer::IProgressReporter* reporter = nullptr) = 0;
+    virtual void Execute(CAppService& service, const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter = nullptr) = 0;
 };
 
 } // namespace Librium::Service
