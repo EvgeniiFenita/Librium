@@ -289,6 +289,8 @@ Windows uses UTF-16 for system paths, while our application uses UTF-8 strings. 
 
 All project-specific files must use **PascalCase** (`ThisIsFile.cpp`). Standard build system files (`CMakeLists.txt`, `vcpkg.json`, `CMakePresets.json`) and version control files (`.gitignore`) remain unchanged.
 
+Documentation files in `docs/` must also use **PascalCase without underscores** (`CodeStyleGuidelines.md`, not `Code_Style_Guidelines.md`).
+
 ---
 
 # 18. nullptr

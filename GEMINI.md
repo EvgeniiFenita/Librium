@@ -5,10 +5,10 @@
 When rules in different files appear to conflict, this order decides which file wins:
 
 1. `GEMINI.md` — **highest priority**, overrides all other documents
-2. `docs/Code_Style_Guidelines.md` — code formatting and naming rules
-3. `docs/Adding_New_Commands.md` — feature implementation guide
+2. `docs/CodeStyleGuidelines.md` — code formatting and naming rules
+3. `docs/AddingNewCommands.md` — feature implementation guide
 4. `docs/CodeReviewInstructions.md` — audit checklist
-5. `docs/Commit_Message_Guidelines.md` — git history standards
+5. `docs/CommitMessageGuidelines.md` — git history standards
 6. Other docs — reference only
 
 ---
@@ -31,7 +31,7 @@ Follow these steps **in order** before writing any code:
 ---
 
 ## Critical Naming Rules
-- **File Naming**: ALWAYS use **PascalCase** for all project-specific files (`ThisIsFile.cpp`, `Run.py`). Files should NOT include the `C` or `I` prefix, even if the primary class/interface inside does.
+- **File Naming**: ALWAYS use **PascalCase** for all project-specific files (`ThisIsFile.cpp`, `Run.py`). Files should NOT include the `C` or `I` prefix, even if the primary class/interface inside does. Documentation files in `docs/` must also use **PascalCase without underscores** (`CodeStyleGuidelines.md`, not `Code_Style_Guidelines.md`).
 - **CMake Targets**: ALWAYS use **PascalCase** for targets (`Database`, `Librium`).
 - **Classes**: Prefix with `C` (`CDatabase`).
 - **Interfaces**: Prefix with `I` (`IDatabase`).
@@ -227,12 +227,12 @@ When refactoring or adapting tests to code changes:
 ❌ Wrong: rewrite the entire test case, add new checks, remove sections, change input data.
 
 ## Reference Documentation
-- **[Project Overview](docs/Project_Documentation.md)**: Architecture, directory layout, and CLI usage.
-- **[Web Interface](docs/Web_Interface.md)**: Node.js proxy, LRU caching, and frontend details.
-- **[Code Style & Unicode](docs/Code_Style_Guidelines.md)**: Strict naming, formatting, and Unicode path handling rules.
+- **[Project Overview](docs/ProjectDocumentation.md)**: Architecture, directory layout, and CLI usage.
+- **[Web Interface](docs/WebInterface.md)**: Node.js proxy, LRU caching, and frontend details.
+- **[Code Style & Unicode](docs/CodeStyleGuidelines.md)**: Strict naming, formatting, and Unicode path handling rules.
 - **[Code Review Checklist](docs/CodeReviewInstructions.md)**: List of common pitfalls and quality standards.
-- **[CLI Extensibility](docs/Adding_New_Commands.md)**: Guide for adding new subcommands to the application.
-- **[Git Commit Guidelines](docs/Commit_Message_Guidelines.md)**: Rules for writing descriptive and high-signal commit messages.
+- **[CLI Extensibility](docs/AddingNewCommands.md)**: Guide for adding new subcommands to the application.
+- **[Git Commit Guidelines](docs/CommitMessageGuidelines.md)**: Rules for writing descriptive and high-signal commit messages.
 
 ## Safety & Precision Rules
 
