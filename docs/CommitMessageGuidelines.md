@@ -7,8 +7,13 @@ To maintain a clean and informative git history, all commit messages must follow
 Each commit message should follow this structure:
 `<Type>: <Short Summary>`
 
-Optional (but recommended for complex changes):
-`<Detailed bullet points explaining WHY and WHAT changed>`
+### Critical Rules
+- **Capitalization**: The `<Type>` MUST be capitalized (e.g., `Fix:`, not `fix:`).
+- **No Scopes**: DO NOT use parentheses for scopes (e.g., `Feature:`, not `feat(api):`). The summary itself should be descriptive enough.
+- **No Whitespace**: Commit messages MUST NOT start or end with whitespace characters (spaces, tabs).
+- **No BOM**: Messages MUST be plain UTF-8 without Byte Order Mark (BOM) or hidden characters.
+- **Imperative Mood**: Always use imperative ("Add", "Fix", "Refactor"), not past tense ("Added", "Fixed", "Refactored"). This is a hard rule.
+- **Strict Types**: ONLY use the 6 types listed below.
 
 ### Commit Types
 - **Feature**: New functionality (e.g., `Feature: Add support for FB2 covers`).
@@ -18,20 +23,6 @@ Optional (but recommended for complex changes):
 - **Docs**: Documentation changes (e.g., `Docs: Update project overview`).
 - **Build**: Changes to build system, dependencies, or CI/CD (e.g., `Build: Add Linux preset to CMakePresets.json`).
 
-## How to Generate a "Beautiful" Commit Message
-
-When asked to "make a beautiful commit" or "describe changes," follow these steps:
-
-1. **Analyze the Diff**: Use `git diff --staged` (or `git diff HEAD` if not staged) to see exactly what changed.
-2. **Identify the Core Impact**:
-    - Which libraries are affected? (`libs/Database`, `libs/Indexer`, etc.)
-    - Are there architectural changes (new interfaces, extracted logic)?
-    - Are there user-facing changes (new CLI commands, API protocol updates)?
-3. **Draft the Summary**:
-    - Be specific. Instead of `Refactor: Database cleanup`, use `Refactor: Abstract database implementation using ISqlDatabase interface`.
-    - Focus on the *intent* and the *result*.
-4. **Use Imperative Mood**: Always use imperative ("Add", "Fix", "Refactor"), not past tense ("Added", "Fixed", "Refactored"). This is a hard rule.
-
 ## Examples of High-Signal vs. Low-Signal Messages
 
 | Low-Signal (AVOID) | High-Signal (USE) |
@@ -40,6 +31,15 @@ When asked to "make a beautiful commit" or "describe changes," follow these step
 | `Update docs` | `Docs: Add guidelines for creating descriptive commit messages` |
 | `Fix bug` | `Fix: Correct UTF-8 validation in Fb2Parser for legacy encodings` |
 | `Added api` | `Feature: Implement LibraryApi to encapsulate application business logic` |
+| `fix(web): deadlock` | `Fix: Prevent TCP deadlock in web interface` |
+| `feat: add cover` | `Feature: Add book cover extraction support` |
+
+## Common Violations to Avoid
+
+- **Lowercase types**: `fix: something` (Wrong) -> `Fix: Something` (Right)
+- **Scopes in parentheses**: `Refactor(db): rename` (Wrong) -> `Refactor: Rename database fields` (Right)
+- **Past tense**: `Added test` (Wrong) -> `Test: Add test cases` (Right)
+- **Non-standard types**: `Improve: performance` (Wrong) -> `Refactor: Improve performance` (Right)
 
 ## Workflow & Authorization
 

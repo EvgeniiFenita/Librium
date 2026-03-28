@@ -141,7 +141,7 @@ catch (const std::exception& e)
 }
 ```
 
-### Mistake 7 — K&R brace style instead of Allman
+### Mistake 8 — K&R brace style instead of Allman
 
 Wrong:
 ```cpp
@@ -159,6 +159,24 @@ class CUserService
     }
 };
 ```
+
+### Mistake 9 — Non-compliant commit message format
+
+Wrong:
+```bash
+fix(db): deadlock
+feat: add something
+Refactoring
+ Feature: Add something  # Leading space (common AI mistake)
+```
+Right:
+```bash
+Fix: Prevent database deadlock
+Feature: Add something
+Refactor: Consolidate logic
+```
+**Rule**: Always capitalize `<Type>`, NO parentheses for scopes, NO leading/trailing spaces, and use Imperative mood. See `docs/CommitMessageGuidelines.md` for details.
+
 
 ### Mistake 8 — snake_case for parameter names
 
