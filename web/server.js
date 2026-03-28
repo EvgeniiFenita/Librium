@@ -152,7 +152,7 @@ app.use('/covers', createCoversRouter({
 // --- GRACEFUL SHUTDOWN ---
 function shutdown(exit = true) {
     console.log('[Server] Shutting down...');
-    setEngineState('crashed');
+    setEngineState('stopping');
     destroySocket();
     killLibrium();
     if (exit) process.exit(0);

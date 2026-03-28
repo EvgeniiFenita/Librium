@@ -16,7 +16,7 @@ let lastProgress = { processed: 0, total: 0 };
 let currentLineHandler = null;
 
 /**
- * Change engine state and handle the 'crashed' transition.
+ * Change engine state. Handles queue cleanup for 'crashed' and 'stopping' transitions.
  * @param {string} newState
  */
 function setEngineState(newState) {
@@ -24,7 +24,7 @@ function setEngineState(newState) {
     console.log(`[Engine] State changed: ${engineState} -> ${newState}`);
     engineState = newState;
 
-    if (newState === 'crashed') {
+    if (newState === 'crashed' || newState === 'stopping') {
         while (requestQueue.length > 0) {
             const { reject } = requestQueue.shift();
             reject(new Error('Engine crashed'));
@@ -92,7 +92,7 @@ function connectTcp(webConfig, retryCount = 0) {
     });
 
     socket.on('close', () => {
-        if (engineState !== 'crashed') {
+        if (engineState !== 'crashed' && engineState !== 'stopping') {
             console.log('[TCP] Connection closed');
             setEngineState('starting');
             const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
@@ -135,7 +135,7 @@ function handleLine(base64Line) {
  * Process the next command in the queue.
  */
 function processQueue() {
-    if (busy || requestQueue.length === 0 || !socket || engineState === 'starting' || engineState === 'crashed') return;
+    if (busy || requestQueue.length === 0 || !socket || engineState === 'starting' || engineState === 'crashed' || engineState === 'stopping') return;
     busy = true;
 
     const { action, params, resolve, reject } = requestQueue.shift();
