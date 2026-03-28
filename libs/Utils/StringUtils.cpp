@@ -88,4 +88,10 @@ std::filesystem::path CStringUtils::Utf8ToPath(const std::string& utf8Str)
         std::u8string(utf8Str.begin(), utf8Str.end()));
 }
 
+std::string CStringUtils::PathToUtf8String(const std::filesystem::path& path)
+{
+    auto u8 = path.u8string();
+    return std::string(u8.begin(), u8.end());
+}
+
 } // namespace Librium::Utils

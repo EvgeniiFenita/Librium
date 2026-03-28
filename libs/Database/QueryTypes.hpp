@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <format>
 
 namespace Librium::Db {
 
@@ -22,6 +23,18 @@ struct SQueryParams
     bool        withAnnotation{false};
     int64_t     limit{100};
     int64_t     offset{0};
+
+    [[nodiscard]] std::string ToString() const
+    {
+        return std::format(
+            "title='{}', author='{}', series='{}', genre='{}', lang='{}', "
+            "libId='{}', archive='{}', date={}-{}, rating={}-{}, "
+            "anno={}, limit={}, offset={}",
+            title, author, series, genre, language,
+            libId, archiveName, dateFrom, dateTo, ratingMin, ratingMax,
+            withAnnotation, limit, offset
+        );
+    }
 };
 
 struct SAuthorInfo

@@ -235,7 +235,7 @@ std::string CJsonProtocol::Process(
     try
     {
         std::string jsonStr = Utils::CBase64::Decode(base64Request);
-        LOG_DEBUG("INCOMING: {}", jsonStr);
+        LOG_INFO("INCOMING: {}", jsonStr);
 
         nlohmann::json parsed = nlohmann::json::parse(jsonStr);
         CJsonRequest req(parsed);

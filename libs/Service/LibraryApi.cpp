@@ -12,9 +12,13 @@ namespace Librium::Service {
 CLibraryApi::CLibraryApi(Config::SAppConfig cfg)
     : m_config(std::move(cfg))
 {
+    LOG_INFO("CLibraryApi::CLibraryApi(dbPath='{}')", m_config.database.path);
 }
 
-CLibraryApi::~CLibraryApi() = default;
+CLibraryApi::~CLibraryApi()
+{
+    LOG_INFO("CLibraryApi::~CLibraryApi");
+}
 
 void CLibraryApi::EnsureDatabase()
 {
@@ -38,23 +42,27 @@ Db::IBookWriter& CLibraryApi::GetWriter()
 
 Db::SImportStats CLibraryApi::Import(Indexer::IProgressReporter* reporter)
 {
+    LOG_INFO("CLibraryApi::Import");
     Indexer::CIndexer indexer(m_config);
     return indexer.Run(GetWriter(), Indexer::EImportMode::Full, reporter);
 }
 
 Db::SImportStats CLibraryApi::Upgrade(Indexer::IProgressReporter* reporter)
 {
+    LOG_INFO("CLibraryApi::Upgrade");
     Indexer::CIndexer indexer(m_config);
     return indexer.Run(GetWriter(), Indexer::EImportMode::Upgrade, reporter);
 }
 
 Db::SQueryResult CLibraryApi::SearchBooks(const Db::SQueryParams& params)
 {
+    LOG_INFO("CLibraryApi::SearchBooks({})", params.ToString());
     return GetReader().ExecuteQuery(params);
 }
 
 std::filesystem::path CLibraryApi::ExportBook(int64_t id, const std::filesystem::path& outDir)
 {
+    LOG_INFO("CLibraryApi::ExportBook(id={}, outDir='{}')", id, Utils::CStringUtils::PathToUtf8String(outDir));
     auto bookInfo = GetReader().GetBookPath(id);
     if (!bookInfo) throw std::runtime_error("Book not found");
 
@@ -76,12 +84,14 @@ std::filesystem::path CLibraryApi::ExportBook(int64_t id, const std::filesystem:
 
 SAppStats CLibraryApi::GetStats()
 {
+    LOG_INFO("CLibraryApi::GetStats");
     auto& reader = GetReader();
     return {reader.CountBooks(), reader.CountAuthors(), reader.CountIndexedArchives()};
 }
 
 std::optional<SBookDetails> CLibraryApi::GetBook(int64_t id)
 {
+    LOG_INFO("CLibraryApi::GetBook(id={})", id);
     auto book = GetReader().GetBookById(id);
     if (!book) return std::nullopt;
 

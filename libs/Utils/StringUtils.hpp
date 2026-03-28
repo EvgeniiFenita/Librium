@@ -14,6 +14,7 @@ public:
     [[nodiscard]] static std::string SanitizeFilename(const std::string& filename);
 
     [[nodiscard]] static std::filesystem::path Utf8ToPath(const std::string& utf8Str);
+    [[nodiscard]] static std::string PathToUtf8String(const std::filesystem::path& path);
 };
 
 } // namespace Librium::Utils
