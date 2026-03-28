@@ -49,7 +49,7 @@ python scripts/Run.py --preset x64-debug --web --demo
 
 Then open `http://localhost:8080` in your browser.
 
-On first run, click **Import** to index the collection. This can take a while depending on collection size and whether FB2 parsing is enabled. Subsequent **Upgrade** runs only process new archives.
+On first run, click **Import** to index the collection. This is non-destructive: re-running Import adds new books but does not remove stale records from archives that no longer exist in the INPX. This can take a while depending on collection size and whether FB2 parsing is enabled. Subsequent **Upgrade** runs only process new archives.
 
 ## Configuration
 

@@ -188,7 +188,8 @@ async function main(configOverride = null, startEngine = true) {
         });
     }
     connectTcp();
-    return app.listen(webConfig.webPort, '127.0.0.1', () => {
+    const host = webConfig.webHost || '0.0.0.0';
+    return app.listen(webConfig.webPort, host, () => {
         console.log(`[Server] Librium Web UI running at http://localhost:${webConfig.webPort}`);
     });
 }

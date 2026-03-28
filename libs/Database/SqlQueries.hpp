@@ -273,20 +273,15 @@ constexpr std::string_view QueryCountBooksBase =
     "LEFT JOIN series ser ON b.series_id = ser.id "
     "LEFT JOIN publishers pub ON b.publisher_id = pub.id ";
 
-// Dynamic JOINs
-constexpr std::string_view QueryJoinAuthors = "JOIN book_authors ba ON b.id = ba.book_id JOIN authors a ON ba.author_id = a.id ";
-constexpr std::string_view QueryJoinGenres = "JOIN book_genres bg ON b.id = bg.book_id JOIN genres g ON bg.genre_id = g.id ";
-
 // Dynamic WHERE clauses
 constexpr std::string_view QueryWhere1 = "WHERE 1=1 ";
-constexpr std::string_view QueryWhereGenre = "AND g.code = ? ";
 constexpr std::string_view QueryWhereLanguage = "AND b.language = ? ";
 constexpr std::string_view QueryWhereLibId = "AND b.lib_id = ? ";
 constexpr std::string_view QueryWhereArchiveName = "AND arch.name = ? ";
 constexpr std::string_view QueryWhereDateFrom = "AND b.date_added >= ? ";
 constexpr std::string_view QueryWhereDateTo = "AND b.date_added <= ? ";
 constexpr std::string_view QueryWhereRatingMin = "AND b.rating >= ? ";
-constexpr std::string_view QueryWhereRatingMax = "AND b.rating <= ? ";
+constexpr std::string_view QueryWhereRatingMax = "AND b.rating > 0 AND b.rating <= ? ";
 constexpr std::string_view QueryWhereWithAnnotation = "AND b.annotation IS NOT NULL AND b.annotation != '' ";
 constexpr std::string_view QueryWhereId = "WHERE b.id = ? ";
 

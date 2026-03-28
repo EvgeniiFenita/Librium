@@ -66,7 +66,7 @@ std::filesystem::path CLibraryApi::ExportBook(int64_t id, const std::filesystem:
 
     if (!std::filesystem::exists(outDir)) std::filesystem::create_directories(outDir);
 
-    auto outPath = outDir / Utils::CStringUtils::Utf8ToPath(bookInfo->fileName);
+    auto outPath = outDir / Utils::CStringUtils::Utf8ToPath(bookInfo->fileName).filename();
     std::ofstream ofs(outPath, std::ios::binary);
     if (!ofs) throw std::runtime_error("Failed to open output file for writing");
     ofs.write(reinterpret_cast<const char*>(data.data()), data.size());

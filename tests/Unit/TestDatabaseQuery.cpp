@@ -128,3 +128,59 @@ TEST_CASE("BookQuery basic execution", "[query]")
     }
 }
 
+TEST_CASE("BookQuery: no duplicates when multiple authors match search term", "[query][dedup]")
+{
+    CTempDir tempDir;
+    Db::CDatabase db((tempDir.GetPath() / "dedup_query.db").string());
+
+    // One book with two authors whose search_name both start with "Александров"
+    // (search_name = lastName + " " + firstName, so prefix "Александров" matches both)
+    Inpx::SBookRecord r;
+    r.libId       = "D1";
+    r.title       = "Dedup Book";
+    r.archiveName = "arch1";
+    r.language    = "ru";
+    r.genres      = {"sf"};
+    r.authors.push_back({"Александров", "Иван",  ""});
+    r.authors.push_back({"Александров", "Петр",  ""});
+    (void)db.InsertBook(r, {});
+
+    // Unrelated second book — must not appear
+    Inpx::SBookRecord r2;
+    r2.libId       = "D2";
+    r2.title       = "Other Book";
+    r2.archiveName = "arch1";
+    r2.language    = "ru";
+    r2.genres      = {"detective"};
+    r2.authors.push_back({"Иванов", "Сергей", ""});
+    (void)db.InsertBook(r2, {});
+
+    SECTION("author prefix matching both authors of one book: totalFound==1, books.size()==1")
+    {
+        Db::SQueryParams p;
+        p.author = "Александров"; // prefix — matches "Александров Иван" and "Александров Петр"
+        auto res = db.ExecuteQuery(p);
+        REQUIRE(res.totalFound == 1);
+        REQUIRE(res.books.size() == 1);
+        REQUIRE(res.books[0].libId == "D1");
+    }
+
+    SECTION("author + genre combined: still one result, no duplicates")
+    {
+        Db::SQueryParams p;
+        p.author = "Александров";
+        p.genre  = "sf";
+        auto res = db.ExecuteQuery(p);
+        REQUIRE(res.totalFound == 1);
+        REQUIRE(res.books.size() == 1);
+    }
+
+    SECTION("author filter that matches nothing: zero results")
+    {
+        Db::SQueryParams p;
+        p.author = "Достоевский";
+        auto res = db.ExecuteQuery(p);
+        REQUIRE(res.totalFound == 0);
+        REQUIRE(res.books.empty());
+    }
+}

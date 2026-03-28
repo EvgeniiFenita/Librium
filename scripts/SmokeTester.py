@@ -16,7 +16,7 @@ from pathlib import Path
 
 # Add the scripts directory to path to import Core
 sys.path.append(str(Path(__file__).parent))
-from Core import CUI, CPaths, CRunner
+from Core import CUI, CPaths, CRunner, find_free_port
 
 class CSmokeTester:
     def __init__(self, binary_path, output_dir, real_lib_path):
@@ -114,7 +114,7 @@ class CSmokeTester:
             json.dump(config, f, indent=2)
 
         CUI.banner("REAL LIBRARY TEST: STARTING ENGINE (CLEAN RUN)")
-        port = 50052
+        port = find_free_port()
         process = subprocess.Popen(
             [str(self.binary_path), "--config", str(config_path), "--port", str(port)],
             stdout=subprocess.DEVNULL,
@@ -342,7 +342,7 @@ class CSmokeTester:
             if process.poll() is None:
                 try:
                     if sock_file:
-                        sock_file.write(self._b64_encode(json.dumps({"action": "quit", "params": {}})) + "\n")
+                        sock_file.write("quit\n")
                         sock_file.flush()
                     process.wait(timeout=5)
                 except:

@@ -17,7 +17,7 @@ from pathlib import Path
 
 # Add the scripts directory to path to import Core and LibraryGenerator
 sys.path.append(str(Path(__file__).parent))
-from Core import CUI, CPaths, CRunner
+from Core import CUI, CPaths, CRunner, find_free_port
 from LibraryGenerator import CLibraryGenerator
 
 class CScenarioTester:
@@ -310,6 +310,18 @@ class CScenarioTester:
         finally:
             sock.settimeout(old_timeout)
 
+    # Maps kebab-case CLI-style argument names to the camelCase JSON keys
+    # expected by the C++ engine protocol.
+    _KEY_ALIASES = {
+        "lib-id":          "libId",
+        "archive":         "archiveName",
+        "with-annotation": "withAnnotation",
+        "rating-min":      "ratingMin",
+        "rating-max":      "ratingMax",
+        "date-from":       "dateFrom",
+        "date-to":         "dateTo",
+    }
+
     def _map_args_to_json(self, args, db_path, lib_path, config_path, test_dir):
         action = args[0]
         params = {}
@@ -319,6 +331,7 @@ class CScenarioTester:
             arg = args[i]
             if arg.startswith("--"):
                 key = arg[2:]
+                key = self._KEY_ALIASES.get(key, key)
                 if i + 1 < len(args) and not args[i+1].startswith("--"):
                     params[key] = args[i+1]
                     i += 2
@@ -331,10 +344,7 @@ class CScenarioTester:
         for k, v in params.items():
             if isinstance(v, str):
                 v = v.replace("{LIB}", str(lib_path)).replace("{DB}", str(db_path)).replace("{CONFIG}", str(config_path)).replace("{TEST_DIR}", str(test_dir))
-                if v.isdigit():
-                    params[k] = int(v)
-                else:
-                    params[k] = v
+                params[k] = v
 
         return action, params
 
@@ -430,7 +440,12 @@ class CScenarioTester:
             return True
         
         if key == "totalFound" and isinstance(actual, int) and isinstance(expected, int):
-            if expected == 0: return actual == 0
+            if expected == 0:
+                return actual == 0
+            # Strict comparison for small expected values (synthetic scenario tests).
+            # Wide tolerance is only meaningful for real-library smoke runs with large counts.
+            if expected <= 100:
+                return actual == expected
             delta = abs(actual - expected)
             return delta <= (expected * 0.01) + 10
                 
@@ -438,10 +453,7 @@ class CScenarioTester:
 
     @staticmethod
     def _find_free_port():
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(('', 0))
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            return s.getsockname()[1]
+        return find_free_port()
 
     def _count_inpx_records(self, inpx_path):
         count = 0

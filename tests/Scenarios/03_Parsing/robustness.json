@@ -8,7 +8,7 @@
   "steps": [
     { "args": ["import"] },
     { 
-      "args": ["query", "--title", "Quotes"],
+      "args": ["query", "--title", "*Quotes"],
       "expected": { "totalFound": 2 }
     },
     {

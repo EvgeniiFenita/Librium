@@ -487,10 +487,6 @@ SQueryResult CDatabase::ExecuteQuery(const SQueryParams& params)
     std::string selectSql{Sql::QuerySelectBooksBase};
     std::string countSql{Sql::QueryCountBooksBase};
 
-    std::string joinSql;
-    if (!params.author.empty()) joinSql += Sql::QueryJoinAuthors;
-    if (!params.genre.empty()) joinSql += Sql::QueryJoinGenres;
-
     std::string whereSql{Sql::QueryWhere1};
     SQueryBindValues binds;
 
@@ -503,10 +499,14 @@ SQueryResult CDatabase::ExecuteQuery(const SQueryParams& params)
     }
     if (!params.author.empty())
     {
+        // Use EXISTS to avoid row multiplication when a book has multiple authors
+        // that all match the search term (e.g. two authors named "Александр").
         auto token = ParseSearchQuery(params.author);
-        std::string frag;
-        BuildSearchSql(token, "a.search_name", frag, binds.author);
-        whereSql += frag;
+        std::string cond;
+        BuildSearchSql(token, "a.search_name", cond, binds.author);
+        whereSql += " AND EXISTS (SELECT 1 FROM book_authors ba "
+                    "JOIN authors a ON ba.author_id = a.id "
+                    "WHERE ba.book_id = b.id" + cond + ") ";
     }
     if (!params.series.empty())
     {
@@ -516,7 +516,12 @@ SQueryResult CDatabase::ExecuteQuery(const SQueryParams& params)
         whereSql += frag;
     }
 
-    if (!params.genre.empty()) whereSql += Sql::QueryWhereGenre;
+    // Use EXISTS for genre to avoid row multiplication when a book belongs to
+    // multiple genres that all match the filter.
+    if (!params.genre.empty())
+        whereSql += " AND EXISTS (SELECT 1 FROM book_genres bg "
+                    "JOIN genres g ON bg.genre_id = g.id "
+                    "WHERE bg.book_id = b.id AND g.code = ?) ";
     if (!params.language.empty()) whereSql += Sql::QueryWhereLanguage;
     if (!params.libId.empty()) whereSql += Sql::QueryWhereLibId;
     if (!params.archiveName.empty()) whereSql += Sql::QueryWhereArchiveName;
@@ -526,10 +531,10 @@ SQueryResult CDatabase::ExecuteQuery(const SQueryParams& params)
     if (params.ratingMax > 0) whereSql += Sql::QueryWhereRatingMax;
     if (params.withAnnotation) whereSql += Sql::QueryWhereWithAnnotation;
 
-    // Count total matches
+    // Count total matches — no JOINs needed so COUNT(*) is correct
     try
     {
-        std::string fullCountSql = countSql + joinSql + whereSql;
+        std::string fullCountSql = countSql + whereSql;
         auto cstmt = m_db->Prepare(fullCountSql);
         BindQueryParamsCustom(cstmt.get(), params, binds);
         cstmt->Step();
@@ -549,7 +554,7 @@ SQueryResult CDatabase::ExecuteQuery(const SQueryParams& params)
 
     try
     {
-        std::string fullSelectSql = selectSql + joinSql + whereSql + orderLimitSql;
+        std::string fullSelectSql = selectSql + whereSql + orderLimitSql;
         auto stmt = m_db->Prepare(fullSelectSql);
         const int nextIdx = BindQueryParamsCustom(stmt.get(), params, binds);
         if (hasLimit)

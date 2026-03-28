@@ -1,10 +1,10 @@
 {
   "description": "Cyrillic Search: testing case-insensitive search for Russian and Ukrainian characters",
   "library": [
-    { "title": "Евгений Онегин", "authors": ["Александр Пушкин"], "genres": ["prose"] },
-    { "title": "ТЕСТОВАЯ КНИГА", "authors": ["ИВАН ИВАНОВ"], "genres": ["sf"] },
-    { "title": "Ёжик в тумане", "authors": ["Сергей Козлов"], "genres": ["child"] },
-    { "title": "Київська Русь", "authors": ["Михайло Грушевський"], "genres": ["history"] }
+    { "title": "Евгений Онегин", "authors": ["Пушкин,Александр,"], "genres": ["prose"] },
+    { "title": "ТЕСТОВАЯ КНИГА", "authors": ["Иванов,Иван,"], "genres": ["sf"] },
+    { "title": "Ёжик в тумане", "authors": ["Козлов,Сергей,"], "genres": ["child"] },
+    { "title": "Київська Русь", "authors": ["Грушевський,Михайло,"], "genres": ["history"] }
   ],
   "steps": [
     { "args": ["import"] },

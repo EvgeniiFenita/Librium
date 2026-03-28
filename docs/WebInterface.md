@@ -103,7 +103,7 @@ The `--demo` flag generates a synthetic library on the first run and reuses it o
 4. Copies web source to `out/artifacts/web/` and downloads the **fbc** EPUB converter to `out/artifacts/web/tools/` (skipped if already present).
 5. Generates necessary JSON configs in `out/artifacts/web/`.
 6. Installs `npm` dependencies.
-7. Launches the web server at `http://localhost:8080`.
+7. Launches the web server. The URL is `http://localhost:8080` by default (configurable via `webHost` and `webPort`).
 
 ### Initial Import
 On the first launch, if the database is empty, the interface will automatically trigger a full library import. A progress bar will be displayed. You can also manually trigger an incremental update using the **"Обновить" (Update)** button in the header.
@@ -116,6 +116,7 @@ On the first launch, if the database is empty, the interface will automatically 
 | `libriumConfig` | string | Absolute path to the C++ Engine's `librium_config.json`. |
 | `libriumPort` | number | TCP port the C++ Engine listens on (default: `9001`). |
 | `webPort` | number | HTTP port for the web server (default: `8080`). |
+| `webHost` | string | Bind address for the web server (default: `0.0.0.0` — all interfaces). Set to `127.0.0.1` to restrict access to localhost only. |
 | `tempDir` | string | Directory for temporary export files. Cleaned up after each download. |
 | `metaDir` | string | Directory where the C++ Engine stores extracted cover images (`meta/`). |
 | `toolsDir` | string | Directory containing third-party tools. The **fbc** converter is looked up here as `fbc` / `fbc.exe`. |
@@ -132,7 +133,7 @@ The Node.js backend exposes the following HTTP endpoints:
 | `GET` | `/api/config` | Server capabilities | `{ "epubEnabled": boolean }` |
 | `GET` | `/api/status` | Engine state and import/upgrade progress | `{ "state": string, "progress": { "processed": number, "total": number } }` |
 | `GET` | `/api/stats` | Library statistics (forwarded from C++ engine) | `{ "total_books": number, "total_authors": number, "indexed_archives": number }` |
-| `POST` | `/api/import` | Start full library re-import (async, returns 202) | `{ "message": string }` |
+| `POST` | `/api/import` | Trigger a non-destructive library re-index (async, returns 202). Adds new books; does not remove stale records from archives no longer in INPX. | `{ "message": string }` |
 | `POST` | `/api/upgrade` | Start incremental upgrade (async, returns 202) | `{ "message": string }` |
 | `GET` | `/api/books` | Search/list books | `{ "totalFound": number, "books": [...] }` |
 | `GET` | `/api/books/:id` | Get single book details | Book object with optional `coverUrl` |

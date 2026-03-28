@@ -1,5 +1,6 @@
 import os
 import sys
+import socket
 import subprocess
 from pathlib import Path
 
@@ -163,3 +164,11 @@ class CRunner:
             CUI.info("EPUB converter installed successfully.")
         except Exception as e:
             CUI.warn(f"Failed to download EPUB converter: {e}")
+
+
+def find_free_port() -> int:
+    """Bind to port 0 to let the OS pick a free port, then return it."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('', 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return s.getsockname()[1]

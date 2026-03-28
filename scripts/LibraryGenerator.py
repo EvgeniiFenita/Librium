@@ -13,19 +13,18 @@ import argparse
 import base64
 import io
 import colorsys
-import subprocess
 from datetime import datetime
 from pathlib import Path
 
-def _ensure_pillow():
-    """Install Pillow if not available."""
-    try:
-        import PIL
-    except ImportError:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "Pillow", "--quiet"])
-
-_ensure_pillow()
-from PIL import Image, ImageDraw, ImageFont
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    print(
+        "Error: Pillow is required but not installed.\n"
+        "Install it with:  pip install Pillow",
+        file=sys.stderr
+    )
+    sys.exit(1)
 
 # Add the scripts directory to path to import Core
 sys.path.append(str(Path(__file__).parent))

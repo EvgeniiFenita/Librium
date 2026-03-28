@@ -182,7 +182,7 @@ describe('API Endpoints (Mocked Engine)', () => {
         expect(res.body.indexed_archives).toBe(7);
     });
 
-    it('should return stats with indexed_archives zero when engine omits the field', async () => {
+    it('should return stats without indexed_archives field when engine omits it', async () => {
         engineResponses.push({ status: 'ok', data: { total_books: 5 } });
         const res = await request(httpServer).get('/api/stats');
         expect(res.status).toBe(200);

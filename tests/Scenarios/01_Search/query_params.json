@@ -1,7 +1,8 @@
 {
   "description": "Query Parameters: testing each individual query argument (archive, lib-id, series, etc.)",
   "library": [
-    { "title": "Specific Title", "authors": ["Unique Author"], "genres": ["sf"], "series": "Star Wars", "ser_no": 4, "lib_id": "777", "archive": "movies.zip" }
+    { "title": "Specific Title", "authors": ["Unique Author"], "genres": ["sf"], "series": "Star Wars", "ser_no": 4, "lib_id": "777", "archive": "movies.zip" },
+    { "title": "Other Title",    "authors": ["Other Author"],  "genres": ["detective"],                              "lib_id": "888", "archive": "books.zip" }
   ],
   "steps": [
     { "args": ["import"] },
@@ -9,7 +10,25 @@
     { "args": ["query", "--author", "Unique"], "expected": { "totalFound": 1 } },
     { "args": ["query", "--genre", "sf"], "expected": { "totalFound": 1 } },
     { "args": ["query", "--series", "Star Wars"], "expected": { "totalFound": 1 } },
-    { "args": ["query", "--lib-id", "777"], "expected": { "totalFound": 1 } },
-    { "args": ["query", "--archive", "movies"], "expected": { "totalFound": 1 } }
+    {
+      "description": "lib-id filter: only the book with lib_id=777",
+      "args": ["query", "--lib-id", "777"],
+      "expected": { "totalFound": 1, "books": [{ "title": "Specific Title" }] }
+    },
+    {
+      "description": "archive filter: only the book in movies archive",
+      "args": ["query", "--archive", "movies"],
+      "expected": { "totalFound": 1, "books": [{ "title": "Specific Title" }] }
+    },
+    {
+      "description": "lib-id filter for second book: only Other Title",
+      "args": ["query", "--lib-id", "888"],
+      "expected": { "totalFound": 1, "books": [{ "title": "Other Title" }] }
+    },
+    {
+      "description": "lib-id with no match: zero results",
+      "args": ["query", "--lib-id", "999"],
+      "expected": { "totalFound": 0 }
+    }
   ]
 }

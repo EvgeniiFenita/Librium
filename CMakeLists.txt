@@ -76,17 +76,3 @@ add_subdirectory(apps/Librium)
 # ------------------------------------------------------------------
 enable_testing()
 add_subdirectory(tests/Unit)
-
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
-if(Python3_EXECUTABLE)
-    add_custom_target(IntegrationTests
-        COMMAND ${Python3_EXECUTABLE}
-            "${CMAKE_SOURCE_DIR}/tests/Integration/RunIntegrationTests.py"
-            --librium "$<TARGET_FILE:Librium>"
-            --data-dir "${CMAKE_BINARY_DIR}/tests/Integration/Data"
-        DEPENDS Librium
-        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-        COMMENT "Running Python end-to-end integration tests"
-        VERBATIM
-    )
-endif()

@@ -193,7 +193,7 @@ During long operations (`import`, `upgrade`), the engine emits periodic updates:
 ### Supported Actions
 | Action | Parameters | Description |
 | :--- | :--- | :--- |
-| `import` | *none* | Full library re-indexing using paths from config. |
+| `import` | *none* | Re-index the full library from INPX. Non-destructive: existing book records are preserved; only new books are added. Books from archives no longer present in INPX are **not** removed. Use `upgrade` for a faster incremental-only update. |
 | `upgrade`| *none* | Incremental update (add only new archives). |
 | `query`  | `title`, `author`, `genre`, `series`, `language`, `libId`, `archiveName`, `dateFrom`, `dateTo`, `ratingMin`, `ratingMax`, `withAnnotation`, `limit`, `offset` | Search books in the database. Supports search operators in `title`, `author`, and `series`. |
 | `stats`  | *none* | Get database summary (books count, authors count, indexed archives count). |
@@ -275,7 +275,7 @@ Librium includes a modern, dark-themed web interface for browsing and downloadin
   - One-click downloads in **FB2** format; **EPUB** download available when the fbc converter is configured.
   - In-memory LRU caching for performance.
   - `/api/config` endpoint exposes server capabilities (e.g., `epubEnabled`) to the frontend.
-- **Detailed Docs**: See **[Web Interface Documentation](Web_Interface.md)**.
+- **Detailed Docs**: See **[Web Interface Documentation](WebInterface.md)**.
 - **Quick Start**:
   ```powershell
   python scripts/Run.py --preset x64-release --web --library "C:/Path/To/Library"
