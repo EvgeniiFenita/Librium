@@ -1,0 +1,10 @@
+#pragma once
+
+namespace Librium::Apps {
+
+constexpr int         VersionMajor = @PROJECT_VERSION_MAJOR@;
+constexpr int         VersionMinor = @PROJECT_VERSION_MINOR@;
+constexpr int         VersionPatch = @PROJECT_VERSION_PATCH@;
+constexpr const char* VersionString = "@PROJECT_VERSION@";
+
+} // namespace Librium::Apps

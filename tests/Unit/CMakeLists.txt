@@ -37,7 +37,7 @@ add_executable(UnitTests
 )
 
 target_include_directories(UnitTests PRIVATE
-    ${CMAKE_SOURCE_DIR}/apps/Librium
+    ${CMAKE_BINARY_DIR}/apps/Librium
 )
 
 target_link_libraries(UnitTests PRIVATE

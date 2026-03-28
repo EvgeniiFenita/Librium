@@ -1,10 +1,12 @@
+configure_file(Version.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/Version.hpp)
+
 add_executable(Librium
     Main.cpp
-    Version.hpp
     ProtocolProgressReporter.hpp
 )
 
 target_include_directories(Librium PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
