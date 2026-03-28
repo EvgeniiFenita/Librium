@@ -2,6 +2,46 @@
 
 namespace Librium::Utils {
 
+namespace {
+
+constexpr std::string_view kBase64Chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789+/";
+
+void EncodeBlock(const unsigned char input[3], unsigned char output[4])
+{
+    output[0] = (input[0] & 0xfc) >> 2;
+    output[1] = ((input[0] & 0x03) << 4) + ((input[1] & 0xf0) >> 4);
+    output[2] = ((input[1] & 0x0f) << 2) + ((input[2] & 0xc0) >> 6);
+    output[3] = input[2] & 0x3f;
+}
+
+void DecodeBlock(const unsigned char input[4], unsigned char output[3])
+{
+    output[0] = (input[0] << 2) + ((input[1] & 0x30) >> 4);
+    output[1] = ((input[1] & 0xf) << 4) + ((input[2] & 0x3c) >> 2);
+    output[2] = ((input[2] & 0x3) << 6) + input[3];
+}
+
+void AppendEncodedChars(std::string& output, const unsigned char input[4], int count)
+{
+    for (int i = 0; i < count; ++i)
+    {
+        output += kBase64Chars[input[i]];
+    }
+}
+
+void MapBase64CharsToIndices(unsigned char input[4], std::string_view base64Chars)
+{
+    for (int i = 0; i < 4; ++i)
+    {
+        input[i] = static_cast<unsigned char>(base64Chars.find(static_cast<char>(input[i])));
+    }
+}
+
+} // namespace
+
 std::string CBase64::Encode(const std::string& input)
 {
     std::string ret;
@@ -17,12 +57,8 @@ std::string CBase64::Encode(const std::string& input)
         char_array_3[i++] = *(bytes_to_encode++);
         if (i == 3)
         {
-            char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-            char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
-            char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
-            char_array_4[3] = char_array_3[2] & 0x3f;
-
-            for (i = 0; (i < 4); i++) ret += BASE64_CHARS[char_array_4[i]];
+            EncodeBlock(char_array_3, char_array_4);
+            AppendEncodedChars(ret, char_array_4, 4);
             i = 0;
         }
     }
@@ -30,11 +66,8 @@ std::string CBase64::Encode(const std::string& input)
     if (i)
     {
         for (j = i; j < 3; j++) char_array_3[j] = '\0';
-        char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-        char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
-        char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
-        char_array_4[3] = char_array_3[2] & 0x3f;
-        for (j = 0; (j < i + 1); j++) ret += BASE64_CHARS[char_array_4[j]];
+        EncodeBlock(char_array_3, char_array_4);
+        AppendEncodedChars(ret, char_array_4, i + 1);
         while ((i++ < 3)) ret += '=';
     }
 
@@ -55,19 +88,13 @@ std::string CBase64::Decode(const std::string& input)
     unsigned char char_array_4[4], char_array_3[3];
     std::string ret;
 
-    std::string_view b64chars(BASE64_CHARS);
-
     while (in_len-- && (input[in_] != '=') && is_base64(input[in_]))
     {
         char_array_4[i++] = input[in_]; in_++;
         if (i == 4)
         {
-            for (i = 0; i < 4; i++)
-                char_array_4[i] = static_cast<unsigned char>(b64chars.find(static_cast<char>(char_array_4[i])));
-
-            char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
-            char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
-            char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+            MapBase64CharsToIndices(char_array_4, kBase64Chars);
+            DecodeBlock(char_array_4, char_array_3);
 
             for (i = 0; (i < 3); i++) ret += static_cast<char>(char_array_3[i]);
             i = 0;
@@ -77,12 +104,8 @@ std::string CBase64::Decode(const std::string& input)
     if (i)
     {
         for (j = i; j < 4; j++) char_array_4[j] = 0;
-        for (j = 0; j < 4; j++)
-            char_array_4[j] = static_cast<unsigned char>(b64chars.find(static_cast<char>(char_array_4[j])));
-
-        char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
-        char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
-        char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
+        MapBase64CharsToIndices(char_array_4, kBase64Chars);
+        DecodeBlock(char_array_4, char_array_3);
 
         for (j = 0; (j < i - 1); j++) ret += static_cast<char>(char_array_3[j]);
     }
