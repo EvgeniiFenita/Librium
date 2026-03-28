@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string_view>
+#include <utility>
 #include <unordered_map>
 
 namespace fs = std::filesystem;
@@ -70,6 +71,18 @@ void WriteCoverFile(const Config::SAppConfig& cfg, int64_t bookId, const Fb2::SF
     }
 
     output.write(reinterpret_cast<const char*>(fb2.coverData.data()), fb2.coverData.size());
+}
+
+template<typename TQueue, typename TValue>
+bool TryPushQueueItem(TQueue& queue, TValue&& value, std::string_view queueName)
+{
+    if (queue.Push(std::forward<TValue>(value)))
+    {
+        return true;
+    }
+
+    LOG_DEBUG("{} queue is already closed; dropping pending item", queueName);
+    return false;
 }
 
 } // namespace
@@ -169,7 +182,10 @@ void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2)
                     }
 
                     ++m_parsedCount;
-                    m_resultQueue.Push(std::move(result));
+                    if (!TryPushQueueItem(m_resultQueue, std::move(result), "result"))
+                    {
+                        break;
+                    }
                 }
                 catch (const std::exception& e)
                 {
@@ -421,7 +437,10 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, const std:
             for (auto& [archiveName, records] : work)
             {
                 if (m_stopRequested) break;
-                m_workQueue.Push(SWorkItem{archiveName, std::move(records)});
+                if (!TryPushQueueItem(m_workQueue, SWorkItem{archiveName, std::move(records)}, "work"))
+                {
+                    break;
+                }
             }
             m_workQueue.Close();
         }
