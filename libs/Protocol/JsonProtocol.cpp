@@ -4,10 +4,169 @@
 #include "Service/Response.hpp"
 #include "Utils/Base64.hpp"
 #include "Log/Logger.hpp"
+
 #include <nlohmann/json.hpp>
+
 #include <memory>
 
 namespace Librium::Protocol {
+
+namespace {
+
+const nlohmann::json& GetParamsObject(const nlohmann::json& json)
+{
+    static const nlohmann::json kEmptyObject = nlohmann::json::object();
+    if (json.contains("params") && json["params"].is_object())
+    {
+        return json["params"];
+    }
+    return kEmptyObject;
+}
+
+bool HasTypedParam(const nlohmann::json& json, const std::string& key)
+{
+    const auto& params = GetParamsObject(json);
+    return params.contains(key);
+}
+
+nlohmann::json BuildProgressJson(size_t processed, size_t total)
+{
+    return {
+        {"status", "progress"},
+        {"data", {
+            {"processed", processed},
+            {"total", total}
+        }}
+    };
+}
+
+nlohmann::json BuildImportStatsJson(const Db::SImportStats& stats)
+{
+    return {
+        {"inserted", stats.booksInserted},
+        {"updated", stats.booksUpdated},
+        {"skipped", stats.booksSkipped},
+        {"filtered", stats.booksFiltered},
+        {"fb2_parsed", stats.fb2Parsed},
+        {"fb2_errors", stats.fb2Errors},
+        {"archives_processed", stats.archivesProcessed}
+    };
+}
+
+nlohmann::json BuildAuthorJson(const Db::SAuthorInfo& author)
+{
+    nlohmann::json jsonAuthor = nlohmann::json::object();
+    if (!author.lastName.empty()) jsonAuthor["lastName"] = author.lastName;
+    if (!author.firstName.empty()) jsonAuthor["firstName"] = author.firstName;
+    if (!author.middleName.empty()) jsonAuthor["middleName"] = author.middleName;
+    return jsonAuthor;
+}
+
+nlohmann::json BuildBookJson(const Db::SBookResult& book)
+{
+    nlohmann::json jsonBook = {
+        {"id", book.id},
+        {"title", book.title},
+        {"language", book.language},
+        {"ext", book.fileExt},
+        {"size", book.fileSize},
+        {"file", book.fileName},
+        {"archive", book.archiveName}
+    };
+
+    if (!book.libId.empty()) jsonBook["libId"] = book.libId;
+    if (book.rating > 0) jsonBook["rating"] = book.rating;
+    if (!book.publisher.empty()) jsonBook["publisher"] = book.publisher;
+    if (!book.isbn.empty()) jsonBook["isbn"] = book.isbn;
+    if (!book.publishYear.empty()) jsonBook["publishYear"] = book.publishYear;
+    if (!book.dateAdded.empty()) jsonBook["dateAdded"] = book.dateAdded;
+
+    nlohmann::json authors = nlohmann::json::array();
+    for (const auto& author : book.authors)
+    {
+        authors.push_back(BuildAuthorJson(author));
+    }
+    jsonBook["authors"] = std::move(authors);
+
+    nlohmann::json genres = nlohmann::json::array();
+    for (const auto& genre : book.genres)
+    {
+        genres.push_back(genre);
+    }
+    jsonBook["genres"] = std::move(genres);
+
+    if (!book.series.empty())
+    {
+        jsonBook["series"] = book.series;
+        if (book.seriesNumber > 0)
+        {
+            jsonBook["seriesNumber"] = book.seriesNumber;
+        }
+    }
+
+    if (!book.annotation.empty()) jsonBook["annotation"] = book.annotation;
+    if (!book.keywords.empty()) jsonBook["keywords"] = book.keywords;
+
+    return jsonBook;
+}
+
+nlohmann::json BuildQueryResultJson(const Db::SQueryResult& result)
+{
+    nlohmann::json books = nlohmann::json::array();
+    for (const auto& book : result.books)
+    {
+        books.push_back(BuildBookJson(book));
+    }
+
+    return {
+        {"totalFound", result.totalFound},
+        {"books", std::move(books)}
+    };
+}
+
+nlohmann::json BuildAppStatsJson(const Service::SAppStats& stats)
+{
+    return {
+        {"total_books", stats.totalBooks},
+        {"total_authors", stats.totalAuthors},
+        {"indexed_archives", stats.indexedArchives}
+    };
+}
+
+nlohmann::json BuildBookDetailsJson(const Service::SBookDetails& details)
+{
+    nlohmann::json jsonBook = BuildBookJson(details.book);
+    if (!details.coverPath.empty())
+    {
+        jsonBook["cover"] = std::string(details.coverPath.begin(), details.coverPath.end());
+    }
+    return jsonBook;
+}
+
+nlohmann::json BuildExportJson(const std::filesystem::path& path, const std::string& filename)
+{
+    return {
+        {"file", path.u8string()},
+        {"filename", filename}
+    };
+}
+
+nlohmann::json BuildEnvelope(std::string_view status, const nlohmann::json& data, const std::string& error)
+{
+    nlohmann::json json;
+    json["status"] = status;
+    if (status == "error")
+    {
+        json["error"] = error;
+    }
+    else if (!data.is_null())
+    {
+        json["data"] = data;
+    }
+    return json;
+}
+
+} // namespace
 
 class CJsonRequest : public Service::IRequest
 {
@@ -21,26 +180,28 @@ public:
 
     std::string GetString(const std::string& key, const std::string& def = "") const override
     {
-        if (m_json.contains("params") && m_json["params"].contains(key) && m_json["params"][key].is_string())
+        const auto& params = GetParamsObject(m_json);
+        if (params.contains(key) && params[key].is_string())
         {
-            return m_json["params"][key].get<std::string>();
+            return params[key].get<std::string>();
         }
         return def;
     }
 
     int64_t GetInt(const std::string& key, int64_t def = 0) const override
     {
-        if (m_json.contains("params") && m_json["params"].contains(key))
+        const auto& params = GetParamsObject(m_json);
+        if (params.contains(key))
         {
-            if (m_json["params"][key].is_number_integer()) 
-                return m_json["params"][key].get<int64_t>();
+            if (params[key].is_number_integer())
+                return params[key].get<int64_t>();
 
-            if (m_json["params"][key].is_string()) 
+            if (params[key].is_string())
             {
-                try 
-                { 
-                    return std::stoll(m_json["params"][key].get<std::string>()); 
-                } 
+                try
+                {
+                    return std::stoll(params[key].get<std::string>());
+                }
                 catch (const std::exception& e) 
                 {
                     LOG_DEBUG("Failed to parse integer parameter '{}': {}", key, e.what());
@@ -52,16 +213,17 @@ public:
 
     bool GetBool(const std::string& key, bool def = false) const override
     {
-        if (m_json.contains("params") && m_json["params"].contains(key) && m_json["params"][key].is_boolean())
+        const auto& params = GetParamsObject(m_json);
+        if (params.contains(key) && params[key].is_boolean())
         {
-            return m_json["params"][key].get<bool>();
+            return params[key].get<bool>();
         }
         return def;
     }
 
     bool HasParam(const std::string& key) const override
     {
-        return m_json.contains("params") && m_json["params"].contains(key);
+        return HasTypedParam(m_json, key);
     }
 
 private:
@@ -83,140 +245,37 @@ public:
     void SetProgress(size_t processed, size_t total) override
     {
         if (!m_send) return;
-
-        nlohmann::json progress_msg = {
-            {"status", "progress"},
-            {"data", {
-                {"processed", processed},
-                {"total", total}
-            }}
-        };
-        m_send(Utils::CBase64::Encode(progress_msg.dump()));
+        m_send(Utils::CBase64::Encode(BuildProgressJson(processed, total).dump()));
     }
 
     void SetData(const Db::SImportStats& stats) override
     {
-        m_data = {
-            {"inserted", stats.booksInserted},
-            {"updated", stats.booksUpdated},
-            {"skipped", stats.booksSkipped},
-            {"filtered", stats.booksFiltered},
-            {"fb2_parsed", stats.fb2Parsed},
-            {"fb2_errors", stats.fb2Errors},
-            {"archives_processed", stats.archivesProcessed}
-        };
+        m_data = BuildImportStatsJson(stats);
     }
 
     void SetData(const Db::SQueryResult& result) override
     {
-        nlohmann::json jsonResult = nlohmann::json::object();
-        jsonResult["totalFound"] = result.totalFound;
-        
-        nlohmann::json booksArray = nlohmann::json::array();
-        for (const auto& book : result.books)
-        {
-            nlohmann::json b = {
-                {"id", book.id},
-                {"title", book.title},
-                {"language", book.language},
-                {"ext", book.fileExt},
-                {"size", book.fileSize},
-                {"file", book.fileName},
-                {"archive", book.archiveName}
-            };
-
-            if (!book.libId.empty()) b["libId"] = book.libId;
-            if (book.rating > 0) b["rating"] = book.rating;
-            if (!book.publisher.empty()) b["publisher"] = book.publisher;
-            if (!book.isbn.empty()) b["isbn"] = book.isbn;
-            if (!book.publishYear.empty()) b["publishYear"] = book.publishYear;
-            if (!book.dateAdded.empty()) b["dateAdded"] = book.dateAdded;
-
-            nlohmann::json authorsArray = nlohmann::json::array();
-            for (const auto& a : book.authors)
-            {
-                nlohmann::json authorObj;
-                if (!a.lastName.empty()) authorObj["lastName"] = a.lastName;
-                if (!a.firstName.empty()) authorObj["firstName"] = a.firstName;
-                if (!a.middleName.empty()) authorObj["middleName"] = a.middleName;
-                authorsArray.push_back(authorObj);
-            }
-            b["authors"] = authorsArray;
-
-            nlohmann::json genresArray = nlohmann::json::array();
-            for (const auto& g : book.genres)
-            {
-                genresArray.push_back(g);
-            }
-            b["genres"] = genresArray;
-
-            if (!book.series.empty())
-            {
-                b["series"] = book.series;
-                if (book.seriesNumber > 0)
-                {
-                    b["seriesNumber"] = book.seriesNumber;
-                }
-            }
-
-            if (!book.annotation.empty()) b["annotation"] = book.annotation;
-            if (!book.keywords.empty()) b["keywords"] = book.keywords;
-
-            booksArray.push_back(b);
-        }
-        jsonResult["books"] = booksArray;
-        m_data = jsonResult;
+        m_data = BuildQueryResultJson(result);
     }
 
     void SetData(const Service::SAppStats& stats) override
     {
-        m_data = {
-            {"total_books", stats.totalBooks},
-            {"total_authors", stats.totalAuthors},
-            {"indexed_archives", stats.indexedArchives}
-        };
+        m_data = BuildAppStatsJson(stats);
     }
 
     void SetData(const Service::SBookDetails& book) override
     {
-        Db::SQueryResult temp;
-        temp.books.push_back(book.book);
-        temp.totalFound = 1;
-        
-        SetData(temp);
-        
-        if (!m_data.empty() && m_data.contains("books") && !m_data["books"].empty())
-        {
-            auto singleBook = m_data["books"][0];
-            if (!book.coverPath.empty())
-            {
-                singleBook["cover"] = std::string(book.coverPath.begin(), book.coverPath.end());
-            }
-            m_data = singleBook;
-        }
+        m_data = BuildBookDetailsJson(book);
     }
 
     void SetDataExport(const std::filesystem::path& path, const std::string& filename) override
     {
-        m_data = {
-            {"file", path.u8string()},
-            {"filename", filename}
-        };
+        m_data = BuildExportJson(path, filename);
     }
 
     nlohmann::json ToJson() const
     {
-        nlohmann::json j;
-        j["status"] = m_status;
-        if (m_status == "error")
-        {
-            j["error"] = m_error;
-        }
-        else if (!m_data.is_null())
-        {
-            j["data"] = m_data;
-        }
-        return j;
+        return BuildEnvelope(m_status, m_data, m_error);
     }
 
 private:
@@ -263,11 +322,9 @@ std::string CJsonProtocol::Process(
 
 std::string CJsonProtocol::BuildErrorResponse(const std::string& errorMsg)
 {
-    nlohmann::json err = {
-        {"status", "error"},
-        {"error", errorMsg}
-    };
-    return Utils::CBase64::Encode(err.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+    return Utils::CBase64::Encode(
+        BuildEnvelope("error", nlohmann::json{}, errorMsg)
+            .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 } // namespace Librium::Protocol
