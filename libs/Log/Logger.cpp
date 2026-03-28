@@ -12,6 +12,8 @@
 
 namespace Librium::Log {
 
+namespace {
+
 class CFileOutput : public ILogOutput
 {
 public:
@@ -47,6 +49,78 @@ public:
     }
 };
 
+[[nodiscard]] std::vector<std::unique_ptr<ILogOutput>> BuildOutputs(const std::string& file)
+{
+    std::vector<std::unique_ptr<ILogOutput>> outputs;
+    if (!file.empty())
+    {
+        outputs.push_back(std::make_unique<CFileOutput>(file));
+    }
+
+    return outputs;
+}
+
+[[nodiscard]] std::string_view ToString(ELogLevel level)
+{
+    switch (level)
+    {
+        case ELogLevel::Debug: return "DEBUG";
+        case ELogLevel::Info:  return "INFO ";
+        case ELogLevel::Warn:  return "WARN ";
+        case ELogLevel::Error: return "ERROR";
+    }
+
+    return "INFO ";
+}
+
+[[nodiscard]] ELogLevel ParseLevelString(const std::string& levelStr, ELogLevel defaultLevel)
+{
+    if (levelStr == "debug") return ELogLevel::Debug;
+    if (levelStr == "warn")  return ELogLevel::Warn;
+    if (levelStr == "error") return ELogLevel::Error;
+    if (levelStr == "info")  return ELogLevel::Info;
+    return defaultLevel;
+}
+
+[[nodiscard]] std::string BuildTimestamp(const std::chrono::system_clock::time_point& now)
+{
+    const auto timestamp = std::chrono::system_clock::to_time_t(now);
+    const auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+
+    std::tm tm{};
+#ifdef _WIN32
+    localtime_s(&tm, &timestamp);
+#else
+    localtime_r(&timestamp, &tm);
+#endif
+
+    char buffer[32];
+    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &tm);
+
+    std::stringstream stream;
+    stream << buffer << "." << std::setfill('0') << std::setw(3) << milliseconds.count();
+    return stream.str();
+}
+
+[[nodiscard]] std::string SourceFileName(std::source_location loc)
+{
+    const auto utf8Name = std::filesystem::path(loc.file_name()).filename().u8string();
+    return std::string(utf8Name.begin(), utf8Name.end());
+}
+
+[[nodiscard]] std::string BuildLogLine(ELogLevel level, const std::string& message, std::source_location loc)
+{
+    std::stringstream stream;
+    stream << "[" << BuildTimestamp(std::chrono::system_clock::now()) << "] "
+           << "[" << std::this_thread::get_id() << "] "
+           << "[" << ToString(level) << "] "
+           << "[" << SourceFileName(loc) << ":" << loc.line() << "] "
+           << message << "\n";
+    return stream.str();
+}
+
+} // namespace
+
 CLogger& CLogger::Instance() 
 {
     static CLogger instance;
@@ -78,9 +152,7 @@ void CLogger::ClearOutputs()
 void CLogger::Setup(ELogLevel level, const std::string& file)
 {
     // Build new outputs before acquiring the lock to minimize critical section duration.
-    std::vector<std::unique_ptr<ILogOutput>> newOutputs;
-    if (!file.empty())
-        newOutputs.push_back(std::make_unique<CFileOutput>(file));
+    std::vector<std::unique_ptr<ILogOutput>> newOutputs = BuildOutputs(file);
 
     auto& logger = CLogger::Instance();
     logger.m_level.store(level, std::memory_order_relaxed);
@@ -92,51 +164,16 @@ void CLogger::Setup(ELogLevel level, const std::string& file)
 
 ELogLevel CLogger::ParseLevel(const std::string& levelStr, ELogLevel defaultLevel)
 {
-    if      (levelStr == "debug") return ELogLevel::Debug;
-    else if (levelStr == "warn")  return ELogLevel::Warn;
-    else if (levelStr == "error") return ELogLevel::Error;
-    else if (levelStr == "info")  return ELogLevel::Info;
-    return defaultLevel;
+    return ParseLevelString(levelStr, defaultLevel);
 }
 
 void CLogger::Log(ELogLevel level, const std::string& message, std::source_location loc)
 {
     if (level < m_level.load(std::memory_order_relaxed))
-        return;
-    auto now = std::chrono::system_clock::now();
-    auto t   = std::chrono::system_clock::to_time_t(now);
-    auto ms  = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
-
-    std::tm tm{};
-#ifdef _WIN32
-    localtime_s(&tm, &t);
-#else
-    localtime_r(&t, &tm);
-#endif
-
-    char ts[32];
-    std::strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &tm);
-
-    const char* levelStr = "INFO ";
-    switch (level) 
     {
-        case ELogLevel::Debug: levelStr = "DEBUG"; break;
-        case ELogLevel::Info:  levelStr = "INFO "; break;
-        case ELogLevel::Warn:  levelStr = "WARN "; break;
-        case ELogLevel::Error: levelStr = "ERROR"; break;
+        return;
     }
-
-    auto u8name = std::filesystem::path(loc.file_name()).filename().u8string();
-    std::string fileName(u8name.begin(), u8name.end());
-    
-    std::stringstream ss;
-    ss << "[" << ts << "." << std::setfill('0') << std::setw(3) << ms.count() << "] "
-       << "[" << std::this_thread::get_id() << "] "
-       << "[" << levelStr << "] "
-       << "[" << fileName << ":" << loc.line() << "] "
-       << message << "\n";
-
-    const std::string line = ss.str();
+    const std::string line = BuildLogLine(level, message, loc);
 
     std::lock_guard lock(m_mutex);
     for (auto& out : m_outputs)
