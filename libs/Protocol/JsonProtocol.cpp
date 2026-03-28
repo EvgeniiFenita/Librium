@@ -29,6 +29,68 @@ bool HasTypedParam(const nlohmann::json& json, const std::string& key)
     return params.contains(key);
 }
 
+const nlohmann::json* FindParam(const nlohmann::json& json, const std::string& key)
+{
+    const auto& params = GetParamsObject(json);
+    const auto it = params.find(key);
+    if (it == params.end())
+    {
+        return nullptr;
+    }
+
+    return &(*it);
+}
+
+std::string ReadStringParam(const nlohmann::json& json, const std::string& key, const std::string& def)
+{
+    const auto* value = FindParam(json, key);
+    if (value && value->is_string())
+    {
+        return value->get<std::string>();
+    }
+
+    return def;
+}
+
+int64_t ReadIntParam(const nlohmann::json& json, const std::string& key, int64_t def)
+{
+    const auto* value = FindParam(json, key);
+    if (!value)
+    {
+        return def;
+    }
+
+    if (value->is_number_integer())
+    {
+        return value->get<int64_t>();
+    }
+
+    if (value->is_string())
+    {
+        try
+        {
+            return std::stoll(value->get<std::string>());
+        }
+        catch (const std::exception& e)
+        {
+            LOG_DEBUG("Failed to parse integer parameter '{}': {}", key, e.what());
+        }
+    }
+
+    return def;
+}
+
+bool ReadBoolParam(const nlohmann::json& json, const std::string& key, bool def)
+{
+    const auto* value = FindParam(json, key);
+    if (value && value->is_boolean())
+    {
+        return value->get<bool>();
+    }
+
+    return def;
+}
+
 nlohmann::json BuildProgressJson(size_t processed, size_t total)
 {
     return {
@@ -180,45 +242,17 @@ public:
 
     std::string GetString(const std::string& key, const std::string& def = "") const override
     {
-        const auto& params = GetParamsObject(m_json);
-        if (params.contains(key) && params[key].is_string())
-        {
-            return params[key].get<std::string>();
-        }
-        return def;
+        return ReadStringParam(m_json, key, def);
     }
 
     int64_t GetInt(const std::string& key, int64_t def = 0) const override
     {
-        const auto& params = GetParamsObject(m_json);
-        if (params.contains(key))
-        {
-            if (params[key].is_number_integer())
-                return params[key].get<int64_t>();
-
-            if (params[key].is_string())
-            {
-                try
-                {
-                    return std::stoll(params[key].get<std::string>());
-                }
-                catch (const std::exception& e) 
-                {
-                    LOG_DEBUG("Failed to parse integer parameter '{}': {}", key, e.what());
-                }
-            }
-        }
-        return def;
+        return ReadIntParam(m_json, key, def);
     }
 
     bool GetBool(const std::string& key, bool def = false) const override
     {
-        const auto& params = GetParamsObject(m_json);
-        if (params.contains(key) && params[key].is_boolean())
-        {
-            return params[key].get<bool>();
-        }
-        return def;
+        return ReadBoolParam(m_json, key, def);
     }
 
     bool HasParam(const std::string& key) const override
