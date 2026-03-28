@@ -10,6 +10,148 @@ using json = nlohmann::json;
 
 namespace Librium::Config {
 
+namespace {
+
+template<typename TValue>
+void LoadOptional(const json& object, const char* key, TValue& value)
+{
+    if (object.contains(key))
+    {
+        value = object[key].get<TValue>();
+    }
+}
+
+json ToJson(const SDatabaseConfig& config)
+{
+    return {
+        {"path", config.path}
+    };
+}
+
+json ToJson(const SLibraryConfig& config)
+{
+    return {
+        {"inpxPath", config.inpxPath},
+        {"archivesDir", config.archivesDir}
+    };
+}
+
+json ToJson(const SImportConfig& config)
+{
+    return {
+        {"parseFb2", config.parseFb2},
+        {"threadCount", config.threadCount},
+        {"transactionBatchSize", config.transactionBatchSize},
+        {"sqliteCacheSize", config.sqliteCacheSize},
+        {"sqliteMmapSize", config.sqliteMmapSize}
+    };
+}
+
+json ToJson(const SFiltersConfig& config)
+{
+    return {
+        {"excludeLanguages", config.excludeLanguages},
+        {"includeLanguages", config.includeLanguages},
+        {"excludeGenres", config.excludeGenres},
+        {"includeGenres", config.includeGenres},
+        {"minFileSize", config.minFileSize},
+        {"maxFileSize", config.maxFileSize},
+        {"excludeAuthors", config.excludeAuthors},
+        {"excludeKeywords", config.excludeKeywords}
+    };
+}
+
+json ToJson(const SLoggingConfig& config)
+{
+    return {
+        {"level", config.level},
+        {"file", config.file},
+        {"progressInterval", config.progressInterval}
+    };
+}
+
+void LoadDatabaseConfig(const json& root, SDatabaseConfig& config)
+{
+    if (!root.contains("database"))
+    {
+        return;
+    }
+
+    const auto& db = root["database"];
+    LoadOptional(db, "path", config.path);
+}
+
+void LoadLibraryConfig(const json& root, SLibraryConfig& config)
+{
+    if (!root.contains("library"))
+    {
+        return;
+    }
+
+    const auto& library = root["library"];
+    LoadOptional(library, "inpxPath", config.inpxPath);
+    LoadOptional(library, "archivesDir", config.archivesDir);
+}
+
+void LoadImportConfig(const json& root, SImportConfig& config)
+{
+    if (!root.contains("import"))
+    {
+        return;
+    }
+
+    const auto& import = root["import"];
+    LoadOptional(import, "parseFb2", config.parseFb2);
+    LoadOptional(import, "threadCount", config.threadCount);
+    LoadOptional(import, "transactionBatchSize", config.transactionBatchSize);
+    LoadOptional(import, "sqliteCacheSize", config.sqliteCacheSize);
+    LoadOptional(import, "sqliteMmapSize", config.sqliteMmapSize);
+}
+
+void LoadFiltersConfig(const json& root, SFiltersConfig& config)
+{
+    if (!root.contains("filters"))
+    {
+        return;
+    }
+
+    const auto& filters = root["filters"];
+    LoadOptional(filters, "excludeLanguages", config.excludeLanguages);
+    LoadOptional(filters, "includeLanguages", config.includeLanguages);
+    LoadOptional(filters, "excludeGenres", config.excludeGenres);
+    LoadOptional(filters, "includeGenres", config.includeGenres);
+    LoadOptional(filters, "excludeAuthors", config.excludeAuthors);
+    LoadOptional(filters, "excludeKeywords", config.excludeKeywords);
+    LoadOptional(filters, "minFileSize", config.minFileSize);
+    LoadOptional(filters, "maxFileSize", config.maxFileSize);
+}
+
+void LoadLoggingConfig(const json& root, SLoggingConfig& config)
+{
+    if (!root.contains("logging"))
+    {
+        return;
+    }
+
+    const auto& logging = root["logging"];
+    LoadOptional(logging, "level", config.level);
+    LoadOptional(logging, "file", config.file);
+    LoadOptional(logging, "progressInterval", config.progressInterval);
+}
+
+json ToJson(const SAppConfig& config)
+{
+    return {
+        {"database", ToJson(config.database)},
+        {"library", ToJson(config.library)},
+        {"import", ToJson(config.import)},
+        {"filters", ToJson(config.filters)},
+        {"logging", ToJson(config.logging)}
+    };
+}
+
+} // namespace
+
 SAppConfig SAppConfig::Defaults() 
 {
     SAppConfig c;
@@ -37,70 +179,18 @@ SAppConfig SAppConfig::Load(const std::string& path)
 
     SAppConfig cfg = Defaults();
 
-    auto get = [&](const json& obj, const char* key, auto& val) 
-    {
-        if (obj.contains(key)) val = obj[key].get<std::decay_t<decltype(val)>>();
-    };
+    LoadDatabaseConfig(j, cfg.database);
+    LoadLibraryConfig(j, cfg.library);
+    LoadImportConfig(j, cfg.import);
+    LoadFiltersConfig(j, cfg.filters);
+    LoadLoggingConfig(j, cfg.logging);
 
-    if (j.contains("database")) get(j["database"], "path", cfg.database.path);
-    if (j.contains("library")) 
-    {
-        get(j["library"], "inpxPath",    cfg.library.inpxPath);
-        get(j["library"], "archivesDir", cfg.library.archivesDir);
-    }
-    if (j.contains("import")) 
-    {
-        get(j["import"], "parseFb2",            cfg.import.parseFb2);
-        get(j["import"], "threadCount",         cfg.import.threadCount);
-        get(j["import"], "transactionBatchSize",cfg.import.transactionBatchSize);
-        get(j["import"], "sqliteCacheSize",     cfg.import.sqliteCacheSize);
-        get(j["import"], "sqliteMmapSize",      cfg.import.sqliteMmapSize);
-    }
-    if (j.contains("filters")) 
-    {
-        auto& fi = j["filters"];
-        auto gv = [&](const char* k, std::vector<std::string>& v) 
-        { 
-            if (fi.contains(k)) v = fi[k].get<std::vector<std::string>>(); 
-        };
-        gv("excludeLanguages", cfg.filters.excludeLanguages);
-        gv("includeLanguages", cfg.filters.includeLanguages);
-        gv("excludeGenres",    cfg.filters.excludeGenres);
-        gv("includeGenres",    cfg.filters.includeGenres);
-        gv("excludeAuthors",   cfg.filters.excludeAuthors);
-        gv("excludeKeywords",  cfg.filters.excludeKeywords);
-        if (fi.contains("minFileSize")) cfg.filters.minFileSize = fi["minFileSize"].get<uint64_t>();
-        if (fi.contains("maxFileSize")) cfg.filters.maxFileSize = fi["maxFileSize"].get<uint64_t>();
-    }
-    if (j.contains("logging")) 
-    {
-        get(j["logging"], "level",            cfg.logging.level);
-        get(j["logging"], "file",             cfg.logging.file);
-        get(j["logging"], "progressInterval", cfg.logging.progressInterval);
-    }
     return cfg;
 }
 
 void SAppConfig::Save(const std::string& path) const
 {
-    json j = {
-        {"database", {{"path", database.path}}},
-        {"library",  {{"inpxPath", library.inpxPath}, {"archivesDir", library.archivesDir}}},
-        {"import",   {{"parseFb2", import.parseFb2}, {"threadCount", import.threadCount},
-                      {"transactionBatchSize", import.transactionBatchSize},
-                      {"sqliteCacheSize", import.sqliteCacheSize},
-                      {"sqliteMmapSize",  import.sqliteMmapSize}}},
-        {"filters",  {{"excludeLanguages", filters.excludeLanguages},
-                      {"includeLanguages", filters.includeLanguages},
-                      {"excludeGenres",    filters.excludeGenres},
-                      {"includeGenres",    filters.includeGenres},
-                      {"minFileSize",      filters.minFileSize},
-                      {"maxFileSize",      filters.maxFileSize},
-                      {"excludeAuthors",   filters.excludeAuthors},
-                      {"excludeKeywords",  filters.excludeKeywords}}},
-        {"logging",  {{"level", logging.level}, {"file", logging.file},
-                      {"progressInterval", logging.progressInterval}}}
-    };
+    json j = ToJson(*this);
     std::ofstream f(Utils::CStringUtils::Utf8ToPath(path));
     f << j.dump(2) << "\n";
 }
