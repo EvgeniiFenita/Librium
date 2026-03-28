@@ -195,7 +195,7 @@ During long operations (`import`, `upgrade`), the engine emits periodic updates:
 | :--- | :--- | :--- |
 | `import` | *none* | Full library re-indexing using paths from config. |
 | `upgrade`| *none* | Incremental update (add only new archives). |
-| `query`  | `title`, `author`, `genre`, `series`, `language`, `lib-id`, `archive`, `date-from`, `date-to`, `rating-min`, `rating-max`, `with-annotation`, `limit`, `offset` | Search books in the database. Supports search operators in `title`, `author`, and `series`. |
+| `query`  | `title`, `author`, `genre`, `series`, `language`, `libId`, `archiveName`, `dateFrom`, `dateTo`, `ratingMin`, `ratingMax`, `withAnnotation`, `limit`, `offset` | Search books in the database. Supports search operators in `title`, `author`, and `series`. |
 | `stats`  | *none* | Get database summary (books count, authors count, indexed archives count). |
 | `get-book` | `id` (int) | Get full metadata of a single book by ID. Includes `"cover"` path if available. |
 | `export` | `id` (int), `out` (directory path) | Extract a book from a ZIP archive into the specified directory. Response includes `data.file` — absolute path to the extracted file. |

@@ -9,6 +9,9 @@ const util = require('util');
 const { execFile } = require('child_process');
 const execFileAsync = util.promisify(execFile);
 
+const MAX_CONCURRENT_DOWNLOADS = 5;
+let activeDownloads = 0;
+
 /**
  * @param {object} deps
  * @param {function} deps.sendCommand
@@ -23,6 +26,9 @@ function createDownloadRouter({ sendCommand, getEngineState, getWebConfig, getFb
         if (getEngineState() !== 'ready') {
             return res.status(503).json({ error: "Engine not ready" });
         }
+        if (activeDownloads >= MAX_CONCURRENT_DOWNLOADS) {
+            return res.status(429).json({ error: "Too many concurrent downloads, please try again later." });
+        }
         const id = parseInt(req.params.id, 10);
         if (isNaN(id) || id <= 0) {
             return res.status(400).json({ error: "Invalid book ID" });
@@ -35,10 +41,12 @@ function createDownloadRouter({ sendCommand, getEngineState, getWebConfig, getFb
             return res.status(501).json({ error: "EPUB conversion is not configured on the server." });
         }
 
+        let uniqueOutDir = null;
+        activeDownloads++;
         try {
             const webConfig = getWebConfig();
             const tempDir = path.resolve(__dirname, '..', webConfig.tempDir);
-            const uniqueOutDir = path.join(tempDir, crypto.randomUUID());
+            uniqueOutDir = path.join(tempDir, crypto.randomUUID());
             fs.mkdirSync(uniqueOutDir, { recursive: true });
 
             const data = await sendCommand('export', { id, out: uniqueOutDir });
@@ -74,6 +82,7 @@ function createDownloadRouter({ sendCommand, getEngineState, getWebConfig, getFb
                     filename = path.basename(filename, path.extname(filename)) + '.epub';
                 } catch (e) {
                     fs.rmSync(uniqueOutDir, { recursive: true, force: true });
+                    activeDownloads--;
                     console.error(`[HTTP] EPUB conversion failed for book ${id}:`, e);
                     return res.status(500).json({ error: 'EPUB conversion failed' });
                 }
@@ -81,11 +90,16 @@ function createDownloadRouter({ sendCommand, getEngineState, getWebConfig, getFb
 
             res.download(finalFilePath, filename, (err) => {
                 fs.rmSync(uniqueOutDir, { recursive: true, force: true });
+                activeDownloads--;
                 if (err) {
                     console.error(`[HTTP] Download error for book ${id}:`, err);
                 }
             });
         } catch (e) {
+            activeDownloads--;
+            if (uniqueOutDir) {
+                try { fs.rmSync(uniqueOutDir, { recursive: true, force: true }); } catch (_) {}
+            }
             res.status(500).json({ error: e.message });
         }
     });

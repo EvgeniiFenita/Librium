@@ -123,7 +123,51 @@ On the first launch, if the database is empty, the interface will automatically 
 
 ---
 
-## 5. Maintenance
+## 5. HTTP API Reference
+
+The Node.js backend exposes the following HTTP endpoints:
+
+| Method | Path | Description | Response |
+|--------|------|-------------|----------|
+| `GET` | `/api/config` | Server capabilities | `{ "epubEnabled": boolean }` |
+| `GET` | `/api/status` | Engine state and import/upgrade progress | `{ "state": string, "progress": { "processed": number, "total": number } }` |
+| `GET` | `/api/stats` | Library statistics (forwarded from C++ engine) | `{ "total_books": number, "total_authors": number, "indexed_archives": number }` |
+| `POST` | `/api/import` | Start full library re-import (async, returns 202) | `{ "message": string }` |
+| `POST` | `/api/upgrade` | Start incremental upgrade (async, returns 202) | `{ "message": string }` |
+| `GET` | `/api/books` | Search/list books | `{ "totalFound": number, "books": [...] }` |
+| `GET` | `/api/books/:id` | Get single book details | Book object with optional `coverUrl` |
+| `GET` | `/api/download/:id` | Download book file (FB2 or EPUB) | Binary file stream |
+| `GET` | `/covers/:id/cover` | Serve cover image (LRU cached) | Image binary (JPG/PNG/WebP) |
+
+### Query Parameters for `GET /api/books`
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `limit` | number | Max books to return (default: 40, max: 500) |
+| `offset` | number | Pagination offset |
+| `title` | string | Title filter (supports search operators: `=exact`, `*contains`, default: prefix) |
+| `author` | string | Author filter (supports search operators) |
+| `series` | string | Series filter (supports search operators) |
+| `genre` | string | Genre filter (prefix match) |
+| `language` | string | Language code filter |
+
+### Engine State Values (`/api/status`)
+
+| State | Meaning |
+|-------|---------|
+| `starting` | Engine is connecting or initializing |
+| `ready` | Engine is idle and accepting commands |
+| `importing` | Full re-import is in progress |
+| `upgrading` | Incremental upgrade is in progress |
+| `crashed` | Engine process exited unexpectedly |
+
+### `POST /api/import` and `POST /api/upgrade`
+
+Both endpoints return **HTTP 202** immediately and run the operation asynchronously. Poll `GET /api/status` to track progress and wait for `state` to return to `"ready"`.
+
+---
+
+## 6. Maintenance
 
 - **Artifacts**: All web-related data (database, logs, temporary exports, covers) are stored in `out/artifacts/web/`.
 - **Resetting**: To start fresh, simply delete the `out/artifacts/web/` directory.

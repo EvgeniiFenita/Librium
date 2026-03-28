@@ -2,9 +2,11 @@
 
 #include "Config/AppConfig.hpp"
 #include "Inpx/BookRecord.hpp"
+#include "TestUtils.hpp"
 #include <filesystem>
 
 using namespace Librium::Config;
+using namespace Librium::Tests;
 
 namespace {
 
@@ -27,15 +29,14 @@ TEST_CASE("AppConfig defaults", "[config]")
 
 TEST_CASE("AppConfig save/load", "[config]")
 {
-    std::string path = "test_config.json";
+    CTempDir tempDir;
+    std::string path = (tempDir.GetPath() / "test_config.json").string();
     auto c1 = SAppConfig::Defaults();
     c1.database.path = "custom.db";
     c1.Save(path);
 
     auto c2 = SAppConfig::Load(path);
     REQUIRE(c2.database.path == "custom.db");
-
-    std::filesystem::remove(path);
 }
 
 TEST_CASE("BookFilter logic", "[config]")

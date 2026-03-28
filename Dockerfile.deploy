@@ -29,6 +29,12 @@ RUN chmod +x /app/tools/fbc
 COPY entrypoint.sh /entrypoint.sh
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
+# Run as non-root user
+RUN useradd -r -u 1000 -U librium \
+    && chown -R librium:librium /app \
+    && mkdir -p /data && chown librium:librium /data
+USER librium
+
 EXPOSE 8080
 
 ENTRYPOINT ["/entrypoint.sh"]

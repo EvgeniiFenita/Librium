@@ -1,0 +1,38 @@
+# Build artifacts and generated files
+out/
+vcpkg_installed/
+
+# Version control
+.git/
+.gitattributes
+.gitignore
+
+# IDE / editor folders
+.vs/
+.vscode/
+.idea/
+
+# Node.js dependencies (installed inside the image)
+web/node_modules/
+web/temp/
+web/meta/
+web/tools/
+web/web_config.json
+
+# Test artifacts
+tests/Scenarios/**/*.json.out
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Database and log files
+*.db
+*.log
+*.db-wal
+*.db-shm
+
+# Archive files (library data is mounted as a volume)
+*.zip
+*.tar.gz
+*.7z

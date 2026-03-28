@@ -58,16 +58,26 @@ function showLoadingMore(show) {
 }
 
 // --- PLACEHOLDERS ---
-function createPlaceholderSvg(title) {
+// Builds placeholder DOM element programmatically — never inserts user data via innerHTML.
+function appendPlaceholderTo(container, title) {
   const c1 = hashColor(title || 'book');
   const c2 = hashColor(title || 'book', 30, 50, 35);
-  return `
-    <div style="width:100%;height:100%;background:linear-gradient(135deg,${c1},${c2});
-                display:flex;align-items:center;justify-content:center;">
-      <svg viewBox="0 0 24 24" width="40%" fill="rgba(255,255,255,0.4)">
-        <path d="M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 2v16h12V4H6zm2 3h8v2H8V7zm0 4h8v2H8v-2zm0 4h5v2H8v-2z"/>
-      </svg>
-    </div>`;
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = `width:100%;height:100%;background:linear-gradient(135deg,${c1},${c2});display:flex;align-items:center;justify-content:center;`;
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '40%');
+  svg.setAttribute('fill', 'rgba(255,255,255,0.4)');
+
+  const pathEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  pathEl.setAttribute('d', 'M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 2v16h12V4H6zm2 3h8v2H8V7zm0 4h8v2H8v-2zm0 4h5v2H8v-2z');
+
+  svg.appendChild(pathEl);
+  wrap.appendChild(svg);
+  container.innerHTML = '';
+  container.appendChild(wrap);
 }
 
 // --- BOOK GRID ---
@@ -82,14 +92,21 @@ function renderBookCard(book) {
 
   card.innerHTML = `
     <div class="book-cover-wrap">
-      <img src="${coverUrl}" alt="" loading="lazy"
-           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-      <div class="cover-placeholder" style="display:none">${createPlaceholderSvg(book.title)}</div>
+      <img src="${coverUrl}" alt="" loading="lazy">
+      <div class="cover-placeholder" style="display:none"></div>
     </div>
     <div class="book-card-info">
       <div class="book-card-title">${escapeHtml(book.title)}</div>
       <div class="book-card-author">${escapeHtml(authorText)}</div>
     </div>`;
+
+  const img = card.querySelector('img');
+  const ph = card.querySelector('.cover-placeholder');
+  img.addEventListener('error', () => {
+    img.style.display = 'none';
+    appendPlaceholderTo(ph, book.title);
+    ph.style.display = 'flex';
+  });
 
   card.addEventListener('click', () => openModal(book.id));
   return card;
@@ -242,14 +259,14 @@ async function populateModal(book)
     img.onerror = () =>
     {
       img.style.display = 'none';
-      ph.innerHTML = createPlaceholderSvg(book.title);
+      appendPlaceholderTo(ph, book.title);
       ph.classList.remove('hidden');
       ph.style.display = 'flex';
     };
   }
   else
   {
-    ph.innerHTML = createPlaceholderSvg(book.title);
+    appendPlaceholderTo(ph, book.title);
     ph.classList.remove('hidden');
     ph.style.display = 'flex';
   }

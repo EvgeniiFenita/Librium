@@ -91,13 +91,15 @@ function loadConfig(configOverride = null) {
 // --- LIBRIUM PROCESS ---
 
 function restartLibrium() {
+    const ENGINE_RESTART_DELAY_MS = 5000;
+    const TCP_RECONNECT_DELAY_MS = 1000;
     if (getEngineState() !== 'crashed') return;
     console.log('[Server] Restarting Librium...');
     startLibrium(webConfig, () => {
         setEngineState('crashed');
-        setTimeout(() => restartLibrium(), 5000);
+        setTimeout(() => restartLibrium(), ENGINE_RESTART_DELAY_MS);
     });
-    setTimeout(() => connectTcp(), 1000);
+    setTimeout(() => connectTcp(), TCP_RECONNECT_DELAY_MS);
 }
 
 // --- TCP CLIENT WRAPPER ---
@@ -186,7 +188,7 @@ async function main(configOverride = null, startEngine = true) {
         });
     }
     connectTcp();
-    return app.listen(webConfig.webPort, '0.0.0.0', () => {
+    return app.listen(webConfig.webPort, '127.0.0.1', () => {
         console.log(`[Server] Librium Web UI running at http://localhost:${webConfig.webPort}`);
     });
 }

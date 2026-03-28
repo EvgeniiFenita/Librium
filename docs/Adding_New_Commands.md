@@ -54,6 +54,7 @@ The `IResponse` interface is used to send the result back. It is overloaded for 
 - `SetData(Db::SQueryResult)`
 - `SetData(SAppStats)` — stats result with fields: `totalBooks`, `totalAuthors`, `indexedArchives`. Serialized to JSON as `total_books`, `total_authors`, `indexed_archives`.
 - `SetData(SBookDetails)`
+- `SetDataExport(const std::filesystem::path& path, const std::string& filename)` — used by export-like commands to return a file path and suggested download filename. Serialized to JSON as `{ "file": "/absolute/path/to/file.fb2", "filename": "Author - Title.fb2" }`.
 - `SetError(message)`
 - `SetProgress(processed, total)` — used for intermediate updates.
 

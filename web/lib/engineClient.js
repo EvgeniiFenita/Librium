@@ -9,6 +9,8 @@ let reconnectTimer = null;
 const requestQueue = [];
 let TCP_TIMEOUT = 30000;
 
+const MAX_LINE_BUFFER_BYTES = 10 * 1024 * 1024; // 10 MB
+
 let engineState = 'starting';
 let lastProgress = { processed: 0, total: 0 };
 let currentLineHandler = null;
@@ -72,6 +74,11 @@ function connectTcp(webConfig, retryCount = 0) {
 
     socket.on('data', (chunk) => {
         lineBuffer += chunk;
+        if (lineBuffer.length > MAX_LINE_BUFFER_BYTES) {
+            console.error('[TCP] Line buffer overflow — destroying socket to prevent OOM');
+            socket.destroy();
+            return;
+        }
         let idx;
         while ((idx = lineBuffer.indexOf('\n')) !== -1) {
             const line = lineBuffer.slice(0, idx).trim();

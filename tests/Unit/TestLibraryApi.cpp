@@ -171,3 +171,90 @@ TEST_CASE("CLibraryApi::ExportBook for non-existent book throws", "[libraryapi]"
 
     REQUIRE_THROWS(api.ExportBook(99999, tempDir.GetPath() / "out"));
 }
+
+TEST_CASE("CLibraryApi::ExportBook extracts file from ZIP to output directory", "[libraryapi]")
+{
+    CTempDir tempDir;
+    Config::SAppConfig cfg;
+    cfg.database.path   = (tempDir.GetPath() / "export_test.db").string();
+    cfg.library.archivesDir = tempDir.GetPath().string();
+
+    const std::string archiveStem = "export_arch";
+    const std::string fileBaseName = "book_export";
+    const std::string fileName    = fileBaseName + ".fb2";
+    const std::string fb2Content  = R"(<?xml version="1.0"?><FictionBook/>)";
+
+    // Create ZIP archive with an FB2 file inside
+    const auto zipPath = tempDir.GetPath() / (archiveStem + ".zip");
+    CreateTestZip(zipPath, {{fileName, fb2Content}});
+
+    // Insert book record pointing to that archive
+    Inpx::SBookRecord rec;
+    rec.libId       = "EXP01";
+    rec.title       = "Export Test";
+    rec.archiveName = archiveStem;
+    rec.fileName    = fileBaseName;
+    rec.fileExt     = "fb2";
+    rec.language    = "en";
+    rec.genres      = {"test"};
+    rec.authors.push_back({"ExportAuthor", "Test", ""});
+
+    int64_t bookId = 0;
+    {
+        Db::CDatabase db(cfg.database.path);
+        bookId = db.InsertBook(rec);
+    }
+    REQUIRE(bookId > 0);
+
+    // Export the book
+    const auto outDir = tempDir.GetPath() / "exported";
+    Service::CLibraryApi api(cfg);
+    const auto outPath = api.ExportBook(bookId, outDir);
+
+    // Verify output file exists and has expected content
+    REQUIRE(std::filesystem::exists(outPath));
+    REQUIRE(outPath.filename().string() == fileName);
+
+    std::ifstream ifs(outPath, std::ios::binary);
+    REQUIRE(ifs.is_open());
+    const std::string actualContent((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+    REQUIRE(actualContent == fb2Content);
+}
+
+TEST_CASE("CLibraryApi::ExportBook creates output directory if it does not exist", "[libraryapi]")
+{
+    CTempDir tempDir;
+    Config::SAppConfig cfg;
+    cfg.database.path    = (tempDir.GetPath() / "export_mkdir.db").string();
+    cfg.library.archivesDir = tempDir.GetPath().string();
+
+    const std::string archiveStem = "mkdir_arch";
+    const std::string fileBaseName = "mkdir_book";
+    const std::string fileName    = fileBaseName + ".fb2";
+
+    const auto zipPath = tempDir.GetPath() / (archiveStem + ".zip");
+    CreateTestZip(zipPath, {{fileName, "<FictionBook/>"}});
+
+    Inpx::SBookRecord rec;
+    rec.libId       = "MK01";
+    rec.title       = "Mkdir Test";
+    rec.archiveName = archiveStem;
+    rec.fileName    = fileBaseName;
+    rec.fileExt     = "fb2";
+    rec.language    = "en";
+
+    int64_t bookId = 0;
+    {
+        Db::CDatabase db(cfg.database.path);
+        bookId = db.InsertBook(rec);
+    }
+
+    const auto deepOutDir = tempDir.GetPath() / "deep" / "nested" / "out";
+    REQUIRE_FALSE(std::filesystem::exists(deepOutDir));
+
+    Service::CLibraryApi api(cfg);
+    const auto outPath = api.ExportBook(bookId, deepOutDir);
+
+    REQUIRE(std::filesystem::exists(deepOutDir));
+    REQUIRE(std::filesystem::exists(outPath));
+}

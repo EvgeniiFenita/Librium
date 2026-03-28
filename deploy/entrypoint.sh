@@ -34,6 +34,44 @@ to_json_array() {
 }
 
 # ---------------------------------------------------------------------------
+# Helper: escape a string value for safe embedding inside a JSON string literal.
+#   Escapes backslashes and double quotes.
+# ---------------------------------------------------------------------------
+json_escape_string() {
+    local value="${1:-}"
+    value="${value//\\/\\\\}"
+    value="${value//\"/\\\"}"
+    echo "$value"
+}
+
+# ---------------------------------------------------------------------------
+# Helpers: validate that a variable holds an integer or a boolean.
+# ---------------------------------------------------------------------------
+validate_integer() {
+    local name="$1" value="$2"
+    if [[ ! "$value" =~ ^-?[0-9]+$ ]]; then
+        echo "[ERROR] $name must be an integer, got: '${value}'"
+        exit 1
+    fi
+}
+
+validate_boolean() {
+    local name="$1" value="$2"
+    if [ "$value" != "true" ] && [ "$value" != "false" ]; then
+        echo "[ERROR] $name must be 'true' or 'false', got: '${value}'"
+        exit 1
+    fi
+}
+
+validate_log_level() {
+    local value="$1"
+    case "$value" in
+        debug|info|warn|error) ;;
+        *) echo "[ERROR] LIBRIUM_LOG_LEVEL must be one of: debug, info, warn, error. Got: '${value}'"; exit 1 ;;
+    esac
+}
+
+# ---------------------------------------------------------------------------
 # Required environment variables
 # ---------------------------------------------------------------------------
 : "${LIBRIUM_LIBRARY_PATH:?LIBRIUM_LIBRARY_PATH must be set (path to the library folder inside the container, e.g. /library)}"
@@ -64,8 +102,13 @@ if [ -z "${LIBRIUM_ARCHIVES_DIR}" ]; then
     if [ -d "${LIBRIUM_LIBRARY_PATH}/lib.rus.ec" ]; then
         LIBRIUM_ARCHIVES_DIR="${LIBRIUM_LIBRARY_PATH}/lib.rus.ec"
     else
-        LIBRIUM_ARCHIVES_DIR=$(find "${LIBRIUM_LIBRARY_PATH}" -maxdepth 1 -type d -exec sh -c \
-            'ls "$1"/*.zip >/dev/null 2>&1 && echo "$1"' _ {} \; | grep -v "^${LIBRIUM_LIBRARY_PATH}$" | head -n 1)
+        LIBRIUM_ARCHIVES_DIR=""
+        while IFS= read -r dir; do
+            if ls "$dir"/*.zip >/dev/null 2>&1; then
+                LIBRIUM_ARCHIVES_DIR="$dir"
+                break
+            fi
+        done < <(find "${LIBRIUM_LIBRARY_PATH}" -maxdepth 1 -mindepth 1 -type d)
         if [ -z "${LIBRIUM_ARCHIVES_DIR}" ]; then
             LIBRIUM_ARCHIVES_DIR="${LIBRIUM_LIBRARY_PATH}"
         fi
@@ -117,14 +160,30 @@ else
     LIBRIUM_LOG_LEVEL="${LIBRIUM_LOG_LEVEL:-info}"
     LIBRIUM_LOG_PROGRESS_INTERVAL="${LIBRIUM_LOG_PROGRESS_INTERVAL:-1000}"
 
+    # --- Validate all numeric and boolean values before writing JSON ---
+    validate_integer "LIBRIUM_THREAD_COUNT" "${LIBRIUM_THREAD_COUNT}"
+    validate_boolean "LIBRIUM_PARSE_FB2" "${LIBRIUM_PARSE_FB2}"
+    validate_integer "LIBRIUM_TRANSACTION_BATCH_SIZE" "${LIBRIUM_TRANSACTION_BATCH_SIZE}"
+    validate_integer "LIBRIUM_SQLITE_CACHE_SIZE" "${LIBRIUM_SQLITE_CACHE_SIZE}"
+    validate_integer "LIBRIUM_SQLITE_MMAP_SIZE" "${LIBRIUM_SQLITE_MMAP_SIZE}"
+    validate_integer "LIBRIUM_MIN_FILE_SIZE" "${LIBRIUM_MIN_FILE_SIZE}"
+    validate_integer "LIBRIUM_MAX_FILE_SIZE" "${LIBRIUM_MAX_FILE_SIZE}"
+    validate_integer "LIBRIUM_LOG_PROGRESS_INTERVAL" "${LIBRIUM_LOG_PROGRESS_INTERVAL}"
+    validate_log_level "${LIBRIUM_LOG_LEVEL}"
+
+    # --- Escape string values for safe JSON embedding ---
+    INPX_PATH_JSON=$(json_escape_string "${INPX_PATH}")
+    ARCHIVES_DIR_JSON=$(json_escape_string "${LIBRIUM_ARCHIVES_DIR}")
+    LOG_LEVEL_JSON=$(json_escape_string "${LIBRIUM_LOG_LEVEL}")
+
     cat > "${ENGINE_CONFIG}" <<EOF
 {
     "database": {
         "path": "/data/library.db"
     },
     "library": {
-        "inpxPath": "${INPX_PATH}",
-        "archivesDir": "${LIBRIUM_ARCHIVES_DIR}"
+        "inpxPath": "${INPX_PATH_JSON}",
+        "archivesDir": "${ARCHIVES_DIR_JSON}"
     },
     "import": {
         "parseFb2": ${LIBRIUM_PARSE_FB2},
@@ -144,7 +203,7 @@ else
         "excludeKeywords": ${EXCLUDE_KEYWORDS_JSON}
     },
     "logging": {
-        "level": "${LIBRIUM_LOG_LEVEL}",
+        "level": "${LOG_LEVEL_JSON}",
         "file": "/data/librium.log",
         "progressInterval": ${LIBRIUM_LOG_PROGRESS_INTERVAL}
     }
