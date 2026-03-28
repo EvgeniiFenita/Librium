@@ -1,8 +1,8 @@
 #include "ZipReader.hpp"
 #include "Log/Logger.hpp"
+#include "Utils/StringUtils.hpp"
 
 #include <zip.h>
-#include <cstring>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -17,19 +17,61 @@ void SZipDeleter::operator()(struct zip* za) const
 }
 
 namespace {
-    struct SZipFileDeleter {
-        void operator()(zip_file_t* zf) const {
-            if (zf) zip_fclose(zf);
-        }
-    };
-    using zip_file_ptr = std::unique_ptr<zip_file_t, SZipFileDeleter>;
+struct SZipFileDeleter
+{
+    void operator()(zip_file_t* zf) const
+    {
+        if (zf) zip_fclose(zf);
+    }
+};
+
+using zip_file_ptr = std::unique_ptr<zip_file_t, SZipFileDeleter>;
+
+bool IsDirectoryEntry(std::string_view name)
+{
+    return !name.empty() && (name.back() == '/' || name.back() == '\\');
 }
+
+SZipEntry MakeZipEntry(const zip_stat_t& stat)
+{
+    SZipEntry entry;
+    entry.name = stat.name ? stat.name : "";
+    entry.uncompressedSize = stat.size;
+    entry.compressedSize = stat.comp_size;
+    entry.isDirectory = IsDirectoryEntry(entry.name);
+    return entry;
+}
+
+bool TryGetEntryStat(zip_t* archive, zip_int64_t index, zip_stat_t& stat)
+{
+    zip_stat_init(&stat);
+    return zip_stat_index(archive, index, 0, &stat) == 0;
+}
+
+template<typename TCallback>
+void ForEachEntry(zip_t* archive, TCallback&& callback)
+{
+    const zip_int64_t numEntries = zip_get_num_entries(archive, 0);
+    for (zip_int64_t i = 0; i < numEntries; ++i)
+    {
+        zip_stat_t stat;
+        if (!TryGetEntryStat(archive, i, stat))
+        {
+            continue;
+        }
+
+        if (!callback(i, stat))
+        {
+            break;
+        }
+    }
+}
+} // namespace
 
 CZipReader::CZipReader(const std::filesystem::path& path)
     : m_path(path)
 {
-    auto u8path = path.u8string();
-    std::string pathStr(u8path.begin(), u8path.end());
+    const std::string pathStr = Utils::CStringUtils::PathToUtf8String(path);
     LOG_DEBUG("Opening zip handle: {}", pathStr);
     
     zip_t* za = nullptr;
@@ -70,8 +112,7 @@ CZipReader::CZipReader(const std::filesystem::path& path)
 
 std::vector<uint8_t> CZipReader::ReadEntry(const std::string& entryName) const
 {
-    const auto u8 = m_path.u8string();
-    const std::string pathStr(u8.begin(), u8.end());
+    const std::string pathStr = Utils::CStringUtils::PathToUtf8String(m_path);
 
     zip_file_ptr zf(zip_fopen(m_za.get(), entryName.c_str(), 0));
     if (!zf)
@@ -101,21 +142,11 @@ std::vector<SZipEntry> CZipReader::ListEntries(const std::filesystem::path& zipP
     std::vector<SZipEntry> result;
     CZipReader reader(zipPath);
 
-    zip_int64_t num = zip_get_num_entries(reader.m_za.get(), 0);
-    for (zip_int64_t i = 0; i < num; ++i)
+    ForEachEntry(reader.m_za.get(), [&](zip_int64_t, const zip_stat_t& stat)
     {
-        struct zip_stat st;
-        zip_stat_init(&st);
-        if (zip_stat_index(reader.m_za.get(), i, 0, &st) == 0)
-        {
-            SZipEntry e;
-            e.name = st.name;
-            e.uncompressedSize = st.size;
-            e.compressedSize = st.comp_size;
-            e.isDirectory = !e.name.empty() && (e.name.back() == '/' || e.name.back() == '\\');
-            result.push_back(std::move(e));
-        }
-    }
+        result.push_back(MakeZipEntry(stat));
+        return true;
+    });
     return result;
 }
 
@@ -128,59 +159,39 @@ std::vector<uint8_t> CZipReader::ReadEntry(const std::filesystem::path& zipPath,
 void CZipReader::IterateEntries(const std::filesystem::path& zipPath, const std::function<bool(const std::string&, std::vector<uint8_t>)>& callback)
 {
     CZipReader reader(zipPath);
-    zip_int64_t num = zip_get_num_entries(reader.m_za.get(), 0);
-    for (zip_int64_t i = 0; i < num; ++i)
+    ForEachEntry(reader.m_za.get(), [&](zip_int64_t index, const zip_stat_t& stat)
     {
-        struct zip_stat st;
-        zip_stat_init(&st);
-        if (zip_stat_index(reader.m_za.get(), i, 0, &st) == 0)
+        const SZipEntry entry = MakeZipEntry(stat);
+        if (entry.isDirectory)
         {
-            const size_t nameLen = strlen(st.name);
-            if (nameLen == 0 || st.name[nameLen - 1] == '/' || st.name[nameLen - 1] == '\\')
-            {
-                continue;
-            }
-
-            zip_file_ptr zf(zip_fopen_index(reader.m_za.get(), i, 0));
-            if (zf)
-            {
-                std::vector<uint8_t> data(st.size);
-                auto bytesRead = zip_fread(zf.get(), data.data(), st.size);
-                zf.reset(); // close early
-                if (bytesRead < 0 || static_cast<zip_uint64_t>(bytesRead) != st.size)
-                {
-                    continue;
-                }
-                if (!callback(st.name, std::move(data)))
-                {
-                    break;
-                }
-            }
+            return true;
         }
-    }
+
+        zip_file_ptr zf(zip_fopen_index(reader.m_za.get(), index, 0));
+        if (!zf)
+        {
+            return true;
+        }
+
+        std::vector<uint8_t> data(stat.size);
+        const auto bytesRead = zip_fread(zf.get(), data.data(), stat.size);
+        zf.reset(); // close early
+        if (bytesRead < 0 || static_cast<zip_uint64_t>(bytesRead) != stat.size)
+        {
+            return true;
+        }
+
+        return callback(entry.name, std::move(data));
+    });
 }
 
 void CZipReader::IterateEntryNames(const std::filesystem::path& zipPath, const std::function<bool(const SZipEntry&)>& callback)
 {
     CZipReader reader(zipPath);
-    zip_int64_t num = zip_get_num_entries(reader.m_za.get(), 0);
-    for (zip_int64_t i = 0; i < num; ++i)
+    ForEachEntry(reader.m_za.get(), [&](zip_int64_t, const zip_stat_t& stat)
     {
-        struct zip_stat st;
-        zip_stat_init(&st);
-        if (zip_stat_index(reader.m_za.get(), i, 0, &st) == 0)
-        {
-            SZipEntry e;
-            e.name = st.name;
-            e.uncompressedSize = st.size;
-            e.compressedSize = st.comp_size;
-            e.isDirectory = !e.name.empty() && (e.name.back() == '/' || e.name.back() == '\\');
-            if (!callback(e))
-            {
-                break;
-            }
-        }
-    }
+        return callback(MakeZipEntry(stat));
+    });
 }
 
 } // namespace Librium::Zip
