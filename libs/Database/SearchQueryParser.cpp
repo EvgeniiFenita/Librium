@@ -2,34 +2,42 @@
 
 namespace Librium::Db {
 
-SSearchToken ParseSearchQuery(const std::string& input)
+namespace {
+
+[[nodiscard]] bool HasSearchOperatorPrefix(const std::string& input)
 {
-    SSearchToken token;
+    return !input.empty() && (input[0] == '=' || input[0] == '*');
+}
+
+[[nodiscard]] ESearchMode DetectSearchMode(const std::string& input)
+{
     if (input.empty())
     {
-        token.value = input;
-        return token;
+        return ESearchMode::Prefix;
     }
 
     if (input[0] == '=')
     {
-        token.mode  = ESearchMode::Exact;
-        token.value = input.substr(1);
+        return ESearchMode::Exact;
     }
-    else if (input[0] == '*')
+
+    if (input[0] == '*')
     {
-        token.mode  = ESearchMode::Contains;
-        token.value = input.substr(1);
+        return ESearchMode::Contains;
     }
-    else
-    {
-        token.mode  = ESearchMode::Prefix;
-        token.value = input;
-    }
-    return token;
+
+    return ESearchMode::Prefix;
 }
 
-namespace {
+[[nodiscard]] std::string ExtractSearchValue(const std::string& input)
+{
+    if (HasSearchOperatorPrefix(input))
+    {
+        return input.substr(1);
+    }
+
+    return input;
+}
 
 std::string EscapeLike(const std::string& input)
 {
@@ -46,7 +54,27 @@ std::string EscapeLike(const std::string& input)
     return res;
 }
 
+void BuildLikeSearchSql(const std::string& column, std::string& sqlFragment)
+{
+    sqlFragment = " AND " + column + " LIKE librium_upper(?) ESCAPE '\\' ";
+}
+
 } // namespace
+
+SSearchToken ParseSearchQuery(const std::string& input)
+{
+    SSearchToken token;
+    token.mode = DetectSearchMode(input);
+
+    if (input.empty())
+    {
+        token.value = input;
+        return token;
+    }
+
+    token.value = ExtractSearchValue(input);
+    return token;
+}
 
 void BuildSearchSql(const SSearchToken& token,
                     const std::string& column,
@@ -63,12 +91,12 @@ void BuildSearchSql(const SSearchToken& token,
             bindValue   = token.value;
             break;
         case ESearchMode::Contains:
-            sqlFragment = " AND " + column + " LIKE librium_upper(?) ESCAPE '\\' ";
+            BuildLikeSearchSql(column, sqlFragment);
             bindValue   = "%" + escaped + "%";
             break;
         case ESearchMode::Prefix:
         default:
-            sqlFragment = " AND " + column + " LIKE librium_upper(?) ESCAPE '\\' ";
+            BuildLikeSearchSql(column, sqlFragment);
             bindValue   = escaped + "%";
             break;
     }
