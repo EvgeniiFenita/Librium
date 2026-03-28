@@ -1,0 +1,30 @@
+{
+  "description": "Verifies that LIKE wildcards (%, _) in user queries are escaped correctly.",
+  "library": [
+    { "title": "100% Pure Science", "authors": ["Wild_Card Author"], "series": "Escape\\Sequence", "lib_id": "100" },
+    { "title": "100 Normal Books",  "authors": ["Normal Author"],    "series": "Normal Series",    "lib_id": "101" }
+  ],
+  "steps": [
+    { "args": ["import"] },
+    {
+      "description": "Percent in title is literal: prefix '100%' matches only '100% Pure Science', not '100 Normal Books'",
+      "args": ["query", "--title", "100%"],
+      "expected": { "totalFound": 1, "books": [ { "title": "100% Pure Science" } ] }
+    },
+    {
+      "description": "Underscore in author name is treated as literal, not LIKE wildcard",
+      "args": ["query", "--author", "Wild_Card"],
+      "expected": { "totalFound": 1, "books": [ { "title": "100% Pure Science" } ] }
+    },
+    {
+      "description": "Backslash in series is treated as literal",
+      "args": ["query", "--series", "Escape\\"],
+      "expected": { "totalFound": 1, "books": [ { "title": "100% Pure Science" } ] }
+    },
+    {
+      "description": "Normal prefix search still works: '100 Normal' finds only the non-percent book",
+      "args": ["query", "--title", "100 Normal"],
+      "expected": { "totalFound": 1, "books": [ { "title": "100 Normal Books" } ] }
+    }
+  ]
+}

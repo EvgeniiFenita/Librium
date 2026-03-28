@@ -202,11 +202,11 @@ During long operations (`import`, `upgrade`), the engine emits periodic updates:
 
 ### Search Syntax
 The `query` action supports extended operators for the `title`, `author`, and `series` parameters:
-- **Prefix (Default)**: `Push` finds "Pushkin". (Generates `LIKE 'Push%'`)
+- **Prefix (Default)**: `Push` finds "Pushkin". (Generates `LIKE 'Push%' ESCAPE '\'`)
 - **Exact Match**: `=Pushkin` finds exactly "Pushkin". (Generates `= 'Pushkin'`)
-- **Contains**: `*robot` finds "I, Robot" and "The Robots of Dawn". (Generates `LIKE '%robot%'`)
+- **Contains**: `*robot` finds "I, Robot" and "The Robots of Dawn". (Generates `LIKE '%robot%' ESCAPE '\'`)
 
-All searches are **Unicode-aware and case-insensitive** for Cyrillic characters using the internal `librium_upper()` function.
+All searches are **Unicode-aware and case-insensitive** for Cyrillic characters using the internal `librium_upper()` function. LIKE wildcards (`%`, `_`, `\`) in user input are automatically escaped, so they are always treated as literal characters.
 
 
 ---

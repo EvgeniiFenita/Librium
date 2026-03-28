@@ -208,7 +208,7 @@ TEST_CASE("CInpParser: completely empty .inp file produces no books", "[inpx][ed
     REQUIRE(books.empty());
 }
 
-TEST_CASE("CInpParser: book with series and series number is parsed", "[inpx][edge]")
+TEST_CASE("CInpParser: line with series and series number is parsed", "[inpx][edge]")
 {
     CTempDir tempDir;
     std::filesystem::path inpxPath = tempDir.GetPath() / "series.inpx";
@@ -229,4 +229,25 @@ TEST_CASE("CInpParser: book with series and series number is parsed", "[inpx][ed
     REQUIRE(books.size() == 1);
     REQUIRE(books[0].series == "The Lord of the Rings");
     REQUIRE(books[0].seriesNumber == 1);
+}
+
+TEST_CASE("CInpParser: line with too many delimiters is handled without crash", "[inpx][edge]")
+{
+    CTempDir tempDir;
+    std::filesystem::path inpxPath = tempDir.GetPath() / "too_many_sep.inpx";
+
+    // A line with 100 separators (expected ~20)
+    std::string malformed(100, SEP);
+    malformed += "\r\n";
+
+    CreateTestZip(inpxPath, {
+        {"fb2-malformed.zip.inp", malformed},
+        {"collection.info", "Malformed\nmal\n65536\n"},
+        {"version.info", "20240101\r\n"}
+    });
+
+    auto u8path = inpxPath.u8string();
+    CInpParser parser;
+    // Parser should handle this without crash (likely skipping it as invalid)
+    REQUIRE_NOTHROW(parser.Parse(std::string(u8path.begin(), u8path.end())));
 }

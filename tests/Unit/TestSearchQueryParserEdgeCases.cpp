@@ -46,13 +46,13 @@ TEST_CASE("SearchQueryParser: SQL LIKE wildcards in user input", "[db][query][ed
     // but for LIKE they act as wildcards unless the SQL uses ESCAPE.
     // These tests document current behaviour — not assert correctness.
 
-    SECTION("Percent sign in prefix mode: bind value ends in '%%' (two wildcards)")
+    SECTION("Percent sign in prefix mode: bind value is escaped and ends in '%'")
     {
         SSearchToken token{ESearchMode::Prefix, "50%"};
         std::string sql, bind;
         BuildSearchSql(token, "col", sql, bind);
-        // Prefix appends '%': bind becomes "50%%"
-        REQUIRE(bind == "50%%");
+        // EscapeLike turns '%' into '\%', then prefix appends '%': bind becomes "50\%%"
+        REQUIRE(bind == "50\\%%");
     }
 
     SECTION("Underscore in exact mode: passed through as literal underscore")

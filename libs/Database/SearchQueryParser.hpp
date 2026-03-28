@@ -5,9 +5,9 @@ namespace Librium::Db {
 
 enum class ESearchMode
 {
-    Prefix,    // "Пуш"    → LIKE 'Пуш%'
+    Prefix,    // "Пуш"    → LIKE 'Пуш%'   ESCAPE '\'
     Exact,     // "=Пушкин" → = 'Пушкин'
-    Contains,  // "*робот"  → LIKE '%робот%'
+    Contains,  // "*робот"  → LIKE '%робот%' ESCAPE '\'
 };
 
 struct SSearchToken

@@ -29,13 +29,33 @@ SSearchToken ParseSearchQuery(const std::string& input)
     return token;
 }
 
+namespace {
+
+std::string EscapeLike(const std::string& input)
+{
+    std::string res;
+    res.reserve(input.size());
+    for (char c : input)
+    {
+        if (c == '%' || c == '_' || c == '\\')
+        {
+            res += '\\';
+        }
+        res += c;
+    }
+    return res;
+}
+
+} // namespace
+
 void BuildSearchSql(const SSearchToken& token,
                     const std::string& column,
                     std::string&       sqlFragment,
                     std::string&       bindValue)
 {
     // Important: The DB expects librium_upper(?) to be used for case-insensitive match on search columns
-    // We add "AND column OP librium_upper(?)"
+    // We add "AND column OP librium_upper(?) ESCAPE '\'" to prevent wildcard injection.
+    const std::string escaped = EscapeLike(token.value);
     switch (token.mode)
     {
         case ESearchMode::Exact:
@@ -43,13 +63,13 @@ void BuildSearchSql(const SSearchToken& token,
             bindValue   = token.value;
             break;
         case ESearchMode::Contains:
-            sqlFragment = " AND " + column + " LIKE librium_upper(?) ";
-            bindValue   = "%" + token.value + "%";
+            sqlFragment = " AND " + column + " LIKE librium_upper(?) ESCAPE '\\' ";
+            bindValue   = "%" + escaped + "%";
             break;
         case ESearchMode::Prefix:
         default:
-            sqlFragment = " AND " + column + " LIKE librium_upper(?) ";
-            bindValue   = token.value + "%";
+            sqlFragment = " AND " + column + " LIKE librium_upper(?) ESCAPE '\\' ";
+            bindValue   = escaped + "%";
             break;
     }
 }

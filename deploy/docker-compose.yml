@@ -73,3 +73,8 @@ services:
       # - LIBRIUM_LOG_PROGRESS_INTERVAL=1000    # progress report interval, ms
 
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

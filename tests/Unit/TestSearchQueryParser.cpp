@@ -42,7 +42,7 @@ TEST_CASE("SearchQueryParser: SQL building", "[db][query]")
     {
         SSearchToken token{ESearchMode::Prefix, "Push"};
         BuildSearchSql(token, "title", sql, bind);
-        REQUIRE(sql == " AND title LIKE librium_upper(?) ");
+        REQUIRE(sql == " AND title LIKE librium_upper(?) ESCAPE '\\' ");
         REQUIRE(bind == "Push%");
     }
 
@@ -58,7 +58,7 @@ TEST_CASE("SearchQueryParser: SQL building", "[db][query]")
     {
         SSearchToken token{ESearchMode::Contains, "robot"};
         BuildSearchSql(token, "title", sql, bind);
-        REQUIRE(sql == " AND title LIKE librium_upper(?) ");
+        REQUIRE(sql == " AND title LIKE librium_upper(?) ESCAPE '\\' ");
         REQUIRE(bind == "%robot%");
     }
 }

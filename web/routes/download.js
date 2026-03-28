@@ -69,11 +69,24 @@ function createDownloadRouter({ sendCommand, getEngineState, getWebConfig, getFb
             if (format === 'epub') {
                 const epubOutDir = path.join(uniqueOutDir, 'epub_out');
                 fs.mkdirSync(epubOutDir, { recursive: true });
+
+                const controller = new AbortController();
+                const { signal } = controller;
+                let requestAborted = false;
+
+                req.on('close', () => {
+                    if (!res.writableFinished)
+                    {
+                        requestAborted = true;
+                        controller.abort();
+                    }
+                });
+
                 try {
                     await execFileAsync(
                         fb2cngExe,
                         ['convert', '--to', 'epub2', '--nodirs', '--overwrite', filePath, epubOutDir],
-                        { timeout: 120000 }
+                        { timeout: 120000, signal }
                     );
                     const epubFiles = fs.readdirSync(epubOutDir).filter(f => f.endsWith('.epub'));
                     if (epubFiles.length === 0)
@@ -83,6 +96,10 @@ function createDownloadRouter({ sendCommand, getEngineState, getWebConfig, getFb
                 } catch (e) {
                     fs.rmSync(uniqueOutDir, { recursive: true, force: true });
                     activeDownloads--;
+                    if (requestAborted || e.name === 'AbortError') {
+                        console.log(`[HTTP] EPUB conversion aborted for book ${id}`);
+                        return;
+                    }
                     console.error(`[HTTP] EPUB conversion failed for book ${id}:`, e);
                     return res.status(500).json({ error: 'EPUB conversion failed' });
                 }
@@ -91,7 +108,7 @@ function createDownloadRouter({ sendCommand, getEngineState, getWebConfig, getFb
             res.download(finalFilePath, filename, (err) => {
                 fs.rmSync(uniqueOutDir, { recursive: true, force: true });
                 activeDownloads--;
-                if (err) {
+                if (err && !res.headersSent) {
                     console.error(`[HTTP] Download error for book ${id}:`, err);
                 }
             });
