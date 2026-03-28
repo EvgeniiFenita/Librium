@@ -23,7 +23,7 @@
         "data": {
           "title": "Full Info Book",
           "authors": [ { "lastName": "Author", "firstName": "First" } ],
-          "genres": ["sf"],
+          "genres": ["Science Fiction"],
           "series": "Test Series",
           "seriesNumber": 5,
           "libId": "88888",

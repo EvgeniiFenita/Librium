@@ -205,6 +205,7 @@ The `query` action supports extended operators for the `title`, `author`, and `s
 - **Prefix (Default)**: `Push` finds "Pushkin". (Generates `LIKE 'Push%' ESCAPE '\'`)
 - **Exact Match**: `=Pushkin` finds exactly "Pushkin". (Generates `= 'Pushkin'`)
 - **Contains**: `*robot` finds "I, Robot" and "The Robots of Dawn". (Generates `LIKE '%robot%' ESCAPE '\'`)
+- **Genre Translation**: When indexing, short genre codes (e.g., `sf`) are automatically translated to their English equivalents (e.g., `Science Fiction`). The `genre` search parameter seamlessly supports both the short codes and the translated English strings.
 
 All searches are **Unicode-aware and case-insensitive** for Cyrillic characters using the internal `librium_upper()` function. LIKE wildcards (`%`, `_`, `\`) in user input are automatically escaped, so they are always treated as literal characters.
 

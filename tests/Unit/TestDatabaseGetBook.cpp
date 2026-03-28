@@ -3,6 +3,7 @@
 #include "Database/Database.hpp"
 #include "Database/QueryTypes.hpp"
 #include "Fb2/Fb2Parser.hpp"
+#include "Inpx/InpParser.hpp"
 #include "TestUtils.hpp"
 
 #include <filesystem>
@@ -95,8 +96,8 @@ TEST_CASE("GetBookById: multiple genres are all returned", "[db][getbook]")
         auto result = db.GetBookById(id);
         REQUIRE(result.has_value());
         REQUIRE(result->genres.size() == 2);
-        bool hasSf       = std::find(result->genres.begin(), result->genres.end(), "sf")       != result->genres.end();
-        bool hasDetective = std::find(result->genres.begin(), result->genres.end(), "detective") != result->genres.end();
+        bool hasSf       = std::find(result->genres.begin(), result->genres.end(), "Science Fiction") != result->genres.end();
+        bool hasDetective = std::find(result->genres.begin(), result->genres.end(), "Detective") != result->genres.end();
         REQUIRE(hasSf);
         REQUIRE(hasDetective);
     }
@@ -157,5 +158,47 @@ TEST_CASE("GetBookById: very long annotation is stored without truncation", "[db
         REQUIRE(result.has_value());
         REQUIRE(result->annotation.size() == 10000);
         REQUIRE(result->annotation == longAnnotation);
+    }
+}
+
+TEST_CASE("GetBookById: genre is translated from INPX short code to English", "[db][getbook][genre]")
+{
+    CTempDir tempDir;
+    std::string dbPath = (tempDir.GetPath() / "test_getbook_genre_translation.db").string();
+    std::filesystem::path inpxPath = tempDir.GetPath() / "genre_translation.inpx";
+
+    // AUTHORS\x04GENRES\x04TITLE\x04SERIES\x04SERNO\x04FILEID\x04FILESIZE\x04LIBID\x04DEL\x04EXT\x04DATE\x04LANG\x04RATING\x04KEYWORDS
+    std::string content = "Author,Test,:\x04" "sf_history:prose:\x04" "Translation Test\x04\x04\x04" "800001\x04" "1000\x04" "0\x04" "0\x04" "fb2\x04" "2023-01-01\x04" "en\x04" "0\x04\x04\r\n";
+
+    CreateTestZip(inpxPath, {
+        {"fb2-trans.zip.inp", content},
+        {"collection.info", "Translation Test\ntr\n65536\n"},
+        {"version.info", "20240101\r\n"}
+    });
+
+    auto u8path = inpxPath.u8string();
+    Inpx::CInpParser parser;
+    auto books = parser.Parse(std::string(u8path.begin(), u8path.end()));
+    REQUIRE(books.size() == 1);
+    
+    // Inpx parser leaves short codes unchanged
+    REQUIRE(books[0].genres.size() == 2);
+    REQUIRE(books[0].genres[0] == "sf_history");
+    REQUIRE(books[0].genres[1] == "prose");
+
+    {
+        Db::CDatabase db(dbPath);
+        int64_t id = db.InsertBook(books[0]);
+        REQUIRE(id > 0);
+
+        auto result = db.GetBookById(id);
+        REQUIRE(result.has_value());
+        REQUIRE(result->genres.size() == 2);
+        
+        // Database translates short codes to English
+        bool hasAltHistory = std::find(result->genres.begin(), result->genres.end(), "Alternative History") != result->genres.end();
+        bool hasProse      = std::find(result->genres.begin(), result->genres.end(), "Prose") != result->genres.end();
+        REQUIRE(hasAltHistory);
+        REQUIRE(hasProse);
     }
 }

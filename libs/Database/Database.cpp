@@ -4,6 +4,7 @@
 #include "Log/Logger.hpp"
 #include "SqliteDatabase.hpp"
 #include "SearchQueryParser.hpp"
+#include "Utils/GenreTranslator.hpp"
 
 #include <filesystem>
 #include <sstream>
@@ -268,7 +269,7 @@ int64_t CDatabase::InsertBook(const Inpx::SBookRecord& rec, const Fb2::SFb2Data&
 
     for (const auto& genre : rec.genres)
     {
-        int64_t gid = GetOrCreateGenre(genre);
+        int64_t gid = GetOrCreateGenre(Utils::CGenreTranslator::Translate(genre));
         m_stmtInsertBookGenre->Reset();
         m_stmtInsertBookGenre->BindInt64(1, bookId);
         m_stmtInsertBookGenre->BindInt64(2, gid);
@@ -439,7 +440,7 @@ int BindQueryParamsCustom(ISqlStatement* stmt, const SQueryParams& params, const
     if (!binds.title.empty()) stmt->BindText(idx++, binds.title);
     if (!binds.author.empty()) stmt->BindText(idx++, binds.author);
     if (!binds.series.empty()) stmt->BindText(idx++, binds.series);
-    if (!params.genre.empty()) stmt->BindText(idx++, params.genre);
+    if (!params.genre.empty()) stmt->BindText(idx++, Utils::CGenreTranslator::Translate(params.genre));
     if (!params.language.empty()) stmt->BindText(idx++, params.language);
     if (!params.libId.empty()) stmt->BindText(idx++, params.libId);
     if (!params.archiveName.empty()) stmt->BindText(idx++, params.archiveName);

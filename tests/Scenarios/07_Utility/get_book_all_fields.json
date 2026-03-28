@@ -28,7 +28,7 @@
         "data": {
           "title": "Full Metadata Book",
           "authors": [ { "lastName": "Tolstoy", "firstName": "Leo" } ],
-          "genres": ["prose_classic"],
+          "genres": ["Classic Prose"],
           "series": "Collected Works",
           "seriesNumber": 2,
           "libId": "88801",
