@@ -5,9 +5,62 @@
 #include "Utils/StringUtils.hpp"
 
 #include <filesystem>
+#include <functional>
 #include <string>
 
 namespace Librium::Inpx {
+
+namespace {
+
+constexpr char kInpFieldSeparator = '\x04';
+constexpr size_t kInpFieldCount = 15;
+
+std::string ArchiveNameFromEntry(const std::string& entryName)
+{
+    std::filesystem::path path = Utils::CStringUtils::Utf8ToPath(entryName);
+    auto u8stem = path.stem().u8string();
+    return std::string(u8stem.begin(), u8stem.end());
+}
+
+bool IsInpEntry(const std::string& entryName)
+{
+    return entryName.size() >= 4 && entryName.substr(entryName.size() - 4) == ".inp";
+}
+
+template<typename TOnLine>
+void ForEachInpLine(const std::vector<uint8_t>& data, TOnLine&& onLine)
+{
+    std::string_view text(reinterpret_cast<const char*>(data.data()), data.size());
+
+    size_t start = 0;
+    size_t end = text.find('\n', start);
+
+    while (start < text.size())
+    {
+        std::string_view line = (end == std::string_view::npos)
+            ? text.substr(start)
+            : text.substr(start, end - start);
+
+        start = (end == std::string_view::npos) ? text.size() : end + 1;
+        end = text.find('\n', start);
+
+        if (!line.empty() && line.back() == '\r')
+        {
+            line.remove_suffix(1);
+        }
+        if (line.empty())
+        {
+            continue;
+        }
+
+        if (!onLine(line))
+        {
+            break;
+        }
+    }
+}
+
+} // namespace
 
 std::string_view CInpParser::Trim(std::string_view s)
 {
@@ -62,9 +115,8 @@ SAuthor CInpParser::ParseAuthor(std::string_view s)
 
 SBookRecord CInpParser::ParseLine(std::string_view line, const std::string& archiveName)
 {
-    constexpr char SEP = '\x04';
-    auto fields = Split(line, SEP);
-    while (fields.size() < 15)
+    auto fields = Split(line, kInpFieldSeparator);
+    while (fields.size() < kInpFieldCount)
     {
         fields.emplace_back();
     }
@@ -156,55 +208,50 @@ SBookRecord CInpParser::ParseLine(std::string_view line, const std::string& arch
     return rec;
 }
 
+bool CInpParser::ProcessBookLine(
+    std::string_view line,
+    const std::string& archiveName,
+    SInpParseStats& stats,
+    const std::function<bool(SBookRecord&&)>& onBook)
+{
+    ++stats.totalLines;
+
+    try
+    {
+        auto rec = ParseLine(line, archiveName);
+        if (rec.deleted)
+        {
+            ++stats.skippedDeleted;
+            return true;
+        }
+        if (rec.title.empty() && rec.fileName.empty())
+        {
+            ++stats.skippedInvalid;
+            return true;
+        }
+
+        ++stats.parsedOk;
+        return onBook(std::move(rec));
+    }
+    catch (const std::exception& e)
+    {
+        LOG_ERROR("Unexpected error parsing line in archive {}: {}", archiveName, e.what());
+        ++stats.skippedInvalid;
+        return true;
+    }
+}
+
 std::vector<SBookRecord> CInpParser::ParseInpData(const std::vector<uint8_t>& data, const std::string& archiveName, SInpParseStats& stats)
 {
     std::vector<SBookRecord> books;
-    std::string_view text(reinterpret_cast<const char*>(data.data()), data.size());
-
-    size_t start = 0;
-    size_t end = text.find('\n', start);
-
-    while (start < text.size())
+    ForEachInpLine(data, [&](std::string_view line)
     {
-        std::string_view line = (end == std::string_view::npos) 
-            ? text.substr(start) 
-            : text.substr(start, end - start);
-
-        start = (end == std::string_view::npos) ? text.size() : end + 1;
-        end = text.find('\n', start);
-
-        if (!line.empty() && line.back() == '\r')
+        return ProcessBookLine(line, archiveName, stats, [&](SBookRecord&& rec)
         {
-            line.remove_suffix(1);
-        }
-        if (line.empty())
-        {
-            continue;
-        }
-        ++stats.totalLines;
-
-        try
-        {
-            auto rec = ParseLine(line, archiveName);
-            if (rec.deleted)
-            {
-                ++stats.skippedDeleted;
-                continue;
-            }
-            if (rec.title.empty() && rec.fileName.empty())
-            {
-                ++stats.skippedInvalid;
-                continue;
-            }
-            ++stats.parsedOk;
             books.push_back(std::move(rec));
-        }
-        catch (const std::exception& e)
-        {
-            LOG_ERROR("Unexpected error parsing line in archive {}: {}", archiveName, e.what());
-            ++stats.skippedInvalid;
-        }
-    }
+            return true;
+        });
+    });
     return books;
 }
 
@@ -217,11 +264,9 @@ std::vector<SBookRecord> CInpParser::Parse(const std::string& inpxPath)
 
     Zip::CZipReader::IterateEntries(Utils::CStringUtils::Utf8ToPath(inpxPath), [&](const std::string& name, std::vector<uint8_t> data)
     {
-        if (name.size() >= 4 && name.substr(name.size() - 4) == ".inp")
+        if (IsInpEntry(name))
         {
-            std::filesystem::path p = Utils::CStringUtils::Utf8ToPath(name);
-            auto u8stem = p.stem().u8string();
-            std::string archive(u8stem.begin(), u8stem.end());
+            std::string archive = ArchiveNameFromEntry(name);
             LOG_DEBUG("Parsing archive: {}", archive);
             auto books = ParseInpData(data, archive, m_stats);
             all.insert(all.end(),
@@ -251,64 +296,31 @@ SInpParseStats CInpParser::ParseStreaming(const std::string& inpxPath, const std
         {
             return false;
         }
-        if (name.size() < 4 || name.substr(name.size() - 4) != ".inp")
+        if (!IsInpEntry(name))
         {
             return true;
         }
 
-        std::filesystem::path p = Utils::CStringUtils::Utf8ToPath(name);
-        auto u8stem = p.stem().u8string();
-        std::string archive(u8stem.begin(), u8stem.end());
+        std::string archive = ArchiveNameFromEntry(name);
         LOG_DEBUG("Parsing archive: {}", archive);
 
-        std::string_view text(reinterpret_cast<const char*>(data.data()), data.size());
-        size_t start = 0;
-        size_t end = text.find('\n', start);
-
-        while (start < text.size())
+        ForEachInpLine(data, [&](std::string_view line)
         {
-            std::string_view line = (end == std::string_view::npos) 
-                ? text.substr(start) 
-                : text.substr(start, end - start);
-
-            start = (end == std::string_view::npos) ? text.size() : end + 1;
-            end = text.find('\n', start);
-
-            if (!line.empty() && line.back() == '\r')
+            if (stop)
             {
-                line.remove_suffix(1);
+                return false;
             }
-            if (line.empty())
+
+            return ProcessBookLine(line, archive, m_stats, [&](SBookRecord&& rec)
             {
-                continue;
-            }
-            ++m_stats.totalLines;
-            try
-            {
-                auto rec = ParseLine(line, archive);
-                if (rec.deleted)
-                {
-                    ++m_stats.skippedDeleted;
-                    continue;
-                }
-                if (rec.title.empty() && rec.fileName.empty())
-                {
-                    ++m_stats.skippedInvalid;
-                    continue;
-                }
-                ++m_stats.parsedOk;
                 if (!onBook(std::move(rec)))
                 {
                     stop = true;
-                    break;
+                    return false;
                 }
-            }
-            catch (const std::exception& e)
-            {
-                LOG_ERROR("Unexpected error parsing line in archive {}: {}", archive, e.what());
-                ++m_stats.skippedInvalid;
-            }
-        }
+                return true;
+            });
+        });
         return !stop;
     });
 
@@ -324,13 +336,13 @@ size_t CInpParser::CountLines(const std::string& inpxPath)
     size_t total = 0;
     Zip::CZipReader::IterateEntries(Utils::CStringUtils::Utf8ToPath(inpxPath), [&](const std::string& name, std::vector<uint8_t> data)
     {
-        if (name.size() >= 4 && name.substr(name.size() - 4) == ".inp")
+        if (IsInpEntry(name))
         {
-            for (auto c : data)
+            ForEachInpLine(data, [&](std::string_view)
             {
-                if (c == '\n') ++total;
-            }
-            // If the last line doesn't end with a newline, we might miss one, but it's just an estimate anyway.
+                ++total;
+                return true;
+            });
         }
         return true;
     });

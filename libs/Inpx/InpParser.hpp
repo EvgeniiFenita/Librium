@@ -34,6 +34,11 @@ private:
     SInpParseStats m_stats;
 
     std::vector<SBookRecord> ParseInpData(const std::vector<uint8_t>& data, const std::string& archiveName, SInpParseStats& stats);
+    bool ProcessBookLine(
+        std::string_view line,
+        const std::string& archiveName,
+        SInpParseStats& stats,
+        const std::function<bool(SBookRecord&&)>& onBook);
 
     SBookRecord ParseLine(std::string_view line, const std::string& archiveName);
 
