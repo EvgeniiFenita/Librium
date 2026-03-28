@@ -135,13 +135,21 @@ void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2)
     }
 }
 
-Db::SImportStats CIndexer::WriterThread(Db::IBookWriter& db, size_t batchSize, IProgressReporter* reporter, size_t totalBooks) 
+Db::SImportStats CIndexer::WriterThread(Db::IBookWriter& db, size_t batchSize, IProgressReporter* reporter, size_t totalBooks,
+    const std::unordered_map<std::string, size_t>& archiveSizes)
 {
     Db::SImportStats stats;
     size_t inBatch = 0;
-    size_t processed = 0; // Total books handled (inserted + skipped)
+    size_t processed = 0;
     
     double totalDbMs = 0;
+
+    // Per-archive completion tracking: counts how many result items
+    // have been processed for each archive this run.
+    std::unordered_map<std::string, size_t> archiveDone;
+    // Archives fully processed since last commit, waiting to be marked.
+    std::vector<std::string> pendingMark;
+
     db.BeginTransaction();
 
     while (true) 
@@ -149,6 +157,8 @@ Db::SImportStats CIndexer::WriterThread(Db::IBookWriter& db, size_t batchSize, I
         auto tStart = std::chrono::high_resolution_clock::now();
         auto item = m_resultQueue.Pop();
         if (!item) break;
+
+        const std::string& archName = item->record.archiveName;
 
         if (db.BookExists(item->record.libId, item->record.archiveName)) 
         {
@@ -194,6 +204,15 @@ Db::SImportStats CIndexer::WriterThread(Db::IBookWriter& db, size_t batchSize, I
             }
         }
 
+        // Track per-archive completion. When all expected records for an
+        // archive have been processed, schedule it for immediate marking.
+        auto it = archiveSizes.find(archName);
+        if (it != archiveSizes.end())
+        {
+            if (++archiveDone[archName] >= it->second)
+                pendingMark.push_back(archName);
+        }
+
         auto tEnd = std::chrono::high_resolution_clock::now();
         totalDbMs += std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count() / 1000.0;
 
@@ -203,9 +222,17 @@ Db::SImportStats CIndexer::WriterThread(Db::IBookWriter& db, size_t batchSize, I
         if (inBatch >= batchSize) 
         {
             auto tCStart = std::chrono::high_resolution_clock::now();
+
+            // Mark completed archives inside the same transaction as the
+            // books they contain — both committed atomically, so a crash
+            // between batches never leaves books committed without their
+            // archive being marked.
+            for (const auto& arch : pendingMark)
+                db.MarkArchiveIndexed(arch);
+            pendingMark.clear();
+
             db.Commit();
             auto tCEnd = std::chrono::high_resolution_clock::now();
-            
             double commitMs = std::chrono::duration_cast<std::chrono::microseconds>(tCEnd - tCStart).count() / 1000.0;
 
             LOG_INFO("Batch done. Total handled: {}/{}. Avg DB op: {:.2f}ms, Commit: {:.1f}ms. Queues: Work={}, Res={}", 
@@ -221,7 +248,9 @@ Db::SImportStats CIndexer::WriterThread(Db::IBookWriter& db, size_t batchSize, I
 
     try 
     { 
-        db.Commit(); 
+        for (const auto& arch : pendingMark)
+            db.MarkArchiveIndexed(arch);
+        db.Commit();
     } 
     catch (const std::exception& e) 
     { 
@@ -281,7 +310,6 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, IProgressR
 
     LOG_INFO("Pre-scanning INPX to calculate exact book count and group by archive...");
     Inpx::CInpParser scanner;
-    std::vector<std::string> archivesToMark;
 
     [[maybe_unused]] const auto scanStats = scanner.ParseStreaming(m_cfg.library.inpxPath, [&](Inpx::SBookRecord&& rec) 
     {
@@ -303,9 +331,6 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, IProgressR
         auto filterRes = filter.ShouldInclude(rec);
         if (filterRes) 
         {
-            if (preparedWork.find(rec.archiveName) == preparedWork.end())
-                archivesToMark.push_back(rec.archiveName);
-
             preparedWork[rec.archiveName].push_back(std::move(rec));
             ++totalToProcess;
         }
@@ -340,6 +365,13 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, IProgressR
 
     int workerCount = std::max(1, m_cfg.import.threadCount);
     LOG_INFO("Starting import: {} worker threads, mode={}, total to process={}", workerCount, mode == EImportMode::Upgrade ? "upgrade" : "full", totalToProcess);
+
+    // Build expected per-archive record counts so WriterThread can mark
+    // each archive as indexed immediately after all its books are committed.
+    std::unordered_map<std::string, size_t> archiveSizes;
+    archiveSizes.reserve(preparedWork.size());
+    for (const auto& [arch, records] : preparedWork)
+        archiveSizes[arch] = records.size();
 
     std::jthread producer([this, work = std::move(preparedWork)]() mutable
     {
@@ -387,7 +419,7 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, IProgressR
     });
 
     auto startTime = std::chrono::high_resolution_clock::now();
-    Db::SImportStats stats = WriterThread(db, m_cfg.import.transactionBatchSize, reporter, totalToProcess);
+    Db::SImportStats stats = WriterThread(db, m_cfg.import.transactionBatchSize, reporter, totalToProcess, archiveSizes);
 
     if (producer.joinable()) producer.join();
     if (closer.joinable()) closer.join();
@@ -396,10 +428,6 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, IProgressR
     stats.totalTimeMs = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count());
 
     guard.MarkFinished();
-
-    // Mark processed archives as indexed
-    for (const auto& arch : archivesToMark)
-        db.MarkArchiveIndexed(arch);
 
     stats.archivesProcessed = db.GetIndexedArchives().size();
     stats.PrintSummary();

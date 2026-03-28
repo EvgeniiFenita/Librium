@@ -11,6 +11,7 @@
 #include <atomic>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -63,7 +64,12 @@ private:
     Utils::CThreadSafeQueue<SResultItem> m_resultQueue{k_resultQueueSize};
 
     void WorkerThread(const std::string& archivesDir, bool parseFb2);
-    Db::SImportStats WriterThread(Db::IBookWriter& db, size_t batchSize, IProgressReporter* reporter, size_t totalBooks);
+    Db::SImportStats WriterThread(
+        Db::IBookWriter& db,
+        size_t batchSize,
+        IProgressReporter* reporter,
+        size_t totalBooks,
+        const std::unordered_map<std::string, size_t>& archiveSizes);
 };
 
 } // namespace Librium::Indexer
