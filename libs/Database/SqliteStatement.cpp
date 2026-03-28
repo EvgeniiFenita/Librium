@@ -1,12 +1,31 @@
 #include "SqliteStatement.hpp"
 #include "Database.hpp" // For CDbError
 #include <sqlite3.h>
-#include <stdexcept>
 
 namespace Librium::Db {
 
+namespace {
+
+void FinalizeStatement(sqlite3_stmt* statement)
+{
+    if (statement)
+    {
+        sqlite3_finalize(statement);
+    }
+}
+
+void CheckSqliteResult(int rc, const char* context)
+{
+    if (rc != SQLITE_OK && rc != SQLITE_DONE && rc != SQLITE_ROW)
+    {
+        throw CDbError(std::string(context) + ": " + sqlite3_errstr(rc) + " (code " + std::to_string(rc) + ")");
+    }
+}
+
+} // namespace
+
 CSqliteStatement::CSqliteStatement(sqlite3_stmt* stmt)
-    : m_stmt(stmt, [](sqlite3_stmt* s) { if (s) sqlite3_finalize(s); }), m_lastRc(SQLITE_OK)
+    : m_stmt(stmt, FinalizeStatement), m_lastRc(SQLITE_OK)
 {
     if (!m_stmt)
     {
@@ -18,10 +37,7 @@ CSqliteStatement::~CSqliteStatement() = default;
 
 void CSqliteStatement::Check(int rc, const char* context) const
 {
-    if (rc != SQLITE_OK && rc != SQLITE_DONE && rc != SQLITE_ROW)
-    {
-        throw CDbError(std::string(context) + ": " + sqlite3_errstr(rc) + " (code " + std::to_string(rc) + ")");
-    }
+    CheckSqliteResult(rc, context);
 }
 
 void CSqliteStatement::BindInt(int index, int value)

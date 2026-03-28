@@ -6,22 +6,73 @@
 #include "Log/Logger.hpp"
 
 #include <sqlite3.h>
-#include <stdexcept>
 
 namespace Librium::Db {
 
-CSqliteDatabase::CSqliteDatabase(const std::string& path, int64_t cacheSize, int64_t mmapSize)
-    : m_db(nullptr, [](sqlite3* db) { if (db) sqlite3_close(db); })
+namespace {
+
+void CloseDatabase(sqlite3* db)
 {
-    LOG_INFO("Opening SQLite database: {}", path);
+    if (db)
+    {
+        sqlite3_close(db);
+    }
+}
+
+[[nodiscard]] std::string BuildSqlErrorMessage(const std::string& prefix, const std::string& detail, std::string_view sql = {})
+{
+    std::string message = prefix + detail;
+    if (!sql.empty())
+    {
+        message += " | Query: " + std::string(sql);
+    }
+
+    return message;
+}
+
+sqlite3* OpenDatabaseOrThrow(const std::string& path)
+{
     sqlite3* rawDb = nullptr;
     if (sqlite3_open(path.c_str(), &rawDb) != SQLITE_OK)
     {
-        std::string err = rawDb ? sqlite3_errmsg(rawDb) : "Unknown error";
-        if (rawDb) sqlite3_close(rawDb);
-        throw CDbError("Cannot open database: " + path + " - " + err);
+        const std::string error = rawDb ? sqlite3_errmsg(rawDb) : "Unknown error";
+        CloseDatabase(rawDb);
+        throw CDbError("Cannot open database: " + path + " - " + error);
     }
-    m_db.reset(rawDb);
+
+    return rawDb;
+}
+
+void ThrowExecError(char* error, std::string_view sql)
+{
+    const std::string message = error ? error : "Unknown error";
+    if (error)
+    {
+        sqlite3_free(error);
+    }
+
+    LOG_ERROR("SQL error: {} | Query: {}", message, sql);
+    throw CDbError(BuildSqlErrorMessage("SQL error: ", message));
+}
+
+sqlite3_stmt* PrepareStatementOrThrow(sqlite3* db, std::string_view sql)
+{
+    sqlite3_stmt* rawStatement = nullptr;
+    if (sqlite3_prepare_v2(db, sql.data(), static_cast<int>(sql.size()), &rawStatement, nullptr) != SQLITE_OK)
+    {
+        throw CDbError(BuildSqlErrorMessage("Failed to prepare statement: ", sqlite3_errmsg(db), sql));
+    }
+
+    return rawStatement;
+}
+
+} // namespace
+
+CSqliteDatabase::CSqliteDatabase(const std::string& path, int64_t cacheSize, int64_t mmapSize)
+    : m_db(nullptr, CloseDatabase)
+{
+    LOG_INFO("Opening SQLite database: {}", path);
+    m_db.reset(OpenDatabaseOrThrow(path));
 
     RegisterSqliteFunctions(m_db.get());
 
@@ -41,23 +92,14 @@ void CSqliteDatabase::Exec(std::string_view sql)
     char* err = nullptr;
     if (sqlite3_exec(m_db.get(), sqlStr.c_str(), nullptr, nullptr, &err) != SQLITE_OK)
     {
-        std::string msg = err ? err : "Unknown error";
-        if (err) sqlite3_free(err);
-        LOG_ERROR("SQL error: {} | Query: {}", msg, sql);
-        throw CDbError("SQL error: " + msg);
+        ThrowExecError(err, sql);
     }
 }
 
 std::unique_ptr<ISqlStatement> CSqliteDatabase::Prepare(std::string_view sql)
 {
     LOG_DEBUG("Preparing SQL: {}", sql);
-    sqlite3_stmt* raw = nullptr;
-    if (sqlite3_prepare_v2(m_db.get(), sql.data(), static_cast<int>(sql.size()), &raw, nullptr) != SQLITE_OK)
-    {
-        std::string msg = sqlite3_errmsg(m_db.get());
-        throw CDbError("Failed to prepare statement: " + msg + " | Query: " + std::string(sql));
-    }
-    return std::make_unique<CSqliteStatement>(raw);
+    return std::make_unique<CSqliteStatement>(PrepareStatementOrThrow(m_db.get(), sql));
 }
 
 void CSqliteDatabase::BeginTransaction()
