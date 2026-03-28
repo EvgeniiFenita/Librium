@@ -5,16 +5,74 @@
 #include "Utils/StringUtils.hpp"
 #include "Zip/ZipReader.hpp"
 
+#include <array>
 #include <chrono>
 #include <filesystem>
-#include <unordered_map>
 #include <fstream>
+#include <string_view>
+#include <unordered_map>
 
 namespace fs = std::filesystem;
 
 namespace Librium::Indexer {
 
 using Utils::CStringUtils;
+
+namespace {
+
+[[nodiscard]] std::string_view ImportModeToString(EImportMode mode)
+{
+    return mode == EImportMode::Upgrade ? "upgrade" : "full";
+}
+
+[[nodiscard]] bool IsInpEntryName(const std::string& entryName)
+{
+    return entryName.size() >= 4 && entryName.substr(entryName.size() - 4) == ".inp";
+}
+
+[[nodiscard]] std::string ArchiveNameFromInpEntry(const std::string& entryName)
+{
+    const fs::path archivePath = CStringUtils::Utf8ToPath(entryName);
+    const auto archiveStem = archivePath.stem().u8string();
+    return std::string(archiveStem.begin(), archiveStem.end());
+}
+
+[[nodiscard]] fs::path ResolveArchivePath(const std::string& archivesDir, const std::string& archiveName)
+{
+    for (const std::string_view suffix : std::array<std::string_view, 2>{".zip", ""})
+    {
+        const fs::path archivePath = CStringUtils::Utf8ToPath(archivesDir) /
+            CStringUtils::Utf8ToPath(archiveName + std::string(suffix));
+        if (fs::exists(archivePath))
+        {
+            return archivePath;
+        }
+    }
+
+    return {};
+}
+
+void WriteCoverFile(const Config::SAppConfig& cfg, int64_t bookId, const Fb2::SFb2Data& fb2)
+{
+    if (fb2.coverData.empty())
+    {
+        return;
+    }
+
+    const fs::path metaDir = Config::CAppPaths::GetBookMetaDir(CStringUtils::Utf8ToPath(cfg.database.path), bookId);
+    fs::create_directories(metaDir);
+
+    const fs::path coverPath = metaDir / ("cover" + fb2.coverExt);
+    std::ofstream output(coverPath, std::ios::binary);
+    if (!output)
+    {
+        return;
+    }
+
+    output.write(reinterpret_cast<const char*>(fb2.coverData.data()), fb2.coverData.size());
+}
+
+} // namespace
 
 CIndexer::CIndexer(Config::SAppConfig cfg)
     : m_cfg(std::move(cfg))
@@ -28,12 +86,9 @@ std::vector<std::string> CIndexer::GetNewArchives(Db::IBookWriter& db, const std
     std::vector<std::string> allArchives;
     Zip::CZipReader::IterateEntryNames(CStringUtils::Utf8ToPath(inpxPath), [&](const Zip::SZipEntry& entry) 
     {
-        if (entry.name.size() >= 4 &&
-            entry.name.substr(entry.name.size()-4) == ".inp") 
+        if (IsInpEntryName(entry.name))
         {
-            fs::path p = CStringUtils::Utf8ToPath(entry.name);
-            auto u8stem = p.stem().u8string();
-            allArchives.push_back(std::string(u8stem.begin(), u8stem.end()));
+            allArchives.push_back(ArchiveNameFromInpEntry(entry.name));
         }
         return true;
     });
@@ -71,11 +126,7 @@ void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2)
             }
             else
             {
-                for (const auto& suffix : {std::string(".zip"), std::string("")}) 
-                {
-                    fs::path p = CStringUtils::Utf8ToPath(archivesDir) / CStringUtils::Utf8ToPath(item->archiveName + suffix);
-                    if (fs::exists(p)) { archivePath = p; break; }
-                }
+                archivePath = ResolveArchivePath(archivesDir, item->archiveName);
                 archivePathCache[item->archiveName] = archivePath;
             }
 
@@ -175,24 +226,13 @@ Db::SImportStats CIndexer::WriterThread(Db::IBookWriter& db, size_t batchSize, c
                     if (item->fb2.IsOk()) ++stats.fb2Parsed;
                     else                  ++stats.fb2Errors;
 
-                    if (!item->fb2.coverData.empty())
+                    try
                     {
-                        try
-                        {
-                            auto metaDir = Config::CAppPaths::GetBookMetaDir(CStringUtils::Utf8ToPath(m_cfg.database.path), id);
-                            fs::create_directories(metaDir);
-                            auto coverPath = metaDir / ("cover" + item->fb2.coverExt);
-                            
-                            std::ofstream ofs(coverPath, std::ios::binary);
-                            if (ofs)
-                            {
-                                ofs.write(reinterpret_cast<const char*>(item->fb2.coverData.data()), item->fb2.coverData.size());
-                            }
-                        }
-                        catch (const std::exception& e)
-                        {
-                            LOG_ERROR("Failed to write cover for book {}: {}", id, e.what());
-                        }
+                        WriteCoverFile(m_cfg, id, item->fb2);
+                    }
+                    catch (const std::exception& e)
+                    {
+                        LOG_ERROR("Failed to write cover for book {}: {}", id, e.what());
                     }
                 }
                 else ++stats.booksSkipped;
@@ -344,7 +384,7 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, const std:
 
     if (totalToProcess == 0)
     {
-        LOG_INFO("No new books to process in {} mode.", mode == EImportMode::Upgrade ? "upgrade" : "full");
+        LOG_INFO("No new books to process in {} mode.", ImportModeToString(mode));
         Db::SImportStats emptyStats;
         emptyStats.booksSkipped = totalPreSkipped;
         emptyStats.archivesProcessed = db.GetIndexedArchives().size();
@@ -365,7 +405,7 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, const std:
     CImportGuard guard(db);
 
     int workerCount = std::max(1, m_cfg.import.threadCount);
-    LOG_INFO("Starting import: {} worker threads, mode={}, total to process={}", workerCount, mode == EImportMode::Upgrade ? "upgrade" : "full", totalToProcess);
+    LOG_INFO("Starting import: {} worker threads, mode={}, total to process={}", workerCount, ImportModeToString(mode), totalToProcess);
 
     // Build expected per-archive record counts so WriterThread can mark
     // each archive as indexed immediately after all its books are committed.
