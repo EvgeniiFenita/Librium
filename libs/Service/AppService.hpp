@@ -3,8 +3,11 @@
 #include "Config/AppConfig.hpp"
 #include "Service/LibraryApi.hpp"
 #include "Service/ServiceAction.hpp"
-#include <unordered_map>
+
 #include <memory>
+#include <optional>
+#include <unordered_map>
+#include <functional>
 #include <string>
 
 namespace Librium::Indexer { class IProgressReporter; }
@@ -24,6 +27,10 @@ public:
     CLibraryApi& GetApi();
 
 private:
+    void RegisterBuiltInActions();
+    [[nodiscard]] std::optional<std::reference_wrapper<IServiceAction>> FindAction(const std::string& actionName) const;
+    [[nodiscard]] CLibraryApi& EnsureApi();
+
     Config::SAppConfig m_config;
     std::unique_ptr<CLibraryApi> m_api;
     std::unordered_map<std::string, std::unique_ptr<IServiceAction>> m_actions;

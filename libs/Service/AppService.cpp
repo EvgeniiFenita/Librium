@@ -7,6 +7,13 @@ namespace Librium::Service {
 CAppService::CAppService(Config::SAppConfig cfg)
     : m_config(std::move(cfg))
 {
+    RegisterBuiltInActions();
+}
+
+CAppService::~CAppService() = default;
+
+void CAppService::RegisterBuiltInActions()
+{
     RegisterAction(std::make_unique<CImportAction>());
     RegisterAction(std::make_unique<CUpgradeAction>());
     RegisterAction(std::make_unique<CQueryAction>());
@@ -15,14 +22,23 @@ CAppService::CAppService(Config::SAppConfig cfg)
     RegisterAction(std::make_unique<CGetBookAction>());
 }
 
-CAppService::~CAppService() = default;
-
 void CAppService::RegisterAction(std::unique_ptr<IServiceAction> action)
 {
     if (action)
     {
         m_actions[action->GetName()] = std::move(action);
     }
+}
+
+std::optional<std::reference_wrapper<IServiceAction>> CAppService::FindAction(const std::string& actionName) const
+{
+    const auto it = m_actions.find(actionName);
+    if (it == m_actions.end())
+    {
+        return std::nullopt;
+    }
+
+    return std::ref(*it->second);
 }
 
 void CAppService::Dispatch(const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter)
@@ -36,16 +52,16 @@ void CAppService::Dispatch(const IRequest& req, IResponse& res, const std::share
             return;
         }
 
-        auto it = m_actions.find(actionName);
         LOG_INFO("Executing action: {}", actionName);
 
-        if (it == m_actions.end())
+        auto action = FindAction(actionName);
+        if (!action)
         {
             res.SetError("Unknown action: " + actionName);
             return;
         }
 
-        it->second->Execute(*this, req, res, reporter);
+        action->get().Execute(*this, req, res, reporter);
     }
     catch (const std::exception& e)
     {
@@ -54,13 +70,19 @@ void CAppService::Dispatch(const IRequest& req, IResponse& res, const std::share
     }
 }
 
-CLibraryApi& CAppService::GetApi()
+CLibraryApi& CAppService::EnsureApi()
 {
     if (!m_api)
     {
         m_api = std::make_unique<CLibraryApi>(m_config);
     }
+
     return *m_api;
+}
+
+CLibraryApi& CAppService::GetApi()
+{
+    return EnsureApi();
 }
 
 } // namespace Librium::Service
