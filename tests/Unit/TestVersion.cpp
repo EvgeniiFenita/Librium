@@ -4,7 +4,7 @@
 
 TEST_CASE("Librium version constants", "[version]")
 {
-    REQUIRE(Librium::Apps::VersionMajor == 0);
-    REQUIRE(Librium::Apps::VersionMinor == 2);
-    REQUIRE(std::string(Librium::Apps::VersionString) == "0.2.0");
+    REQUIRE(Librium::Apps::VersionMajor == 1);
+    REQUIRE(Librium::Apps::VersionMinor == 0);
+    REQUIRE(std::string(Librium::Apps::VersionString) == "1.0.0");
 }

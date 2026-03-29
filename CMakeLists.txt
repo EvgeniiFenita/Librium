@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(Librium VERSION 0.2.0 LANGUAGES CXX C)
+project(Librium VERSION 1.0.0 LANGUAGES CXX C)
 
 # Ensure VCPKG_ROOT is set
 if(NOT DEFINED ENV{VCPKG_ROOT})
