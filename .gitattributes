@@ -1,5 +1,5 @@
-# Normalize line endings for all text files on checkout
-* text=auto
+# Normalize line endings for all text files and keep them as LF in the working tree
+* text=auto eol=lf
 
 # Shell scripts must use LF (Unix) line endings — required for Docker/Linux execution
 *.sh eol=lf
