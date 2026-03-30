@@ -99,19 +99,19 @@ class CRunner:
         return CRunner.run(cmd, exit_on_fail=exit_on_fail)
 
     @staticmethod
-    def DownloadFbc(tools_dir: Path):
+    def DownloadFbc(tools_dir: Path, system_override: str = None, arch_override: str = None) -> bool:
         """Download and extract fbc (fb2cng) converter if not present."""
         import platform
         import urllib.request
         import json
         import zipfile
         
-        system = platform.system().lower()
-        arch = platform.machine().lower()
+        system = (system_override or platform.system()).lower()
+        arch = (arch_override or platform.machine()).lower()
         
         exe_name = "fbc.exe" if system == "windows" else "fbc"
         if (tools_dir / exe_name).exists():
-            return
+            return True
 
         CUI.info(f"Downloading EPUB converter (fbc) for {system} {arch}...")
         tools_dir.mkdir(parents=True, exist_ok=True)
@@ -131,7 +131,7 @@ class CRunner:
 
         if not asset_pattern:
             CUI.error(f"Unsupported platform for fbc: {system} {arch}. EPUB conversion will be disabled.")
-            return
+            return False
 
         try:
             release_url = "https://api.github.com/repos/rupor-github/fb2cng/releases/latest"
@@ -141,7 +141,7 @@ class CRunner:
             asset = next((a for a in release_data["assets"] if a["name"].startswith("fbc-") and a["name"].endswith(asset_pattern)), None)
             if not asset:
                 CUI.error(f"Could not find fbc asset matching {asset_pattern}")
-                return
+                return False
 
             archive_path = tools_dir / asset["name"]
             CUI.info(f"Downloading {asset['browser_download_url']}...")
@@ -162,8 +162,10 @@ class CRunner:
                 (tools_dir / exe_name).chmod(0o755)
                 
             CUI.info("EPUB converter installed successfully.")
+            return True
         except Exception as e:
             CUI.warn(f"Failed to download EPUB converter: {e}")
+            return False
 
 
 def find_free_port() -> int:

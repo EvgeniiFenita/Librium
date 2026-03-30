@@ -188,13 +188,6 @@ SAppConfig SAppConfig::Load(const std::string& path)
     return cfg;
 }
 
-void SAppConfig::Save(const std::string& path) const
-{
-    json j = ToJson(*this);
-    std::ofstream f(Utils::CStringUtils::Utf8ToPath(path));
-    f << j.dump(2) << "\n";
-}
-
 CBookFilter::CBookFilter(const SFiltersConfig& cfg) : m_cfg(cfg) 
 {}
 

@@ -51,8 +51,6 @@ public:
         m_stopRequested = true;
     }
 
-    [[nodiscard]] std::vector<std::string> GetNewArchives(Db::IBookWriter& db, const std::string& inpxPath);
-
 private:
     friend Detail::SPreScanResult Detail::PreScanArchives(
         CIndexer& indexer,

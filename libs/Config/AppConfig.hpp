@@ -87,7 +87,6 @@ struct SAppConfig
 
     [[nodiscard]] static SAppConfig Defaults();
     [[nodiscard]] static SAppConfig Load(const std::string& path);
-    void Save(const std::string& path) const;
 };
 
 class CBookFilter

@@ -125,7 +125,6 @@ def _do_web_tests(preset: str) -> bool:
     """
     CUI.step(3, "WEB API TESTS")
 
-    web_src = CPaths.REPO_ROOT / "web"
     artifact_dir = CPaths.get_artifact_dir(preset)
     web_test_root = artifact_dir / "web_test"
 
@@ -136,15 +135,7 @@ def _do_web_tests(preset: str) -> bool:
 
     CUI.info(f"Preparing web test environment in {web_test_root}...")
 
-    # Copy everything from web/ except node_modules (deps go to the artifact dir)
-    for item in web_src.iterdir():
-        if item.name == "node_modules":
-            continue
-        dest = web_test_root / item.name
-        if item.is_dir():
-            shutil.copytree(item, dest)
-        else:
-            shutil.copy2(item, dest)
+    _copy_web_tree(web_test_root, skip={"node_modules"})
 
     npm_cmd = ["npm.cmd"] if sys.platform.startswith("win") else ["npm"]
 
@@ -163,6 +154,22 @@ def _do_web_tests(preset: str) -> bool:
 # Web server helpers
 # ---------------------------------------------------------------------------
 
+def _copy_web_tree(destination: Path, skip: set[str]) -> None:
+    """Copy the web source tree into destination, skipping selected entries."""
+    destination.mkdir(parents=True, exist_ok=True)
+    web_src = CPaths.REPO_ROOT / "web"
+
+    for item in web_src.iterdir():
+        if item.name in skip:
+            continue
+        dest = destination / item.name
+        if item.is_dir():
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(item, dest)
+        else:
+            shutil.copy2(item, dest)
+
 def _prepare_web_server_env(out_web_dir: Path):
     """
     Copy web source files to out_web_dir (excluding node_modules and tests/),
@@ -170,23 +177,8 @@ def _prepare_web_server_env(out_web_dir: Path):
     The web/ source directory is never touched.
     """
     CUI.info(f"Preparing web server environment in {out_web_dir}...")
-    out_web_dir.mkdir(parents=True, exist_ok=True)
-
-    web_src = CPaths.REPO_ROOT / "web"
-
     # tests/ are source-only; node_modules belong in artifacts, not deployed files
-    skip = {"node_modules", "tests"}
-
-    for item in web_src.iterdir():
-        if item.name in skip:
-            continue
-        dest = out_web_dir / item.name
-        if item.is_dir():
-            if dest.exists():
-                shutil.rmtree(dest)
-            shutil.copytree(item, dest)
-        else:
-            shutil.copy2(item, dest)
+    _copy_web_tree(out_web_dir, skip={"node_modules", "tests"})
 
     # Download the EPUB converter (skipped if already present)
     CRunner.DownloadFbc(out_web_dir / "tools")
@@ -460,65 +452,7 @@ def _download_fbc_linux_amd64(tools_dir: Path) -> bool:
     Forces the linux-amd64 target regardless of the host platform so that
     the deployment image is always built for the correct architecture.
     """
-    import urllib.request
-    import json
-    import zipfile
-
-    exe_name = "fbc"
-    if (tools_dir / exe_name).exists():
-        CUI.info("EPUB converter (fbc) already present in staging context.")
-        return True
-
-    CUI.info("Downloading EPUB converter (fbc) for linux-amd64...")
-    tools_dir.mkdir(parents=True, exist_ok=True)
-
-    asset_pattern = "linux-amd64.zip"
-
-    try:
-        release_url = "https://api.github.com/repos/rupor-github/fb2cng/releases/latest"
-        with urllib.request.urlopen(
-            urllib.request.Request(release_url, headers={"User-Agent": "Librium-Runner"})
-        ) as response:
-            release_data = json.loads(response.read().decode())
-
-        asset = next(
-            (
-                a for a in release_data["assets"]
-                if a["name"].startswith("fbc-") and a["name"].endswith(asset_pattern)
-            ),
-            None,
-        )
-        if not asset:
-            CUI.error(f"Could not find fbc asset matching {asset_pattern}")
-            return False
-
-        archive_path = tools_dir / asset["name"]
-        CUI.info(f"Downloading {asset['browser_download_url']}...")
-        urllib.request.urlretrieve(asset["browser_download_url"], archive_path)
-
-        CUI.info(f"Extracting {archive_path.name}...")
-        resolved_tools_dir = tools_dir.resolve()
-        with zipfile.ZipFile(archive_path, "r") as zip_ref:
-            for member in zip_ref.infolist():
-                target_path = (tools_dir / member.filename).resolve()
-                if not target_path.is_relative_to(resolved_tools_dir):
-                    raise Exception(f"Zip slip attempt detected: {member.filename}")
-                zip_ref.extract(member, tools_dir)
-
-        archive_path.unlink()
-
-        fbc_path = tools_dir / exe_name
-        if not fbc_path.exists():
-            CUI.error("fbc binary not found in archive after extraction.")
-            return False
-
-        fbc_path.chmod(0o755)
-        CUI.info("EPUB converter installed successfully.")
-        return True
-
-    except Exception as e:
-        CUI.error(f"Failed to download EPUB converter: {e}")
-        return False
+    return CRunner.DownloadFbc(tools_dir, system_override="linux", arch_override="amd64")
 
 
 def run_build_image(preset: str) -> bool:
@@ -560,18 +494,8 @@ def run_build_image(preset: str) -> bool:
     CUI.info(f"Copied binary: {binary_path}")
 
     # Copy web server source files (skip tests/ and node_modules — npm installs inside Docker)
-    web_src = CPaths.REPO_ROOT / "web"
     web_dst = context_dir / "web"
-    web_dst.mkdir()
-    skip = {"node_modules", "tests"}
-    for item in web_src.iterdir():
-        if item.name in skip:
-            continue
-        dest = web_dst / item.name
-        if item.is_dir():
-            shutil.copytree(item, dest)
-        else:
-            shutil.copy2(item, dest)
+    _copy_web_tree(web_dst, skip={"node_modules", "tests"})
     CUI.info("Copied web server files.")
 
     # Copy the container startup script

@@ -10,7 +10,7 @@ A review covers a comprehensive, read-only audit of the codebase. Reviewers must
 
 Scan ALL source files under:
 - `libs/` (Config, Database, Fb2, Indexer, Inpx, Log, Protocol, Service, Transport, Utils, Zip)
-- `apps/Librium/` (Main.cpp, Version.hpp, ProtocolProgressReporter.hpp)
+- `apps/Librium/` (Main.cpp, Version.hpp.in, ProtocolProgressReporter.hpp)
 - `tests/` (Unit, Scenarios)
 - `CMakeLists.txt`, `CMakePresets.json`, `vcpkg.json`
 - `scripts/Run.py`, `scripts/ScenarioTester.py`

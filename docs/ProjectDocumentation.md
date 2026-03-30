@@ -33,7 +33,7 @@ Librium/
 ├── apps/
 │   └── Librium/            ← Persistent Engine application
 │       ├── Main.cpp
-│       ├── Version.hpp
+│       ├── Version.hpp.in
 │       └── ProtocolProgressReporter.hpp
 ├── libs/
 │   ├── Config/             ← App settings & Unicode path helpers

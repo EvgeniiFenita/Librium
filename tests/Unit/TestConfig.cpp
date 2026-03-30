@@ -5,6 +5,7 @@
 #include "Utils/StringUtils.hpp"
 #include "TestUtils.hpp"
 #include <filesystem>
+#include <fstream>
 
 using namespace Librium::Config;
 using namespace Librium::Tests;
@@ -28,19 +29,21 @@ TEST_CASE("AppConfig defaults", "[config]")
     REQUIRE(c.import.threadCount > 0);
 }
 
-TEST_CASE("AppConfig save/load", "[config]")
+TEST_CASE("AppConfig load", "[config]")
 {
     CTempDir tempDir;
     std::string path = (tempDir.GetPath() / "test_config.json").string();
-    auto c1 = SAppConfig::Defaults();
-    c1.database.path = "custom.db";
-    c1.Save(path);
+    std::ofstream out(Librium::Utils::CStringUtils::Utf8ToPath(path));
+    out << R"({
+  "database": { "path": "custom.db" }
+})";
+    out.close();
 
     auto c2 = SAppConfig::Load(path);
     REQUIRE(c2.database.path == "custom.db");
 }
 
-TEST_CASE("AppConfig save/load supports Unicode config path and values", "[config]")
+TEST_CASE("AppConfig load supports Unicode config path and values", "[config]")
 {
     CTempDir tempDir;
     const auto unicodeDir = tempDir.GetPath() / Librium::Utils::CStringUtils::Utf8ToPath("конфиг");
@@ -49,10 +52,12 @@ TEST_CASE("AppConfig save/load supports Unicode config path and values", "[confi
     const auto configPath = unicodeDir / Librium::Utils::CStringUtils::Utf8ToPath("настройки.json");
     const std::string utf8ConfigPath = Librium::Utils::CStringUtils::PathToUtf8String(configPath);
 
-    auto c1 = SAppConfig::Defaults();
-    c1.database.path = "данные/библиотека.db";
-    c1.library.archivesDir = "архивы";
-    c1.Save(utf8ConfigPath);
+    std::ofstream out(configPath);
+    out << R"({
+  "database": { "path": "данные/библиотека.db" },
+  "library": { "archivesDir": "архивы" }
+})";
+    out.close();
 
     auto c2 = SAppConfig::Load(utf8ConfigPath);
     REQUIRE(c2.database.path == "данные/библиотека.db");

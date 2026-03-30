@@ -29,7 +29,7 @@ SPreScanResult PreScanArchives(
         }
     }
 
-    [[maybe_unused]] const auto scanStats = scanner.ParseStreaming(cfg.library.inpxPath, [&](Inpx::SBookRecord&& rec)
+    (void)scanner.ParseStreaming(cfg.library.inpxPath, [&](Inpx::SBookRecord&& rec)
     {
         if (indexer.m_stopRequested) return false;
 

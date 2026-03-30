@@ -1,5 +1,4 @@
 add_library(Indexer STATIC
-    IndexerArchive.cpp
     IndexerImportSupport.cpp
     Indexer.cpp
     IndexerRun.cpp
