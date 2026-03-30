@@ -1,4 +1,5 @@
 add_library(Database STATIC
+    DatabaseArchive.cpp
     Database.cpp
     DatabaseStats.cpp
     DatabaseSchema.cpp

@@ -301,32 +301,6 @@ bool CDatabase::BookExists(const std::string& libId, const std::string& archiveN
     return m_stmtBookExists->IsRow();
 }
 
-std::vector<std::string> CDatabase::GetIndexedArchives()
-{
-    std::vector<std::string> res;
-    auto stmt = m_db->Prepare(std::string(Sql::GetIndexedArchives));
-
-    stmt->Step();
-    CSqlStmtResetGuard guard(*stmt);
-    while (stmt->IsRow())
-    {
-        std::string text = stmt->ColumnText(0);
-        if (!text.empty()) res.emplace_back(text);
-        stmt->Step();
-    }
-    return res;
-}
-
-void CDatabase::MarkArchiveIndexed(const std::string& archiveName)
-{
-    (void)GetOrCreateArchive(archiveName);
-    auto stmt = m_db->Prepare(std::string(Sql::UpdateArchiveIndexed));
-
-    stmt->BindText(1, archiveName);
-    stmt->Step();
-    CSqlStmtResetGuard guard(*stmt);
-}
-
 int64_t CDatabase::LastInsertRowId() const
 {
     return m_db->LastInsertRowId();
@@ -336,23 +310,6 @@ void CDatabase::ResetImportCache(std::unordered_map<std::string, int64_t>& cache
 {
     std::unordered_map<std::string, int64_t> empty;
     cache.swap(empty);
-}
-
-std::optional<SBookPath> CDatabase::GetBookPath(int64_t bookId)
-{
-    m_stmtGetBookPath->Reset();
-    m_stmtGetBookPath->BindInt64(1, bookId);
-    m_stmtGetBookPath->Step();
-    CSqlStmtResetGuard guard(*m_stmtGetBookPath);
-
-    if (m_stmtGetBookPath->IsRow())
-    {
-        SBookPath bp;
-        bp.archiveName = m_stmtGetBookPath->ColumnText(0);
-        bp.fileName    = m_stmtGetBookPath->ColumnText(1);
-        return bp;
-    }
-    return std::nullopt;
 }
 
 void CDatabase::DropIndexes()
