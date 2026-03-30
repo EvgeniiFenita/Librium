@@ -3,6 +3,7 @@
 #include "Service/Request.hpp"
 #include "Service/Response.hpp"
 #include "Utils/Base64.hpp"
+#include "Utils/StringUtils.hpp"
 #include "Log/Logger.hpp"
 
 #include <nlohmann/json.hpp>
@@ -208,7 +209,7 @@ nlohmann::json BuildBookDetailsJson(const Service::SBookDetails& details)
 nlohmann::json BuildExportJson(const std::filesystem::path& path, const std::string& filename)
 {
     return {
-        {"file", path.u8string()},
+        {"file", Utils::CStringUtils::PathToUtf8String(path)},
         {"filename", filename}
     };
 }

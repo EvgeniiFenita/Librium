@@ -94,6 +94,11 @@ std::string CStringUtils::PathToUtf8String(const std::filesystem::path& path)
     return std::string(u8.begin(), u8.end());
 }
 
+std::u8string CStringUtils::PathToUtf8U8String(const std::filesystem::path& path)
+{
+    return path.u8string();
+}
+
 std::string CStringUtils::PathFilenameToUtf8String(const std::filesystem::path& path)
 {
     return PathToUtf8String(path.filename());

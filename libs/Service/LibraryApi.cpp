@@ -58,10 +58,10 @@ std::optional<std::u8string> FindCoverPath(
             continue;
         }
 
-        const auto filename = entry.path().filename().u8string();
-        if (filename.find(u8"cover.") == 0)
+        const auto filename = Utils::CStringUtils::PathFilenameToUtf8String(entry.path());
+        if (filename.find("cover.") == 0)
         {
-            return entry.path().u8string();
+            return Utils::CStringUtils::PathToUtf8U8String(entry.path());
         }
     }
 

@@ -58,6 +58,13 @@ TEST_CASE("Config::Path UTF-8 extraction helpers", "[config]")
         REQUIRE(Utils::CStringUtils::PathFilenameToUtf8String(p) == "книга.fb2");
     }
 
+    SECTION("Full path UTF-8 u8string extraction preserves bytes")
+    {
+        auto p = Utils::CStringUtils::Utf8ToPath("книга.fb2");
+        const auto utf8 = Utils::CStringUtils::PathToUtf8String(p);
+        REQUIRE(Utils::CStringUtils::PathToUtf8U8String(p) == std::u8string(utf8.begin(), utf8.end()));
+    }
+
     SECTION("Stem extraction preserves UTF-8 bytes")
     {
         auto p = Utils::CStringUtils::Utf8ToPath("архивы/fb2-архив.zip.inp");

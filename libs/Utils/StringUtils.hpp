@@ -15,6 +15,7 @@ public:
 
     [[nodiscard]] static std::filesystem::path Utf8ToPath(const std::string& utf8Str);
     [[nodiscard]] static std::string PathToUtf8String(const std::filesystem::path& path);
+    [[nodiscard]] static std::u8string PathToUtf8U8String(const std::filesystem::path& path);
     [[nodiscard]] static std::string PathFilenameToUtf8String(const std::filesystem::path& path);
     [[nodiscard]] static std::string PathStemToUtf8String(const std::filesystem::path& path);
 };
