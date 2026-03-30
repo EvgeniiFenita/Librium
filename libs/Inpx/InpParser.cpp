@@ -59,9 +59,8 @@ bool TryParseNumber(std::string_view text, TValue& value)
 
 std::string ArchiveNameFromEntry(const std::string& entryName)
 {
-    std::filesystem::path path = Utils::CStringUtils::Utf8ToPath(entryName);
-    auto u8stem = path.stem().u8string();
-    return std::string(u8stem.begin(), u8stem.end());
+    const std::filesystem::path path = Utils::CStringUtils::Utf8ToPath(entryName);
+    return Utils::CStringUtils::PathStemToUtf8String(path);
 }
 
 bool IsInpEntry(const std::string& entryName)

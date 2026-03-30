@@ -104,8 +104,7 @@ public:
 
 [[nodiscard]] std::string SourceFileName(std::source_location loc)
 {
-    const auto utf8Name = std::filesystem::path(loc.file_name()).filename().u8string();
-    return std::string(utf8Name.begin(), utf8Name.end());
+    return Utils::CStringUtils::PathFilenameToUtf8String(std::filesystem::path(loc.file_name()));
 }
 
 [[nodiscard]] std::string BuildLogLine(ELogLevel level, const std::string& message, std::source_location loc)

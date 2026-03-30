@@ -50,6 +50,27 @@ TEST_CASE("Config::Utf8ToPath", "[config]")
     }
 }
 
+TEST_CASE("Config::Path UTF-8 extraction helpers", "[config]")
+{
+    SECTION("Filename extraction preserves UTF-8 bytes")
+    {
+        auto p = Utils::CStringUtils::Utf8ToPath("архивы/книга.fb2");
+        REQUIRE(Utils::CStringUtils::PathFilenameToUtf8String(p) == "книга.fb2");
+    }
+
+    SECTION("Stem extraction preserves UTF-8 bytes")
+    {
+        auto p = Utils::CStringUtils::Utf8ToPath("архивы/fb2-архив.zip.inp");
+        REQUIRE(Utils::CStringUtils::PathStemToUtf8String(p) == "fb2-архив.zip");
+    }
+
+    SECTION("Filename helper matches filename() boundary")
+    {
+        auto p = Utils::CStringUtils::Utf8ToPath("nested/path/example.txt");
+        REQUIRE(Utils::CStringUtils::PathFilenameToUtf8String(p) == "example.txt");
+    }
+}
+
 TEST_CASE("Config::GetBookMetaDir", "[config]")
 {
     SECTION("Builds path: <dbDir>/meta/<id>")

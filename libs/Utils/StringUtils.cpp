@@ -94,4 +94,14 @@ std::string CStringUtils::PathToUtf8String(const std::filesystem::path& path)
     return std::string(u8.begin(), u8.end());
 }
 
+std::string CStringUtils::PathFilenameToUtf8String(const std::filesystem::path& path)
+{
+    return PathToUtf8String(path.filename());
+}
+
+std::string CStringUtils::PathStemToUtf8String(const std::filesystem::path& path)
+{
+    return PathToUtf8String(path.stem());
+}
+
 } // namespace Librium::Utils

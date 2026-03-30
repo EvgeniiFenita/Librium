@@ -23,8 +23,7 @@ namespace {
 [[nodiscard]] std::string ArchiveNameFromInpEntry(const std::string& entryName)
 {
     const fs::path archivePath = CStringUtils::Utf8ToPath(entryName);
-    const auto archiveStem = archivePath.stem().u8string();
-    return std::string(archiveStem.begin(), archiveStem.end());
+    return CStringUtils::PathStemToUtf8String(archivePath);
 }
 
 } // namespace
