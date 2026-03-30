@@ -26,18 +26,6 @@ namespace {
     return mode == EImportMode::Upgrade ? "upgrade" : "full";
 }
 
-[[nodiscard]] bool IsInpEntryName(const std::string& entryName)
-{
-    return entryName.size() >= 4 && entryName.substr(entryName.size() - 4) == ".inp";
-}
-
-[[nodiscard]] std::string ArchiveNameFromInpEntry(const std::string& entryName)
-{
-    const fs::path archivePath = CStringUtils::Utf8ToPath(entryName);
-    const auto archiveStem = archivePath.stem().u8string();
-    return std::string(archiveStem.begin(), archiveStem.end());
-}
-
 [[nodiscard]] fs::path ResolveArchivePath(const std::string& archivesDir, const std::string& archiveName)
 {
     for (const std::string_view suffix : std::array<std::string_view, 2>{".zip", ""})
@@ -90,32 +78,6 @@ bool TryPushQueueItem(TQueue& queue, TValue&& value, std::string_view queueName)
 CIndexer::CIndexer(Config::SAppConfig cfg)
     : m_cfg(std::move(cfg))
 {
-}
-std::vector<std::string> CIndexer::GetNewArchives(Db::IBookWriter& db, const std::string& inpxPath) 
-{
-    auto indexed = db.GetIndexedArchives();
-    std::unordered_set<std::string> indexedSet(indexed.begin(), indexed.end());
-
-    std::vector<std::string> allArchives;
-    Zip::CZipReader::IterateEntryNames(CStringUtils::Utf8ToPath(inpxPath), [&](const Zip::SZipEntry& entry) 
-    {
-        if (IsInpEntryName(entry.name))
-        {
-            allArchives.push_back(ArchiveNameFromInpEntry(entry.name));
-        }
-        return true;
-    });
-
-    std::vector<std::string> newArchives;
-    for (const auto& a : allArchives)
-        if (!indexedSet.count(a))
-            newArchives.push_back(a);
-
-    LOG_INFO(
-        "Archives in INPX: {}, already indexed: {}, new: {}",
-        allArchives.size(), indexed.size(), newArchives.size());
-
-    return newArchives;
 }
 
 void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2) 
