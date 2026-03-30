@@ -74,6 +74,29 @@ TEST_CASE("CStringUtils::IsUtf8", "[utils]")
         REQUIRE_FALSE(CStringUtils::IsUtf8("\xCF\xF0\xE8\xE2\xE5\xF2"));
     }
 
+    SECTION("Invalid: UTF-16 surrogate encoded as UTF-8 is rejected")
+    {
+        // U+D800 encoded in UTF-8 would be ED A0 80, which is forbidden in UTF-8.
+        REQUIRE_FALSE(CStringUtils::IsUtf8("\xED\xA0\x80"));
+    }
+
+    SECTION("Valid: highest Unicode scalar value is accepted")
+    {
+        // U+10FFFF = F4 8F BF BF
+        REQUIRE(CStringUtils::IsUtf8("\xF4\x8F\xBF\xBF"));
+    }
+
+    SECTION("Invalid: code point above Unicode max is rejected")
+    {
+        // F4 90 80 80 would encode U+110000, outside Unicode range.
+        REQUIRE_FALSE(CStringUtils::IsUtf8("\xF4\x90\x80\x80"));
+    }
+
+    SECTION("Invalid: overlong 3-byte encoding is rejected")
+    {
+        REQUIRE_FALSE(CStringUtils::IsUtf8("\xE0\x80\x80"));
+    }
+
     SECTION("Mixed valid ASCII and valid UTF-8 multibyte")
     {
         // "OK: " followed by U+2713 (✓) = E2 9C 93
@@ -188,5 +211,12 @@ TEST_CASE("CStringUtils::Utf16ToUtf8", "[utils]")
         std::string original = "The quick brown fox";
         std::wstring wide(original.begin(), original.end());
         REQUIRE(CStringUtils::Utf16ToUtf8(wide) == original);
+    }
+
+    SECTION("PathToUtf8String preserves UTF-8 path bytes")
+    {
+        std::string utf8 = "\xD0\xBA\xD0\xBD\xD0\xB8\xD0\xB3\xD0\xB8/\xD1\x84\xD0\xB0\xD0\xB9\xD0\xBB.fb2";
+        auto path = CStringUtils::Utf8ToPath(utf8);
+        REQUIRE(CStringUtils::PathToUtf8String(path) == utf8);
     }
 }
