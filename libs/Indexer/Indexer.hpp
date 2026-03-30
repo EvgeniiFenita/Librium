@@ -24,6 +24,22 @@ enum class EImportMode
     Upgrade
 };
 
+class CIndexer;
+
+namespace Detail {
+struct SPreScanResult;
+SPreScanResult PreScanArchives(
+    CIndexer& indexer,
+    Db::IBookWriter& db,
+    EImportMode mode,
+    const Config::SAppConfig& cfg,
+    Config::CBookFilter& filter);
+std::jthread StartProducerThread(
+    CIndexer& indexer,
+    Config::CBookFilter& filter,
+    EImportMode mode);
+}
+
 class CIndexer
 {
 public:
@@ -38,6 +54,17 @@ public:
     [[nodiscard]] std::vector<std::string> GetNewArchives(Db::IBookWriter& db, const std::string& inpxPath);
 
 private:
+    friend Detail::SPreScanResult Detail::PreScanArchives(
+        CIndexer& indexer,
+        Db::IBookWriter& db,
+        EImportMode mode,
+        const Config::SAppConfig& cfg,
+        Config::CBookFilter& filter);
+    friend std::jthread Detail::StartProducerThread(
+        CIndexer& indexer,
+        Config::CBookFilter& filter,
+        EImportMode mode);
+
     Config::SAppConfig        m_cfg;
     std::atomic<bool>         m_stopRequested{false};
     std::unordered_set<std::string> m_skipArchives;

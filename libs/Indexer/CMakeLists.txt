@@ -2,6 +2,7 @@ add_library(Indexer STATIC
     IndexerArchive.cpp
     IndexerImportSupport.cpp
     Indexer.cpp
+    IndexerRunSupport.cpp
     IndexerWorker.cpp
     IndexerWriter.cpp
 )
