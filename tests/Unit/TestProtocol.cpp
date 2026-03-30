@@ -172,3 +172,35 @@ TEST_CASE("CJsonProtocol::Process query action keeps mixed parameter compatibili
     REQUIRE(json["data"].contains("totalFound"));
     REQUIRE(json["data"].contains("books"));
 }
+
+TEST_CASE("CJsonProtocol::Process get-book keeps string id compatibility", "[protocol]")
+{
+    CTempDir tempDir;
+    Config::SAppConfig cfg;
+    cfg.database.path = (tempDir.GetPath() / "test.db").string();
+
+    Service::CAppService service(cfg);
+    std::string request = R"({"action":"get-book","params":{"id":"1"}})";
+    std::string encoded = Utils::CBase64::Encode(request);
+    std::string result = Protocol::CJsonProtocol::Process(encoded, service, nullptr);
+    nlohmann::json json = DecodeResponse(result);
+
+    REQUIRE(json["status"] == "error");
+    REQUIRE(json["error"] == "Book not found");
+}
+
+TEST_CASE("CJsonProtocol::Process export keeps string id and out compatibility", "[protocol]")
+{
+    CTempDir tempDir;
+    Config::SAppConfig cfg;
+    cfg.database.path = (tempDir.GetPath() / "test.db").string();
+
+    Service::CAppService service(cfg);
+    std::string request = R"({"action":"export","params":{"id":"1","out":"C:/tmp/out"}})";
+    std::string encoded = Utils::CBase64::Encode(request);
+    std::string result = Protocol::CJsonProtocol::Process(encoded, service, nullptr);
+    nlohmann::json json = DecodeResponse(result);
+
+    REQUIRE(json["status"] == "error");
+    REQUIRE(json["error"] == "Book not found");
+}

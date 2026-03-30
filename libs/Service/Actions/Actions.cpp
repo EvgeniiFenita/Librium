@@ -26,6 +26,17 @@ struct SQueryRequest
     int offset{0};
 };
 
+struct SBookIdRequest
+{
+    int64_t id{0};
+};
+
+struct SExportRequest
+{
+    int64_t id{0};
+    std::string out;
+};
+
 bool RequireParam(const IRequest& req, IResponse& res, const char* key, const std::string& error)
 {
     if (req.HasParam(key))
@@ -105,6 +116,21 @@ Db::SQueryParams ToQueryParams(const SQueryRequest& request)
     return queryParams;
 }
 
+SBookIdRequest ParseBookIdRequest(const IRequest& req)
+{
+    SBookIdRequest bookIdRequest;
+    LoadIntParam(req, "id", bookIdRequest.id);
+    return bookIdRequest;
+}
+
+SExportRequest ParseExportRequest(const IRequest& req)
+{
+    SExportRequest exportRequest;
+    LoadIntParam(req, "id", exportRequest.id);
+    LoadStringParam(req, "out", exportRequest.out);
+    return exportRequest;
+}
+
 std::string BuildExportFilename(const Service::SBookDetails& book)
 {
     std::string author = "Unknown";
@@ -160,17 +186,17 @@ void CExportAction::Execute(CAppService& service, const IRequest& req, IResponse
 
     try
     {
-        int64_t id = req.GetInt("id");
-        auto outDir = Utils::CStringUtils::Utf8ToPath(req.GetString("out"));
+        const auto exportRequest = ParseExportRequest(req);
+        auto outDir = Utils::CStringUtils::Utf8ToPath(exportRequest.out);
         
-        auto bookOpt = service.GetApi().GetBook(id);
+        auto bookOpt = service.GetApi().GetBook(exportRequest.id);
         if (!bookOpt)
         {
             res.SetError("Book not found");
             return;
         }
 
-        auto outPath = service.GetApi().ExportBook(id, outDir);
+        auto outPath = service.GetApi().ExportBook(exportRequest.id, outDir);
         res.SetDataExport(outPath, BuildExportFilename(*bookOpt));
     }
     catch (const std::exception& e)
@@ -195,7 +221,8 @@ void CGetBookAction::Execute(CAppService& service, const IRequest& req, IRespons
         return;
     }
 
-    auto bookOpt = service.GetApi().GetBook(req.GetInt("id"));
+    const auto bookIdRequest = ParseBookIdRequest(req);
+    auto bookOpt = service.GetApi().GetBook(bookIdRequest.id);
     if (!bookOpt)
     {
         res.SetError("Book not found");
