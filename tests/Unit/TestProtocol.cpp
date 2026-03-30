@@ -153,3 +153,22 @@ TEST_CASE("CJsonProtocol::Process integer param type coercion", "[protocol]")
 
     REQUIRE(json["status"] == "ok");
 }
+
+TEST_CASE("CJsonProtocol::Process query action keeps mixed parameter compatibility", "[protocol]")
+{
+    CTempDir tempDir;
+    Config::SAppConfig cfg;
+    cfg.database.path = (tempDir.GetPath() / "test.db").string();
+
+    Service::CAppService service(cfg);
+    std::string request =
+        R"({"action":"query","params":{"title":"Test","language":"ru","withAnnotation":true,"limit":"3","offset":1,"ratingMin":2}})";
+    std::string encoded = Utils::CBase64::Encode(request);
+    std::string result = Protocol::CJsonProtocol::Process(encoded, service, nullptr);
+    nlohmann::json json = DecodeResponse(result);
+
+    REQUIRE(json["status"] == "ok");
+    REQUIRE(json.contains("data"));
+    REQUIRE(json["data"].contains("totalFound"));
+    REQUIRE(json["data"].contains("books"));
+}

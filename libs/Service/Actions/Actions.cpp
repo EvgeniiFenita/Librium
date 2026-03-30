@@ -8,6 +8,24 @@ namespace Librium::Service {
 
 namespace {
 
+struct SQueryRequest
+{
+    std::string title;
+    std::string author;
+    std::string genre;
+    std::string series;
+    std::string language;
+    std::string libId;
+    std::string archiveName;
+    std::string dateFrom;
+    std::string dateTo;
+    int ratingMin{0};
+    int ratingMax{0};
+    bool withAnnotation{false};
+    int limit{0};
+    int offset{0};
+};
+
 bool RequireParam(const IRequest& req, IResponse& res, const char* key, const std::string& error)
 {
     if (req.HasParam(key))
@@ -44,26 +62,46 @@ void LoadBoolParam(const IRequest& req, const char* key, bool& target)
     }
 }
 
-Db::SQueryParams BuildQueryParams(const IRequest& req)
+SQueryRequest ParseQueryRequest(const IRequest& req)
+{
+    SQueryRequest queryRequest;
+
+    LoadStringParam(req, "title", queryRequest.title);
+    LoadStringParam(req, "author", queryRequest.author);
+    LoadStringParam(req, "genre", queryRequest.genre);
+    LoadStringParam(req, "series", queryRequest.series);
+    LoadStringParam(req, "language", queryRequest.language);
+    LoadStringParam(req, "libId", queryRequest.libId);
+    LoadStringParam(req, "archiveName", queryRequest.archiveName);
+    LoadStringParam(req, "dateFrom", queryRequest.dateFrom);
+    LoadStringParam(req, "dateTo", queryRequest.dateTo);
+
+    LoadIntParam(req, "ratingMin", queryRequest.ratingMin);
+    LoadIntParam(req, "ratingMax", queryRequest.ratingMax);
+    LoadBoolParam(req, "withAnnotation", queryRequest.withAnnotation);
+    LoadIntParam(req, "limit", queryRequest.limit);
+    LoadIntParam(req, "offset", queryRequest.offset);
+
+    return queryRequest;
+}
+
+Db::SQueryParams ToQueryParams(const SQueryRequest& request)
 {
     Db::SQueryParams queryParams;
-
-    LoadStringParam(req, "title", queryParams.title);
-    LoadStringParam(req, "author", queryParams.author);
-    LoadStringParam(req, "genre", queryParams.genre);
-    LoadStringParam(req, "series", queryParams.series);
-    LoadStringParam(req, "language", queryParams.language);
-    LoadStringParam(req, "libId", queryParams.libId);
-    LoadStringParam(req, "archiveName", queryParams.archiveName);
-    LoadStringParam(req, "dateFrom", queryParams.dateFrom);
-    LoadStringParam(req, "dateTo", queryParams.dateTo);
-
-    LoadIntParam(req, "ratingMin", queryParams.ratingMin);
-    LoadIntParam(req, "ratingMax", queryParams.ratingMax);
-    LoadBoolParam(req, "withAnnotation", queryParams.withAnnotation);
-    LoadIntParam(req, "limit", queryParams.limit);
-    LoadIntParam(req, "offset", queryParams.offset);
-
+    queryParams.title = request.title;
+    queryParams.author = request.author;
+    queryParams.genre = request.genre;
+    queryParams.series = request.series;
+    queryParams.language = request.language;
+    queryParams.libId = request.libId;
+    queryParams.archiveName = request.archiveName;
+    queryParams.dateFrom = request.dateFrom;
+    queryParams.dateTo = request.dateTo;
+    queryParams.ratingMin = request.ratingMin;
+    queryParams.ratingMax = request.ratingMax;
+    queryParams.withAnnotation = request.withAnnotation;
+    queryParams.limit = request.limit;
+    queryParams.offset = request.offset;
     return queryParams;
 }
 
@@ -106,7 +144,8 @@ void CUpgradeAction::Execute(CAppService& service, const IRequest& req, IRespons
 void CQueryAction::Execute(CAppService& service, const IRequest& req, IResponse& res, const std::shared_ptr<Indexer::IProgressReporter>& reporter)
 {
     (void)reporter;
-    auto result = service.GetApi().SearchBooks(BuildQueryParams(req));
+    const auto queryRequest = ParseQueryRequest(req);
+    auto result = service.GetApi().SearchBooks(ToQueryParams(queryRequest));
     res.SetData(result);
 }
 
