@@ -4,6 +4,7 @@
 #include "Database/QueryTypes.hpp"
 #include "Fb2/Fb2Parser.hpp"
 #include "Inpx/InpParser.hpp"
+#include "Utils/StringUtils.hpp"
 #include "TestUtils.hpp"
 
 #include <filesystem>
@@ -176,9 +177,8 @@ TEST_CASE("GetBookById: genre is translated from INPX short code to English", "[
         {"version.info", "20240101\r\n"}
     });
 
-    auto u8path = inpxPath.u8string();
     Inpx::CInpParser parser;
-    auto books = parser.Parse(std::string(u8path.begin(), u8path.end()));
+    auto books = parser.Parse(Librium::Utils::CStringUtils::PathToUtf8String(inpxPath));
     REQUIRE(books.size() == 1);
     
     // Inpx parser leaves short codes unchanged

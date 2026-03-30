@@ -2,6 +2,7 @@
 
 #include "Inpx/BookRecord.hpp"
 #include "Inpx/InpParser.hpp"
+#include "Utils/StringUtils.hpp"
 #include "TestUtils.hpp"
 
 #include <filesystem>
@@ -126,8 +127,7 @@ TEST_CASE("CInpParser streaming parse", "[inpx]")
         {"version.info", "20240101\r\n"}
     });
 
-    auto u8path = inpxPath.u8string();
-    auto pathStr = std::string(u8path.begin(), u8path.end());
+    auto pathStr = Librium::Utils::CStringUtils::PathToUtf8String(inpxPath);
 
     SECTION("Visits all non-deleted books")
     {
@@ -201,8 +201,7 @@ TEST_CASE("CInpParser archive streaming parse", "[inpx]")
         {"version.info", "20240101\r\n"}
     });
 
-    auto u8path = inpxPath.u8string();
-    auto pathStr = std::string(u8path.begin(), u8path.end());
+    auto pathStr = Librium::Utils::CStringUtils::PathToUtf8String(inpxPath);
 
     CInpParser parser;
     std::vector<std::string> archives;
@@ -238,8 +237,7 @@ TEST_CASE("CInpParser::CountLines", "[inpx]")
         {"version.info", "20240101\r\n"}
     });
 
-    auto u8pathCount = inpxPath.u8string();
-    auto pathStr = std::string(u8pathCount.begin(), u8pathCount.end());
+    auto pathStr = Librium::Utils::CStringUtils::PathToUtf8String(inpxPath);
 
     SECTION("CountLines counts all lines including deleted")
     {

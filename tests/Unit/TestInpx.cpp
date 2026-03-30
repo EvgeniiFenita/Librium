@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include "Inpx/InpParser.hpp"
+#include "Utils/StringUtils.hpp"
 #include "TestUtils.hpp"
 #include <filesystem>
 #include <sstream>
@@ -56,8 +57,7 @@ TEST_CASE("InpParser operations", "[inpx]")
     SECTION("CInpParser::Parse loads data correctly")
     {
         CInpParser parser;
-        auto u8path = inpxPath.u8string();
-        auto books = parser.Parse(std::string(u8path.begin(), u8path.end()));
+        auto books = parser.Parse(Librium::Utils::CStringUtils::PathToUtf8String(inpxPath));
 
         REQUIRE(parser.LastStats().totalLines == 4);
         REQUIRE(parser.LastStats().skippedDeleted == 1);

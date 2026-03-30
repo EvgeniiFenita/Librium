@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "Inpx/InpParser.hpp"
+#include "Utils/StringUtils.hpp"
 #include "TestUtils.hpp"
 
 #include <filesystem>
@@ -61,9 +62,8 @@ TEST_CASE("CInpParser: multiple .inp files in one INPX", "[inpx][edge]")
         {"version.info", "20240101\r\n"}
     });
 
-    auto u8path = inpxPath.u8string();
     CInpParser parser;
-    auto books = parser.Parse(std::string(u8path.begin(), u8path.end()));
+    auto books = parser.Parse(Librium::Utils::CStringUtils::PathToUtf8String(inpxPath));
 
     REQUIRE(books.size() == 5); // 2 from arch1 + 3 from arch2
 
@@ -95,10 +95,9 @@ TEST_CASE("CInpParser: book with empty genres field is parsed without crash", "[
         {"version.info", "20240101\r\n"}
     });
 
-    auto u8path = inpxPath.u8string();
     CInpParser parser;
-    REQUIRE_NOTHROW(parser.Parse(std::string(u8path.begin(), u8path.end())));
-    auto books = parser.Parse(std::string(u8path.begin(), u8path.end()));
+    REQUIRE_NOTHROW(parser.Parse(Librium::Utils::CStringUtils::PathToUtf8String(inpxPath)));
+    auto books = parser.Parse(Librium::Utils::CStringUtils::PathToUtf8String(inpxPath));
     REQUIRE(books.size() == 1);
     REQUIRE(books[0].genres.empty());
 }
@@ -117,9 +116,8 @@ TEST_CASE("CInpParser: book with very long title is stored intact", "[inpx][edge
         {"version.info", "20240101\r\n"}
     });
 
-    auto u8path = inpxPath.u8string();
     CInpParser parser;
-    auto books = parser.Parse(std::string(u8path.begin(), u8path.end()));
+    auto books = parser.Parse(Librium::Utils::CStringUtils::PathToUtf8String(inpxPath));
 
     REQUIRE(books.size() == 1);
     REQUIRE(books[0].title.size() == 500);
@@ -139,10 +137,9 @@ TEST_CASE("CInpParser: book with empty title is parsed without crash", "[inpx][e
         {"version.info", "20240101\r\n"}
     });
 
-    auto u8path = inpxPath.u8string();
     CInpParser parser;
     // Empty title is allowed if fileName is non-empty — book is still parsed
-    auto books = parser.Parse(std::string(u8path.begin(), u8path.end()));
+    auto books = parser.Parse(Librium::Utils::CStringUtils::PathToUtf8String(inpxPath));
     REQUIRE(books.size() == 1);
     REQUIRE(books[0].title.empty());
     REQUIRE(books[0].authors[0].lastName == "Author");
@@ -163,9 +160,8 @@ TEST_CASE("CInpParser: keywords field is correctly parsed", "[inpx][edge]")
         {"version.info", "20240101\r\n"}
     });
 
-    auto u8path = inpxPath.u8string();
     CInpParser parser;
-    auto books = parser.Parse(std::string(u8path.begin(), u8path.end()));
+    auto books = parser.Parse(Librium::Utils::CStringUtils::PathToUtf8String(inpxPath));
 
     REQUIRE(books.size() == 1);
     REQUIRE(books[0].keywords == "space, adventure, robots");
@@ -185,10 +181,9 @@ TEST_CASE("CInpParser: .inp file with truncated lines is parsed gracefully", "[i
         {"version.info", "20240101\r\n"}
     });
 
-    auto u8path = inpxPath.u8string();
     CInpParser parser;
     // Should not throw — truncated lines are either skipped or partially parsed
-    REQUIRE_NOTHROW(parser.Parse(std::string(u8path.begin(), u8path.end())));
+    REQUIRE_NOTHROW(parser.Parse(Librium::Utils::CStringUtils::PathToUtf8String(inpxPath)));
 }
 
 TEST_CASE("CInpParser: completely empty .inp file produces no books", "[inpx][edge]")
@@ -202,9 +197,8 @@ TEST_CASE("CInpParser: completely empty .inp file produces no books", "[inpx][ed
         {"version.info", "20240101\r\n"}
     });
 
-    auto u8path = inpxPath.u8string();
     CInpParser parser;
-    auto books = parser.Parse(std::string(u8path.begin(), u8path.end()));
+    auto books = parser.Parse(Librium::Utils::CStringUtils::PathToUtf8String(inpxPath));
     REQUIRE(books.empty());
 }
 
@@ -222,9 +216,8 @@ TEST_CASE("CInpParser: line with series and series number is parsed", "[inpx][ed
         {"version.info", "20240101\r\n"}
     });
 
-    auto u8path = inpxPath.u8string();
     CInpParser parser;
-    auto books = parser.Parse(std::string(u8path.begin(), u8path.end()));
+    auto books = parser.Parse(Librium::Utils::CStringUtils::PathToUtf8String(inpxPath));
 
     REQUIRE(books.size() == 1);
     REQUIRE(books[0].series == "The Lord of the Rings");
@@ -250,11 +243,10 @@ TEST_CASE("CInpParser: invalid numeric fields keep default values", "[inpx][edge
         {"version.info", "20240101\r\n"}
     });
 
-    auto u8path = inpxPath.u8string();
     CInpParser parser;
 
-    REQUIRE_NOTHROW(parser.Parse(std::string(u8path.begin(), u8path.end())));
-    auto books = parser.Parse(std::string(u8path.begin(), u8path.end()));
+    REQUIRE_NOTHROW(parser.Parse(Librium::Utils::CStringUtils::PathToUtf8String(inpxPath)));
+    auto books = parser.Parse(Librium::Utils::CStringUtils::PathToUtf8String(inpxPath));
 
     REQUIRE(books.size() == 1);
     REQUIRE(books[0].seriesNumber == 0);
@@ -277,8 +269,7 @@ TEST_CASE("CInpParser: line with too many delimiters is handled without crash", 
         {"version.info", "20240101\r\n"}
     });
 
-    auto u8path = inpxPath.u8string();
     CInpParser parser;
     // Parser should handle this without crash (likely skipping it as invalid)
-    REQUIRE_NOTHROW(parser.Parse(std::string(u8path.begin(), u8path.end())));
+    REQUIRE_NOTHROW(parser.Parse(Librium::Utils::CStringUtils::PathToUtf8String(inpxPath)));
 }
