@@ -61,5 +61,16 @@ if(MSVC)
 endif()
 
 include(CTest)
-include(Catch)
-catch_discover_tests(UnitTests)
+
+file(GLOB unit_test_discovery_files
+    "${CMAKE_CURRENT_BINARY_DIR}/UnitTests-*_include.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/UnitTests-*_tests.cmake"
+)
+if(unit_test_discovery_files)
+    file(REMOVE ${unit_test_discovery_files})
+endif()
+
+add_test(
+    NAME UnitTests
+    COMMAND $<TARGET_FILE:UnitTests> --colour-mode ansi
+)
