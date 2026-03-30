@@ -312,3 +312,51 @@ TEST_CASE("CLibraryApi::ExportBook: path traversal in fileName is contained with
     }
 }
 
+TEST_CASE("CLibraryApi::ExportBook supports Unicode archive, output and filename paths", "[libraryapi]")
+{
+    CTempDir tempDir;
+    const auto archivesDir = tempDir.GetPath() / Utils::CStringUtils::Utf8ToPath("архивы");
+    const auto databasePath = tempDir.GetPath() / Utils::CStringUtils::Utf8ToPath("база.db");
+    std::filesystem::create_directories(archivesDir);
+
+    Config::SAppConfig cfg;
+    cfg.database.path = Utils::CStringUtils::PathToUtf8String(databasePath);
+    cfg.library.archivesDir = Utils::CStringUtils::PathToUtf8String(archivesDir);
+
+    const std::string archiveStem = "архив-книг";
+    const std::string fileBaseName = "книга-тест";
+    const std::string fileName = fileBaseName + ".fb2";
+    const std::string fb2Content = R"(<?xml version="1.0"?><FictionBook/>)";
+
+    const auto zipPath = archivesDir / Utils::CStringUtils::Utf8ToPath(archiveStem + ".zip");
+    CreateTestZip(zipPath, {{fileName, fb2Content}});
+
+    Inpx::SBookRecord rec;
+    rec.libId       = "UNICODE01";
+    rec.title       = "Unicode Export";
+    rec.archiveName = archiveStem;
+    rec.fileName    = fileBaseName;
+    rec.fileExt     = "fb2";
+    rec.language    = "ru";
+    rec.genres      = {"sf"};
+    rec.authors.push_back({"Тестов", "Иван", ""});
+
+    int64_t bookId = 0;
+    {
+        Db::CDatabase db(cfg.database.path);
+        bookId = db.InsertBook(rec);
+    }
+    REQUIRE(bookId > 0);
+
+    const auto outDir = tempDir.GetPath() / Utils::CStringUtils::Utf8ToPath("экспорт");
+    Service::CLibraryApi api(cfg);
+    const auto outPath = api.ExportBook(bookId, outDir);
+
+    REQUIRE(std::filesystem::exists(outPath));
+    REQUIRE(outPath.filename() == Utils::CStringUtils::Utf8ToPath(fileName));
+
+    std::ifstream ifs(outPath, std::ios::binary);
+    REQUIRE(ifs.is_open());
+    const std::string actualContent((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+    REQUIRE(actualContent == fb2Content);
+}

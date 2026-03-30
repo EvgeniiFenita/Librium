@@ -2,6 +2,7 @@
 
 #include "Config/AppConfig.hpp"
 #include "Inpx/BookRecord.hpp"
+#include "Utils/StringUtils.hpp"
 #include "TestUtils.hpp"
 #include <filesystem>
 
@@ -37,6 +38,25 @@ TEST_CASE("AppConfig save/load", "[config]")
 
     auto c2 = SAppConfig::Load(path);
     REQUIRE(c2.database.path == "custom.db");
+}
+
+TEST_CASE("AppConfig save/load supports Unicode config path and values", "[config]")
+{
+    CTempDir tempDir;
+    const auto unicodeDir = tempDir.GetPath() / Librium::Utils::CStringUtils::Utf8ToPath("конфиг");
+    std::filesystem::create_directories(unicodeDir);
+
+    const auto configPath = unicodeDir / Librium::Utils::CStringUtils::Utf8ToPath("настройки.json");
+    const std::string utf8ConfigPath = Librium::Utils::CStringUtils::PathToUtf8String(configPath);
+
+    auto c1 = SAppConfig::Defaults();
+    c1.database.path = "данные/библиотека.db";
+    c1.library.archivesDir = "архивы";
+    c1.Save(utf8ConfigPath);
+
+    auto c2 = SAppConfig::Load(utf8ConfigPath);
+    REQUIRE(c2.database.path == "данные/библиотека.db");
+    REQUIRE(c2.library.archivesDir == "архивы");
 }
 
 TEST_CASE("BookFilter logic", "[config]")

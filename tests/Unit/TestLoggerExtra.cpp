@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "Log/Logger.hpp"
+#include "Utils/StringUtils.hpp"
 #include "TestUtils.hpp"
 
 #include <filesystem>
@@ -14,7 +15,7 @@ using namespace Librium::Log;
 
 namespace {
 
-std::string ReadFileContent(const std::string& path)
+std::string ReadFileContent(const std::filesystem::path& path)
 {
     std::ifstream f(path);
     return {std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
@@ -207,4 +208,22 @@ TEST_CASE("CLogger concurrent logging from multiple threads", "[logger][concurre
     }
 
     REQUIRE(lineCount >= 100);
+}
+
+TEST_CASE("CLogger supports Unicode log file paths", "[logger]")
+{
+    Librium::Tests::CTempDir tempDir;
+    const auto logDir = tempDir.GetPath() / Librium::Utils::CStringUtils::Utf8ToPath("логи");
+    std::filesystem::create_directories(logDir);
+    const auto logPath = logDir / Librium::Utils::CStringUtils::Utf8ToPath("тест.log");
+
+    CLogger::Instance().ClearOutputs();
+    CLogger::Instance().SetLevel(ELogLevel::Info);
+    CLogger::Instance().AddFileOutput(Librium::Utils::CStringUtils::PathToUtf8String(logPath));
+    LOG_INFO("unicode_log_message");
+    CLogger::Instance().ClearOutputs();
+
+    REQUIRE(std::filesystem::exists(logPath));
+    std::string content = ReadFileContent(logPath);
+    REQUIRE(content.find("unicode_log_message") != std::string::npos);
 }
