@@ -187,6 +187,70 @@ TEST_CASE("CJsonProtocol::Process integer param type coercion", "[protocol]")
     REQUIRE(json["status"] == "ok");
 }
 
+TEST_CASE("CJsonProtocol::Process integer coercion rejects partial numeric strings", "[protocol]")
+{
+    CTempDir tempDir;
+    Config::SAppConfig cfg;
+    cfg.database.path = (tempDir.GetPath() / "test_partial_numeric.db").string();
+
+    {
+        Db::CDatabase db(cfg.database.path);
+        for (int i = 0; i < 3; ++i)
+        {
+            Inpx::SBookRecord r;
+            r.libId = std::to_string(i + 1);
+            r.title = "Book " + std::to_string(i + 1);
+            r.language = "ru";
+            r.genres = {"sf"};
+            r.archiveName = "arch1";
+            r.authors.push_back({"Author", std::to_string(i + 1), ""});
+            (void)db.InsertBook(r, {});
+        }
+    }
+
+    Service::CAppService service(cfg);
+    std::string request = R"({"action":"query","params":{"limit":"2oops","offset":"0"}})";
+    std::string encoded = Utils::CBase64::Encode(request);
+    std::string result = Protocol::CJsonProtocol::Process(encoded, service, nullptr);
+    nlohmann::json json = DecodeResponse(result);
+
+    REQUIRE(json["status"] == "ok");
+    REQUIRE(json["data"]["totalFound"] == 3);
+    REQUIRE(json["data"]["books"].size() == 3);
+}
+
+TEST_CASE("CJsonProtocol::Process integer coercion rejects whitespace-prefixed strings", "[protocol]")
+{
+    CTempDir tempDir;
+    Config::SAppConfig cfg;
+    cfg.database.path = (tempDir.GetPath() / "test_whitespace_numeric.db").string();
+
+    {
+        Db::CDatabase db(cfg.database.path);
+        for (int i = 0; i < 3; ++i)
+        {
+            Inpx::SBookRecord r;
+            r.libId = std::to_string(i + 1);
+            r.title = "Book " + std::to_string(i + 1);
+            r.language = "ru";
+            r.genres = {"sf"};
+            r.archiveName = "arch1";
+            r.authors.push_back({"Author", std::to_string(i + 1), ""});
+            (void)db.InsertBook(r, {});
+        }
+    }
+
+    Service::CAppService service(cfg);
+    std::string request = R"({"action":"query","params":{"limit":" 2","offset":"0"}})";
+    std::string encoded = Utils::CBase64::Encode(request);
+    std::string result = Protocol::CJsonProtocol::Process(encoded, service, nullptr);
+    nlohmann::json json = DecodeResponse(result);
+
+    REQUIRE(json["status"] == "ok");
+    REQUIRE(json["data"]["totalFound"] == 3);
+    REQUIRE(json["data"]["books"].size() == 3);
+}
+
 TEST_CASE("CJsonProtocol::Process query action keeps mixed parameter compatibility", "[protocol]")
 {
     CTempDir tempDir;

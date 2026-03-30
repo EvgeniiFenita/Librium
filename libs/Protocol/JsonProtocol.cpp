@@ -8,6 +8,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <charconv>
 #include <memory>
 
 namespace Librium::Protocol {
@@ -53,6 +54,21 @@ std::string ReadStringParam(const nlohmann::json& json, const std::string& key, 
     return def;
 }
 
+bool TryParseInt64(std::string_view text, int64_t& value)
+{
+    int64_t parsedValue{};
+    const auto* begin = text.data();
+    const auto* end = text.data() + text.size();
+    const auto [ptr, error] = std::from_chars(begin, end, parsedValue);
+    if (error != std::errc() || ptr != end)
+    {
+        return false;
+    }
+
+    value = parsedValue;
+    return true;
+}
+
 int64_t ReadIntParam(const nlohmann::json& json, const std::string& key, int64_t def)
 {
     const auto* value = FindParam(json, key);
@@ -68,14 +84,14 @@ int64_t ReadIntParam(const nlohmann::json& json, const std::string& key, int64_t
 
     if (value->is_string())
     {
-        try
+        const auto text = value->get<std::string>();
+        int64_t parsedValue = 0;
+        if (TryParseInt64(text, parsedValue))
         {
-            return std::stoll(value->get<std::string>());
+            return parsedValue;
         }
-        catch (const std::exception& e)
-        {
-            LOG_DEBUG("Failed to parse integer parameter '{}': {}", key, e.what());
-        }
+
+        LOG_DEBUG("Failed to parse integer parameter '{}': '{}'", key, text);
     }
 
     return def;
