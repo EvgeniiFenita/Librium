@@ -5,6 +5,7 @@ add_library(Database STATIC
     DatabaseLifecycle.cpp
     DatabaseMaintenance.cpp
     DatabaseQuery.cpp
+    DatabaseStatements.cpp
     DatabaseStats.cpp
     DatabaseSchema.cpp
     SearchQueryParser.cpp
