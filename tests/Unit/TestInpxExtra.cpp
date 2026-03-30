@@ -189,6 +189,40 @@ TEST_CASE("CInpParser streaming parse", "[inpx]")
     }
 }
 
+TEST_CASE("CInpParser archive streaming parse", "[inpx]")
+{
+    CTempDir tempDir;
+    std::filesystem::path inpxPath = tempDir.GetPath() / "archive_stream_test.inpx";
+
+    CreateTestZip(inpxPath, {
+        {"fb2-arch-001.zip.inp", MakeStreamingInpContent()},
+        {"fb2-arch-002.zip.inp", MakeStreamingInpContent()},
+        {"collection.info", "Test Library\narchive_stream_test\n65536\nTest\n"},
+        {"version.info", "20240101\r\n"}
+    });
+
+    auto u8path = inpxPath.u8string();
+    auto pathStr = std::string(u8path.begin(), u8path.end());
+
+    CInpParser parser;
+    std::vector<std::string> archives;
+    std::vector<size_t> recordCounts;
+
+    const auto stats = parser.ParseByArchive(pathStr, [&](const std::string& archiveName, std::vector<SBookRecord>&& books)
+    {
+        archives.push_back(archiveName);
+        recordCounts.push_back(books.size());
+        return true;
+    });
+
+    REQUIRE(archives.size() == 2);
+    REQUIRE(recordCounts.size() == 2);
+    REQUIRE(recordCounts[0] == 2);
+    REQUIRE(recordCounts[1] == 2);
+    REQUIRE(stats.parsedOk == 4);
+    REQUIRE(stats.skippedDeleted == 2);
+}
+
 // ---------------------------------------------------------------------------
 // CInpParser::CountLines tests
 // ---------------------------------------------------------------------------

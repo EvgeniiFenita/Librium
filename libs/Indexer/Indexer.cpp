@@ -360,13 +360,22 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, const std:
  
 {
     Config::CBookFilter filter(m_cfg.filters);
-    
-    std::unordered_map<std::string, std::vector<Inpx::SBookRecord>> preparedWork;
+
+    m_skipArchives.clear();
     size_t totalToProcess = 0;
     size_t totalPreSkipped = 0;
 
     LOG_INFO("Pre-scanning INPX to calculate exact book count and group by archive...");
     Inpx::CInpParser scanner;
+    std::unordered_map<std::string, size_t> archiveSizes;
+
+    if (mode == EImportMode::Upgrade)
+    {
+        for (const auto& archiveName : db.GetIndexedArchives())
+        {
+            m_skipArchives.insert(archiveName);
+        }
+    }
 
     [[maybe_unused]] const auto scanStats = scanner.ParseStreaming(m_cfg.library.inpxPath, [&](Inpx::SBookRecord&& rec) 
     {
@@ -374,10 +383,6 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, const std:
         
         if (mode == EImportMode::Upgrade) 
         {
-            if (m_skipArchives.empty())
-            {
-                for (const auto& a : db.GetIndexedArchives()) m_skipArchives.insert(a);
-            }
             if (m_skipArchives.count(rec.archiveName)) 
             {
                 ++totalPreSkipped;
@@ -388,7 +393,7 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, const std:
         auto filterRes = filter.ShouldInclude(rec);
         if (filterRes) 
         {
-            preparedWork[rec.archiveName].push_back(std::move(rec));
+            ++archiveSizes[rec.archiveName];
             ++totalToProcess;
         }
         else
@@ -423,25 +428,42 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, const std:
     int workerCount = std::max(1, m_cfg.import.threadCount);
     LOG_INFO("Starting import: {} worker threads, mode={}, total to process={}", workerCount, ImportModeToString(mode), totalToProcess);
 
-    // Build expected per-archive record counts so WriterThread can mark
-    // each archive as indexed immediately after all its books are committed.
-    std::unordered_map<std::string, size_t> archiveSizes;
-    archiveSizes.reserve(preparedWork.size());
-    for (const auto& [arch, records] : preparedWork)
-        archiveSizes[arch] = records.size();
-
-    std::jthread producer([this, work = std::move(preparedWork)]() mutable
+    std::jthread producer([this, &filter, mode]()
     {
         try
         {
-            for (auto& [archiveName, records] : work)
+            Inpx::CInpParser parser;
+            (void)parser.ParseByArchive(m_cfg.library.inpxPath, [&](const std::string& archiveName, std::vector<Inpx::SBookRecord>&& records)
             {
-                if (m_stopRequested) break;
-                if (!TryPushQueueItem(m_workQueue, SWorkItem{archiveName, std::move(records)}, "work"))
+                if (m_stopRequested)
                 {
-                    break;
+                    return false;
                 }
-            }
+
+                if (mode == EImportMode::Upgrade && m_skipArchives.count(archiveName))
+                {
+                    return true;
+                }
+
+                std::vector<Inpx::SBookRecord> filteredRecords;
+                filteredRecords.reserve(records.size());
+                for (auto& record : records)
+                {
+                    auto filterRes = filter.ShouldInclude(record);
+                    if (filterRes)
+                    {
+                        filteredRecords.push_back(std::move(record));
+                    }
+                }
+
+                if (filteredRecords.empty())
+                {
+                    return true;
+                }
+
+                return TryPushQueueItem(m_workQueue, SWorkItem{archiveName, std::move(filteredRecords)}, "work");
+            });
+
             m_workQueue.Close();
         }
         catch (const std::exception& e)
@@ -487,6 +509,7 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, const std:
     auto endTime = std::chrono::high_resolution_clock::now();
     stats.totalTimeMs = static_cast<double>(std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count());
 
+    db.ClearImportCaches();
     guard.MarkFinished();
 
     stats.archivesProcessed = db.GetIndexedArchives().size();

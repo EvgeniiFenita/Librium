@@ -331,6 +331,46 @@ SInpParseStats CInpParser::ParseStreaming(const std::string& inpxPath, const std
     return m_stats;
 }
 
+SInpParseStats CInpParser::ParseByArchive(
+    const std::string& inpxPath,
+    const std::function<bool(const std::string&, std::vector<SBookRecord>&&)>& onArchive)
+{
+    m_stats = {};
+    bool stop = false;
+
+    LOG_INFO("Streaming INPX file by archive: {}", inpxPath);
+
+    Zip::CZipReader::IterateEntries(Utils::CStringUtils::Utf8ToPath(inpxPath), [&](const std::string& name, std::vector<uint8_t> data)
+    {
+        if (stop)
+        {
+            return false;
+        }
+        if (!IsInpEntry(name))
+        {
+            return true;
+        }
+
+        std::string archive = ArchiveNameFromEntry(name);
+        LOG_DEBUG("Parsing archive batch: {}", archive);
+
+        auto books = ParseInpData(data, archive, m_stats);
+        if (!onArchive(archive, std::move(books)))
+        {
+            stop = true;
+            return false;
+        }
+
+        return true;
+    });
+
+    LOG_INFO("Archive streaming finished. Total lines: {}, books queued for processing: {}, skipped: {} (deleted: {}, invalid: {})",
+        m_stats.totalLines, m_stats.parsedOk, m_stats.skippedDeleted + m_stats.skippedInvalid,
+        m_stats.skippedDeleted, m_stats.skippedInvalid);
+
+    return m_stats;
+}
+
 size_t CInpParser::CountLines(const std::string& inpxPath)
 {
     size_t total = 0;

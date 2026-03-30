@@ -32,6 +32,7 @@ public:
     virtual void CreateIndexes() = 0;
     virtual void BeginBulkImport() = 0;
     virtual void EndBulkImport() = 0;
+    virtual void ClearImportCaches() = 0;
 };
 
 } // namespace Librium::Db

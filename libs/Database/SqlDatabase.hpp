@@ -20,6 +20,7 @@ public:
     virtual void Rollback() = 0;
 
     [[nodiscard]] virtual int64_t LastInsertRowId() const = 0;
+    virtual void ReleaseMemory() = 0;
 };
 
 } // namespace Librium::Db

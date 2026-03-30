@@ -22,6 +22,9 @@ public:
     [[nodiscard]] std::vector<SBookRecord> Parse(const std::string& inpxPath);
 
     [[nodiscard]] SInpParseStats ParseStreaming(const std::string& inpxPath, const std::function<bool(SBookRecord&&)>& onBook);
+    [[nodiscard]] SInpParseStats ParseByArchive(
+        const std::string& inpxPath,
+        const std::function<bool(const std::string&, std::vector<SBookRecord>&&)>& onArchive);
 
     [[nodiscard]] static size_t CountLines(const std::string& inpxPath);
 

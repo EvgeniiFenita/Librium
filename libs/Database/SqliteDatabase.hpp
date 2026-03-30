@@ -26,6 +26,7 @@ public:
     void Rollback() override;
 
     [[nodiscard]] int64_t LastInsertRowId() const override;
+    void ReleaseMemory() override;
 
 private:
     using SqlitePtr = std::unique_ptr<sqlite3, void(*)(sqlite3*)>;

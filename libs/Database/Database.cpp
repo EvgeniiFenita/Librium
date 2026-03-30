@@ -55,6 +55,7 @@ void CDatabase::EndBulkImport()
     {
         m_db->Exec(Sql::PragmaWal);
         m_db->Exec(Sql::PragmaSyncNormal);
+        m_db->ReleaseMemory();
         LOG_INFO("Database restored to WAL mode after bulk import");
     }
     catch (const std::exception& e)
@@ -62,6 +63,16 @@ void CDatabase::EndBulkImport()
         LOG_ERROR("EndBulkImport failed: {}", e.what());
         throw;
     }
+}
+
+void CDatabase::ClearImportCaches()
+{
+    ResetImportCache(m_cacheArchives);
+    ResetImportCache(m_cacheGenres);
+    ResetImportCache(m_cacheSeries);
+    ResetImportCache(m_cachePublishers);
+    ResetImportCache(m_cacheAuthors);
+    LOG_INFO("Import caches cleared after bulk import");
 }
 
 void CDatabase::Exec(const std::string& sql)
@@ -351,6 +362,12 @@ int CDatabase::CountIndexes() const
 int64_t CDatabase::LastInsertRowId() const
 {
     return m_db->LastInsertRowId();
+}
+
+void CDatabase::ResetImportCache(std::unordered_map<std::string, int64_t>& cache)
+{
+    std::unordered_map<std::string, int64_t> empty;
+    cache.swap(empty);
 }
 
 std::optional<SBookPath> CDatabase::GetBookPath(int64_t bookId)

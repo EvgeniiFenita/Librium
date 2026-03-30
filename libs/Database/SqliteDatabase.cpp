@@ -122,4 +122,11 @@ int64_t CSqliteDatabase::LastInsertRowId() const
     return sqlite3_last_insert_rowid(m_db.get());
 }
 
+void CSqliteDatabase::ReleaseMemory()
+{
+    Exec("PRAGMA shrink_memory");
+    const int releasedBytes = sqlite3_db_release_memory(m_db.get());
+    LOG_INFO("SQLite released approximately {} bytes of cached memory", releasedBytes);
+}
+
 } // namespace Librium::Db

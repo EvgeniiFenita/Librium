@@ -55,8 +55,8 @@ services:
       # - LIBRIUM_THREAD_COUNT=4                # worker threads (default: 4)
       # - LIBRIUM_PARSE_FB2=true                # extract FB2 metadata (default: true)
       # - LIBRIUM_TRANSACTION_BATCH_SIZE=1000   # books per SQLite transaction
-      # - LIBRIUM_SQLITE_CACHE_SIZE=-64000      # SQLite cache, KB if negative
-      # - LIBRIUM_SQLITE_MMAP_SIZE=268435456    # SQLite mmap size, bytes (256 MB)
+      # - LIBRIUM_SQLITE_CACHE_SIZE=-16384      # SQLite cache, KB if negative
+      # - LIBRIUM_SQLITE_MMAP_SIZE=67108864     # SQLite mmap size, bytes (64 MB)
 
       # ── Filters (comma-separated language/genre codes or name substrings) ─
       # - LIBRIUM_EXCLUDE_LANGUAGES=            # e.g. ru,uk,be  — exclude these

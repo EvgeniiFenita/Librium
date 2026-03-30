@@ -349,8 +349,8 @@ This is the most convenient approach when you need to configure filter lists (e.
         "parseFb2": true,
         "threadCount": 8,
         "transactionBatchSize": 1000,
-        "sqliteCacheSize": -64000,
-        "sqliteMmapSize": 268435456
+        "sqliteCacheSize": -16384,
+        "sqliteMmapSize": 67108864
     },
     "filters": {
         "excludeLanguages": ["ru", "uk"],
@@ -398,8 +398,8 @@ Uncomment and edit the relevant lines in `docker-compose.yml`. All parameters ar
 | `LIBRIUM_THREAD_COUNT` | `4` | Number of worker threads for parallel indexing. |
 | `LIBRIUM_PARSE_FB2` | `true` | Extract metadata and covers from FB2 files. |
 | `LIBRIUM_TRANSACTION_BATCH_SIZE` | `1000` | Number of books per SQLite transaction. |
-| `LIBRIUM_SQLITE_CACHE_SIZE` | `-64000` | SQLite cache size (negative = KB, positive = pages). |
-| `LIBRIUM_SQLITE_MMAP_SIZE` | `268435456` | SQLite memory-mapped I/O size in bytes (256 MB). |
+| `LIBRIUM_SQLITE_CACHE_SIZE` | `-16384` | SQLite cache size (negative = KB, positive = pages). |
+| `LIBRIUM_SQLITE_MMAP_SIZE` | `67108864` | SQLite memory-mapped I/O size in bytes (64 MB). |
 
 **Filters** (comma-separated language/genre codes or name substrings):
 

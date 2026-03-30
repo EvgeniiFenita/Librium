@@ -85,6 +85,7 @@ public:
     void CreateIndexes() override;
     void BeginBulkImport() override;
     void EndBulkImport() override;
+    void ClearImportCaches() override;
 
     // IBookReader
     [[nodiscard]] int64_t CountBooks() const override;
@@ -136,6 +137,7 @@ private:
     [[nodiscard]] int64_t GetOrCreateArchive(const std::string& archiveName);
 
     [[nodiscard]] int64_t LastInsertRowId() const;
+    void ResetImportCache(std::unordered_map<std::string, int64_t>& cache);
 };
 
 } // namespace Librium::Db
