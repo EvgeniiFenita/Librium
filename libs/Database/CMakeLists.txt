@@ -1,5 +1,6 @@
 add_library(Database STATIC
     Database.cpp
+    DatabaseStats.cpp
     DatabaseSchema.cpp
     SearchQueryParser.cpp
     SqliteDatabase.cpp
@@ -17,4 +18,3 @@ target_link_libraries(Database PUBLIC
     Sqlite3Lib
     Log
 )
-
