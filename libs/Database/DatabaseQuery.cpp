@@ -4,44 +4,103 @@
 #include "Utils/GenreTranslator.hpp"
 
 #include <sstream>
+#include <unordered_map>
 
 namespace Librium::Db {
 
 namespace {
 
-std::vector<SAuthorInfo> FetchAuthors(ISqlDatabase* db, int64_t bookId)
+std::string BuildIdPlaceholders(size_t count)
 {
-    std::vector<SAuthorInfo> result;
-    auto stmt = db->Prepare(std::string(Sql::FetchBookAuthors));
-    stmt->BindInt64(1, bookId);
-    stmt->Step();
-    CSqlStmtResetGuard guard(*stmt);
-    while (stmt->IsRow())
+    std::string placeholders;
+    placeholders.reserve(count * 3);
+    for (size_t i = 0; i < count; ++i)
     {
-        SAuthorInfo ai;
-        ai.lastName   = stmt->ColumnText(0);
-        ai.firstName  = stmt->ColumnText(1);
-        ai.middleName = stmt->ColumnText(2);
-        result.push_back(std::move(ai));
-        stmt->Step();
+        if (i > 0) placeholders += ", ";
+        placeholders += "?";
     }
-    return result;
+    return placeholders;
 }
 
-std::vector<std::string> FetchGenres(ISqlDatabase* db, int64_t bookId)
+std::unordered_map<int64_t, size_t> BuildBookIndex(const std::vector<SBookResult>& books)
 {
-    std::vector<std::string> result;
-    auto stmt = db->Prepare(std::string(Sql::FetchBookGenres));
-    stmt->BindInt64(1, bookId);
+    std::unordered_map<int64_t, size_t> bookIndex;
+    bookIndex.reserve(books.size());
+    for (size_t i = 0; i < books.size(); ++i)
+    {
+        bookIndex.emplace(books[i].id, i);
+    }
+    return bookIndex;
+}
+
+void LoadAuthorsForBooks(ISqlDatabase* db, std::vector<SBookResult>& books)
+{
+    if (books.empty()) return;
+
+    const auto bookIndex = BuildBookIndex(books);
+    auto sql = std::string(
+        "SELECT ba.book_id, a.last_name, a.first_name, a.middle_name "
+        "FROM book_authors ba "
+        "JOIN authors a ON a.id = ba.author_id "
+        "WHERE ba.book_id IN ("
+    );
+    sql += BuildIdPlaceholders(books.size());
+    sql += ")";
+
+    auto stmt = db->Prepare(sql);
+    for (size_t i = 0; i < books.size(); ++i)
+        stmt->BindInt64(static_cast<int>(i + 1), books[i].id);
+
     stmt->Step();
     CSqlStmtResetGuard guard(*stmt);
     while (stmt->IsRow())
     {
-        std::string code = stmt->ColumnText(0);
-        if (!code.empty()) result.push_back(code);
+        const int64_t bookId = stmt->ColumnInt64(0);
+        const auto it = bookIndex.find(bookId);
+        if (it != bookIndex.end())
+        {
+            SAuthorInfo ai;
+            ai.lastName = stmt->ColumnText(1);
+            ai.firstName = stmt->ColumnText(2);
+            ai.middleName = stmt->ColumnText(3);
+            books[it->second].authors.push_back(std::move(ai));
+        }
         stmt->Step();
     }
-    return result;
+}
+
+void LoadGenresForBooks(ISqlDatabase* db, std::vector<SBookResult>& books)
+{
+    if (books.empty()) return;
+
+    const auto bookIndex = BuildBookIndex(books);
+    auto sql = std::string(
+        "SELECT bg.book_id, g.code "
+        "FROM book_genres bg "
+        "JOIN genres g ON g.id = bg.genre_id "
+        "WHERE bg.book_id IN ("
+    );
+    sql += BuildIdPlaceholders(books.size());
+    sql += ")";
+
+    auto stmt = db->Prepare(sql);
+    for (size_t i = 0; i < books.size(); ++i)
+        stmt->BindInt64(static_cast<int>(i + 1), books[i].id);
+
+    stmt->Step();
+    CSqlStmtResetGuard guard(*stmt);
+    while (stmt->IsRow())
+    {
+        const int64_t bookId = stmt->ColumnInt64(0);
+        const auto it = bookIndex.find(bookId);
+        if (it != bookIndex.end())
+        {
+            std::string code = stmt->ColumnText(1);
+            if (!code.empty())
+                books[it->second].genres.push_back(std::move(code));
+        }
+        stmt->Step();
+    }
 }
 
 struct SQueryBindValues
@@ -68,7 +127,7 @@ int BindQueryParamsCustom(ISqlStatement* stmt, const SQueryParams& params, const
     return idx;
 }
 
-SBookResult ReadBookRow(ISqlStatement* stmt, ISqlDatabase* db)
+SBookResult ReadBookRow(ISqlStatement* stmt)
 {
     SBookResult br;
     br.id = stmt->ColumnInt64(0);
@@ -89,9 +148,6 @@ SBookResult ReadBookRow(ISqlStatement* stmt, ISqlDatabase* db)
     br.publisher    = stmt->ColumnText(14);
     br.isbn         = stmt->ColumnText(15);
     br.publishYear  = stmt->ColumnText(16);
-
-    br.authors = FetchAuthors(db, br.id);
-    br.genres = FetchGenres(db, br.id);
     return br;
 }
 
@@ -179,9 +235,12 @@ SQueryResult CDatabase::ExecuteQuery(const SQueryParams& params)
         CSqlStmtResetGuard selectGuard(*stmt);
         while (stmt->IsRow())
         {
-            result.books.push_back(ReadBookRow(stmt.get(), m_db.get()));
+            result.books.push_back(ReadBookRow(stmt.get()));
             stmt->Step();
         }
+
+        LoadAuthorsForBooks(m_db.get(), result.books);
+        LoadGenresForBooks(m_db.get(), result.books);
     }
     catch (const std::exception& e)
     {
@@ -204,7 +263,14 @@ std::optional<SBookResult> CDatabase::GetBookById(int64_t id)
 
         std::optional<SBookResult> result;
         if (stmt->IsRow())
-            result = ReadBookRow(stmt.get(), m_db.get());
+        {
+            result = ReadBookRow(stmt.get());
+            std::vector<SBookResult> books;
+            books.push_back(*result);
+            LoadAuthorsForBooks(m_db.get(), books);
+            LoadGenresForBooks(m_db.get(), books);
+            result = std::move(books.front());
+        }
         return result;
     }
     catch (const std::exception& e)
