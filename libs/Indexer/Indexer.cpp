@@ -1,4 +1,5 @@
 #include "Indexer.hpp"
+#include "IndexerInternal.hpp"
 
 #include "Inpx/InpParser.hpp"
 #include "Log/Logger.hpp"
@@ -24,53 +25,6 @@ namespace {
 [[nodiscard]] std::string_view ImportModeToString(EImportMode mode)
 {
     return mode == EImportMode::Upgrade ? "upgrade" : "full";
-}
-
-[[nodiscard]] fs::path ResolveArchivePath(const std::string& archivesDir, const std::string& archiveName)
-{
-    for (const std::string_view suffix : std::array<std::string_view, 2>{".zip", ""})
-    {
-        const fs::path archivePath = CStringUtils::Utf8ToPath(archivesDir) /
-            CStringUtils::Utf8ToPath(archiveName + std::string(suffix));
-        if (fs::exists(archivePath))
-        {
-            return archivePath;
-        }
-    }
-
-    return {};
-}
-
-void WriteCoverFile(const Config::SAppConfig& cfg, int64_t bookId, const Fb2::SFb2Data& fb2)
-{
-    if (fb2.coverData.empty())
-    {
-        return;
-    }
-
-    const fs::path metaDir = Config::CAppPaths::GetBookMetaDir(CStringUtils::Utf8ToPath(cfg.database.path), bookId);
-    fs::create_directories(metaDir);
-
-    const fs::path coverPath = metaDir / ("cover" + fb2.coverExt);
-    std::ofstream output(coverPath, std::ios::binary);
-    if (!output)
-    {
-        return;
-    }
-
-    output.write(reinterpret_cast<const char*>(fb2.coverData.data()), fb2.coverData.size());
-}
-
-template<typename TQueue, typename TValue>
-bool TryPushQueueItem(TQueue& queue, TValue&& value, std::string_view queueName)
-{
-    if (queue.Push(std::forward<TValue>(value)))
-    {
-        return true;
-    }
-
-    LOG_DEBUG("{} queue is already closed; dropping pending item", queueName);
-    return false;
 }
 
 } // namespace
@@ -101,7 +55,7 @@ void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2)
             }
             else
             {
-                archivePath = ResolveArchivePath(archivesDir, item->archiveName);
+                archivePath = Detail::ResolveArchivePath(archivesDir, item->archiveName);
                 archivePathCache[item->archiveName] = archivePath;
             }
 
@@ -144,7 +98,7 @@ void CIndexer::WorkerThread(const std::string& archivesDir, bool parseFb2)
                     }
 
                     ++m_parsedCount;
-                    if (!TryPushQueueItem(m_resultQueue, std::move(result), "result"))
+                    if (!Detail::TryPushQueueItem(m_resultQueue, std::move(result), "result"))
                     {
                         break;
                     }
@@ -206,7 +160,7 @@ Db::SImportStats CIndexer::WriterThread(Db::IBookWriter& db, size_t batchSize, c
 
                     try
                     {
-                        WriteCoverFile(m_cfg, id, item->fb2);
+                        Detail::WriteCoverFile(m_cfg, id, item->fb2);
                     }
                     catch (const std::exception& e)
                     {
@@ -284,40 +238,6 @@ Db::SImportStats CIndexer::WriterThread(Db::IBookWriter& db, size_t batchSize, c
     return stats;
 }
 
-namespace {
-
-class CImportGuard
-{
-public:
-    explicit CImportGuard(Db::IBookWriter& db) : m_db(db) 
-    {
-        m_db.BeginBulkImport();
-        m_db.DropIndexes();
-    }
-
-    ~CImportGuard()
-    {
-        if (!m_finished)
-        {
-            LOG_WARN("Import interrupted! Attempting to restore database state...");
-        }
-
-        try { m_db.CreateIndexes(); }
-        catch (const std::exception& e) { LOG_ERROR("Failed to restore indexes: {}", e.what()); }
-
-        try { m_db.EndBulkImport(); }
-        catch (const std::exception& e) { LOG_ERROR("Failed to restore pragma: {}", e.what()); }
-    }
-
-    void MarkFinished() { m_finished = true; }
-
-private:
-    Db::IBookWriter& m_db;
-    bool             m_finished{false};
-};
-
-} // namespace
-
 Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, const std::shared_ptr<IProgressReporter>& reporter)
  
 {
@@ -385,7 +305,7 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, const std:
         }
     }
 
-    CImportGuard guard(db);
+    Detail::CImportGuard guard(db);
 
     int workerCount = std::max(1, m_cfg.import.threadCount);
     LOG_INFO("Starting import: {} worker threads, mode={}, total to process={}", workerCount, ImportModeToString(mode), totalToProcess);
@@ -423,7 +343,7 @@ Db::SImportStats CIndexer::Run(Db::IBookWriter& db, EImportMode mode, const std:
                     return true;
                 }
 
-                return TryPushQueueItem(m_workQueue, SWorkItem{archiveName, std::move(filteredRecords)}, "work");
+                return Detail::TryPushQueueItem(m_workQueue, SWorkItem{archiveName, std::move(filteredRecords)}, "work");
             });
 
             m_workQueue.Close();
