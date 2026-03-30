@@ -2,6 +2,7 @@ add_library(Indexer STATIC
     IndexerArchive.cpp
     IndexerImportSupport.cpp
     Indexer.cpp
+    IndexerWorker.cpp
 )
 
 target_include_directories(Indexer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
