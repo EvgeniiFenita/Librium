@@ -4,6 +4,7 @@
 #include "Log/Logger.hpp"
 #include "Utils/StringUtils.hpp"
 
+#include <charconv>
 #include <filesystem>
 #include <functional>
 #include <string>
@@ -14,6 +15,47 @@ namespace {
 
 constexpr char kInpFieldSeparator = '\x04';
 constexpr size_t kInpFieldCount = 15;
+
+enum class EInpField : size_t
+{
+    Authors = 0,
+    Genres,
+    Title,
+    Series,
+    SeriesNumber,
+    FileName,
+    FileSize,
+    LibId,
+    Deleted,
+    FileExt,
+    DateAdded,
+    Language,
+    Rating,
+    Keywords,
+    Reserved,
+};
+
+[[nodiscard]] std::string_view GetField(const std::vector<std::string_view>& fields, EInpField field)
+{
+    return fields[static_cast<size_t>(field)];
+}
+
+template<typename TValue>
+bool TryParseNumber(std::string_view text, TValue& value)
+{
+    const auto* begin = text.data();
+    const auto* end = text.data() + text.size();
+
+    TValue parsedValue{};
+    const auto [ptr, error] = std::from_chars(begin, end, parsedValue);
+    if (error != std::errc() || ptr != end)
+    {
+        return false;
+    }
+
+    value = parsedValue;
+    return true;
+}
 
 std::string ArchiveNameFromEntry(const std::string& entryName)
 {
@@ -125,7 +167,7 @@ SBookRecord CInpParser::ParseLine(std::string_view line, const std::string& arch
     rec.archiveName = archiveName;
 
     // Authors — split by ':', discard empty tokens
-    for (auto& aStr : Split(fields[0], ':'))
+    for (auto& aStr : Split(GetField(fields, EInpField::Authors), ':'))
     {
         auto t = Trim(aStr);
         if (t.empty())
@@ -140,7 +182,7 @@ SBookRecord CInpParser::ParseLine(std::string_view line, const std::string& arch
     }
 
     // Genres — split by ':', discard empty tokens
-    for (auto& g : Split(fields[1], ':'))
+    for (auto& g : Split(GetField(fields, EInpField::Genres), ':'))
     {
         auto gn = Trim(g);
         if (!gn.empty())
@@ -149,61 +191,48 @@ SBookRecord CInpParser::ParseLine(std::string_view line, const std::string& arch
         }
     }
 
-    rec.title = std::string(Trim(fields[2]));
-    rec.series = std::string(Trim(fields[3]));
-    try
+    rec.title = std::string(Trim(GetField(fields, EInpField::Title)));
+    rec.series = std::string(Trim(GetField(fields, EInpField::Series)));
+
     {
-        auto seriesNumStr = Trim(fields[4]);
-        if (!seriesNumStr.empty())
+        const auto seriesNumStr = Trim(GetField(fields, EInpField::SeriesNumber));
+        if (!seriesNumStr.empty() && !TryParseNumber(seriesNumStr, rec.seriesNumber))
         {
-            rec.seriesNumber = std::stoi(std::string(seriesNumStr));
+            LOG_DEBUG("Failed to parse series number '{}' in archive {}", seriesNumStr, archiveName);
         }
     }
-    catch (const std::exception& e)
-    {
-        LOG_DEBUG("Failed to parse series number '{}' in archive {}: {}", fields[4], archiveName, e.what());
-    }
 
-    rec.fileName = std::string(Trim(fields[5]));
-    try
+    rec.fileName = std::string(Trim(GetField(fields, EInpField::FileName)));
+
     {
-        auto fileSizeStr = Trim(fields[6]);
-        if (!fileSizeStr.empty())
+        const auto fileSizeStr = Trim(GetField(fields, EInpField::FileSize));
+        if (!fileSizeStr.empty() && !TryParseNumber(fileSizeStr, rec.fileSize))
         {
-            rec.fileSize = std::stoull(std::string(fileSizeStr));
+            LOG_DEBUG("Failed to parse file size '{}' in archive {}", fileSizeStr, archiveName);
         }
     }
-    catch (const std::exception& e)
-    {
-        LOG_DEBUG("Failed to parse file size '{}' in archive {}: {}", fields[6], archiveName, e.what());
-    }
 
-    rec.libId = std::string(Trim(fields[7]));
-    rec.deleted = (Trim(fields[8]) == "1");
-    rec.fileExt = std::string(Trim(fields[9]));
+    rec.libId = std::string(Trim(GetField(fields, EInpField::LibId)));
+    rec.deleted = (Trim(GetField(fields, EInpField::Deleted)) == "1");
+    rec.fileExt = std::string(Trim(GetField(fields, EInpField::FileExt)));
     if (rec.fileExt.empty())
     {
         rec.fileExt = "fb2";
     }
 
-    rec.dateAdded = std::string(Trim(fields[10]));
-    rec.language = std::string(Trim(fields[11]));
+    rec.dateAdded = std::string(Trim(GetField(fields, EInpField::DateAdded)));
+    rec.language = std::string(Trim(GetField(fields, EInpField::Language)));
 
-    try
     {
-        auto ratingStr = Trim(fields[12]);
-        if (!ratingStr.empty())
+        const auto ratingStr = Trim(GetField(fields, EInpField::Rating));
+        if (!ratingStr.empty() && !TryParseNumber(ratingStr, rec.rating))
         {
-            rec.rating = std::stoi(std::string(ratingStr));
+            LOG_DEBUG("Failed to parse rating '{}' in archive {}", ratingStr, archiveName);
         }
     }
-    catch (const std::exception& e)
-    {
-        LOG_DEBUG("Failed to parse rating '{}' in archive {}: {}", fields[12], archiveName, e.what());
-    }
 
-    rec.keywords = std::string(Trim(fields[13]));
-    // fields[14] always empty — ignored
+    rec.keywords = std::string(Trim(GetField(fields, EInpField::Keywords)));
+    // reserved field is currently ignored
 
     return rec;
 }

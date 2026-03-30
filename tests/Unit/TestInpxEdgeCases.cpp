@@ -231,6 +231,37 @@ TEST_CASE("CInpParser: line with series and series number is parsed", "[inpx][ed
     REQUIRE(books[0].seriesNumber == 1);
 }
 
+TEST_CASE("CInpParser: invalid numeric fields keep default values", "[inpx][edge]")
+{
+    CTempDir tempDir;
+    std::filesystem::path inpxPath = tempDir.GetPath() / "invalid_numbers.inpx";
+
+    std::ostringstream ss;
+    ss << "Numeric,Test,:" << SEP << "sf:" << SEP << "Broken Numbers" << SEP
+       << "Series" << SEP << "oops" << SEP
+       << "910001" << SEP << "badsize" << SEP << "910001" << SEP
+       << "0" << SEP << "fb2" << SEP
+       << "2023-06-01" << SEP << "ru" << SEP
+       << "NaN" << SEP << "" << SEP << "" << "\r\n";
+
+    CreateTestZip(inpxPath, {
+        {"fb2-invalid-numbers.zip.inp", ss.str()},
+        {"collection.info", "Invalid Numbers\ninum\n65536\n"},
+        {"version.info", "20240101\r\n"}
+    });
+
+    auto u8path = inpxPath.u8string();
+    CInpParser parser;
+
+    REQUIRE_NOTHROW(parser.Parse(std::string(u8path.begin(), u8path.end())));
+    auto books = parser.Parse(std::string(u8path.begin(), u8path.end()));
+
+    REQUIRE(books.size() == 1);
+    REQUIRE(books[0].seriesNumber == 0);
+    REQUIRE(books[0].fileSize == 0);
+    REQUIRE(books[0].rating == 0);
+}
+
 TEST_CASE("CInpParser: line with too many delimiters is handled without crash", "[inpx][edge]")
 {
     CTempDir tempDir;
