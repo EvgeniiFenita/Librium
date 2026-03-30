@@ -2,6 +2,7 @@
 #include "Protocol/JsonProtocol.hpp"
 #include "Service/AppService.hpp"
 #include "Config/AppConfig.hpp"
+#include "Database/Database.hpp"
 #include "Utils/Base64.hpp"
 #include "TestUtils.hpp"
 #include <nlohmann/json.hpp>
@@ -137,6 +138,38 @@ TEST_CASE("CJsonProtocol::Process with query action returns books list", "[proto
 
     REQUIRE(json["status"] == "ok");
     REQUIRE(json["data"]["totalFound"] == 0);
+}
+
+TEST_CASE("CJsonProtocol::Process query without limit keeps default page size", "[protocol]")
+{
+    CTempDir tempDir;
+    Config::SAppConfig cfg;
+    cfg.database.path = (tempDir.GetPath() / "test_default_limit.db").string();
+
+    {
+        Db::CDatabase db(cfg.database.path);
+        for (int i = 0; i < 150; ++i)
+        {
+            Inpx::SBookRecord r;
+            r.libId = std::to_string(i + 1);
+            r.title = "Book " + std::to_string(i + 1);
+            r.language = "ru";
+            r.genres = {"sf"};
+            r.archiveName = "arch1";
+            r.authors.push_back({"Author", std::to_string(i + 1), ""});
+            (void)db.InsertBook(r, {});
+        }
+    }
+
+    Service::CAppService service(cfg);
+    std::string request = R"({"action": "query", "params": {}})";
+    std::string encoded = Utils::CBase64::Encode(request);
+    std::string result = Protocol::CJsonProtocol::Process(encoded, service, nullptr);
+    nlohmann::json json = DecodeResponse(result);
+
+    REQUIRE(json["status"] == "ok");
+    REQUIRE(json["data"]["totalFound"] == 150);
+    REQUIRE(json["data"]["books"].size() == 100);
 }
 
 TEST_CASE("CJsonProtocol::Process integer param type coercion", "[protocol]")

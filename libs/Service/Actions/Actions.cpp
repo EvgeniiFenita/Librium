@@ -22,8 +22,8 @@ struct SQueryRequest
     int ratingMin{0};
     int ratingMax{0};
     bool withAnnotation{false};
-    int limit{0};
-    int offset{0};
+    int64_t limit{Db::SQueryParams{}.limit};
+    int64_t offset{0};
 };
 
 struct SBookIdRequest

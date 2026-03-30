@@ -184,3 +184,32 @@ TEST_CASE("BookQuery: no duplicates when multiple authors match search term", "[
         REQUIRE(res.books.empty());
     }
 }
+
+TEST_CASE("BookQuery batched hydration handles result sets larger than sqlite variable limit", "[query][batch]")
+{
+    CTempDir tempDir;
+    Db::CDatabase db((tempDir.GetPath() / "batch_query.db").string());
+
+    for (int i = 0; i < 1200; ++i)
+    {
+        Inpx::SBookRecord r;
+        r.libId = std::to_string(i + 1);
+        r.title = "Batch Book " + std::to_string(i + 1);
+        r.archiveName = "arch1";
+        r.language = "ru";
+        r.genres = {"sf"};
+        r.authors.push_back({"Author", std::to_string(i + 1), ""});
+        (void)db.InsertBook(r, {});
+    }
+
+    Db::SQueryParams p;
+    p.limit = 1200;
+    auto res = db.ExecuteQuery(p);
+
+    REQUIRE(res.totalFound == 1200);
+    REQUIRE(res.books.size() == 1200);
+    REQUIRE(res.books.front().authors.size() == 1);
+    REQUIRE(res.books.front().genres == std::vector<std::string>{"Science Fiction"});
+    REQUIRE(res.books.back().authors.size() == 1);
+    REQUIRE(res.books.back().genres == std::vector<std::string>{"Science Fiction"});
+}

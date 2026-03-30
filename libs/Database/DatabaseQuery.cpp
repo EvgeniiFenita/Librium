@@ -3,12 +3,15 @@
 #include "SearchQueryParser.hpp"
 #include "Utils/GenreTranslator.hpp"
 
+#include <algorithm>
 #include <sstream>
 #include <unordered_map>
 
 namespace Librium::Db {
 
 namespace {
+
+constexpr size_t kBookBatchLoadChunkSize = 400;
 
 std::string BuildIdPlaceholders(size_t count)
 {
@@ -33,40 +36,53 @@ std::unordered_map<int64_t, size_t> BuildBookIndex(const std::vector<SBookResult
     return bookIndex;
 }
 
+template<typename TLoadChunk>
+void LoadBookChunks(std::vector<SBookResult>& books, TLoadChunk&& loadChunk)
+{
+    for (size_t start = 0; start < books.size(); start += kBookBatchLoadChunkSize)
+    {
+        const size_t count = std::min(kBookBatchLoadChunkSize, books.size() - start);
+        loadChunk(start, count);
+    }
+}
+
 void LoadAuthorsForBooks(ISqlDatabase* db, std::vector<SBookResult>& books)
 {
     if (books.empty()) return;
 
     const auto bookIndex = BuildBookIndex(books);
-    auto sql = std::string(
-        "SELECT ba.book_id, a.last_name, a.first_name, a.middle_name "
-        "FROM book_authors ba "
-        "JOIN authors a ON a.id = ba.author_id "
-        "WHERE ba.book_id IN ("
-    );
-    sql += BuildIdPlaceholders(books.size());
-    sql += ")";
-
-    auto stmt = db->Prepare(sql);
-    for (size_t i = 0; i < books.size(); ++i)
-        stmt->BindInt64(static_cast<int>(i + 1), books[i].id);
-
-    stmt->Step();
-    CSqlStmtResetGuard guard(*stmt);
-    while (stmt->IsRow())
+    LoadBookChunks(books, [&](size_t start, size_t count)
     {
-        const int64_t bookId = stmt->ColumnInt64(0);
-        const auto it = bookIndex.find(bookId);
-        if (it != bookIndex.end())
-        {
-            SAuthorInfo ai;
-            ai.lastName = stmt->ColumnText(1);
-            ai.firstName = stmt->ColumnText(2);
-            ai.middleName = stmt->ColumnText(3);
-            books[it->second].authors.push_back(std::move(ai));
-        }
+        auto sql = std::string(
+            "SELECT ba.book_id, a.last_name, a.first_name, a.middle_name "
+            "FROM book_authors ba "
+            "JOIN authors a ON a.id = ba.author_id "
+            "WHERE ba.book_id IN ("
+        );
+        sql += BuildIdPlaceholders(count);
+        sql += ")";
+
+        auto stmt = db->Prepare(sql);
+        for (size_t i = 0; i < count; ++i)
+            stmt->BindInt64(static_cast<int>(i + 1), books[start + i].id);
+
         stmt->Step();
-    }
+        CSqlStmtResetGuard guard(*stmt);
+        while (stmt->IsRow())
+        {
+            const int64_t bookId = stmt->ColumnInt64(0);
+            const auto it = bookIndex.find(bookId);
+            if (it != bookIndex.end())
+            {
+                SAuthorInfo ai;
+                ai.lastName = stmt->ColumnText(1);
+                ai.firstName = stmt->ColumnText(2);
+                ai.middleName = stmt->ColumnText(3);
+                books[it->second].authors.push_back(std::move(ai));
+            }
+            stmt->Step();
+        }
+    });
 }
 
 void LoadGenresForBooks(ISqlDatabase* db, std::vector<SBookResult>& books)
@@ -74,33 +90,36 @@ void LoadGenresForBooks(ISqlDatabase* db, std::vector<SBookResult>& books)
     if (books.empty()) return;
 
     const auto bookIndex = BuildBookIndex(books);
-    auto sql = std::string(
-        "SELECT bg.book_id, g.code "
-        "FROM book_genres bg "
-        "JOIN genres g ON g.id = bg.genre_id "
-        "WHERE bg.book_id IN ("
-    );
-    sql += BuildIdPlaceholders(books.size());
-    sql += ")";
-
-    auto stmt = db->Prepare(sql);
-    for (size_t i = 0; i < books.size(); ++i)
-        stmt->BindInt64(static_cast<int>(i + 1), books[i].id);
-
-    stmt->Step();
-    CSqlStmtResetGuard guard(*stmt);
-    while (stmt->IsRow())
+    LoadBookChunks(books, [&](size_t start, size_t count)
     {
-        const int64_t bookId = stmt->ColumnInt64(0);
-        const auto it = bookIndex.find(bookId);
-        if (it != bookIndex.end())
-        {
-            std::string code = stmt->ColumnText(1);
-            if (!code.empty())
-                books[it->second].genres.push_back(std::move(code));
-        }
+        auto sql = std::string(
+            "SELECT bg.book_id, g.code "
+            "FROM book_genres bg "
+            "JOIN genres g ON g.id = bg.genre_id "
+            "WHERE bg.book_id IN ("
+        );
+        sql += BuildIdPlaceholders(count);
+        sql += ")";
+
+        auto stmt = db->Prepare(sql);
+        for (size_t i = 0; i < count; ++i)
+            stmt->BindInt64(static_cast<int>(i + 1), books[start + i].id);
+
         stmt->Step();
-    }
+        CSqlStmtResetGuard guard(*stmt);
+        while (stmt->IsRow())
+        {
+            const int64_t bookId = stmt->ColumnInt64(0);
+            const auto it = bookIndex.find(bookId);
+            if (it != bookIndex.end())
+            {
+                std::string code = stmt->ColumnText(1);
+                if (!code.empty())
+                    books[it->second].genres.push_back(std::move(code));
+            }
+            stmt->Step();
+        }
+    });
 }
 
 struct SQueryBindValues
