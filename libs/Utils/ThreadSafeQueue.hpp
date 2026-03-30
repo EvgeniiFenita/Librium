@@ -1,9 +1,11 @@
 #pragma once
 
 #include <condition_variable>
+#include <functional>
 #include <mutex>
 #include <optional>
 #include <queue>
+#include <utility>
 
 namespace Librium::Utils {
 
@@ -11,10 +13,11 @@ template<typename T>
 class CThreadSafeQueue
 {
 public:
-    explicit CThreadSafeQueue(size_t maxSize = 0) : m_maxSize(maxSize) 
+    explicit CThreadSafeQueue(size_t maxSize = 0)
+        : m_maxSize(maxSize)
     {}
 
-    bool Push(T value) 
+    bool Push(T value)
     {
         std::unique_lock lock(m_mutex);
         if (m_maxSize > 0)
@@ -31,7 +34,39 @@ public:
         return true;
     }
 
-    [[nodiscard]] std::optional<T> Pop() 
+    template<typename... TArgs>
+    bool Emplace(TArgs&&... args)
+    {
+        std::unique_lock lock(m_mutex);
+        if (m_maxSize > 0)
+        {
+            m_cvNotFull.wait(lock, [&]{ return m_queue.size() < m_maxSize || m_closed; });
+        }
+        if (m_closed)
+        {
+            return false;
+        }
+
+        m_queue.emplace(std::forward<TArgs>(args)...);
+        m_cvNotEmpty.notify_one();
+        return true;
+    }
+
+    [[nodiscard]] std::optional<T> TryPop()
+    {
+        std::lock_guard lock(m_mutex);
+        if (m_queue.empty())
+        {
+            return std::nullopt;
+        }
+
+        T value = std::move(m_queue.front());
+        m_queue.pop();
+        m_cvNotFull.notify_one();
+        return value;
+    }
+
+    [[nodiscard]] std::optional<T> Pop()
     {
         std::unique_lock lock(m_mutex);
         m_cvNotEmpty.wait(lock, [&]{ return !m_queue.empty() || m_closed; });
@@ -46,7 +81,7 @@ public:
         return value;
     }
 
-    bool Close() 
+    bool Close()
     {
         std::lock_guard lock(m_mutex);
         if (m_closed)

@@ -41,6 +41,47 @@ TEST_CASE("CThreadSafeQueue basic push/pop", "[queue]")
     }
 }
 
+TEST_CASE("CThreadSafeQueue convenience API", "[queue]")
+{
+    SECTION("TryPop on empty open queue returns nullopt immediately")
+    {
+        CThreadSafeQueue<int> q;
+        auto val = q.TryPop();
+        REQUIRE_FALSE(val.has_value());
+        REQUIRE_FALSE(q.IsClosed());
+    }
+
+    SECTION("TryPop returns queued item without blocking")
+    {
+        CThreadSafeQueue<int> q;
+        q.Push(7);
+
+        auto val = q.TryPop();
+        REQUIRE(val.has_value());
+        REQUIRE(*val == 7);
+        REQUIRE(q.Size() == 0);
+    }
+
+    SECTION("Emplace constructs item in place")
+    {
+        CThreadSafeQueue<std::pair<int, std::string>> q;
+        REQUIRE(q.Emplace(3, "queued"));
+
+        auto val = q.Pop();
+        REQUIRE(val.has_value());
+        REQUIRE(val->first == 3);
+        REQUIRE(val->second == "queued");
+    }
+
+    SECTION("Emplace after Close is rejected")
+    {
+        CThreadSafeQueue<std::string> q;
+        q.Close();
+        REQUIRE_FALSE(q.Emplace("closed"));
+        REQUIRE(q.Size() == 0);
+    }
+}
+
 TEST_CASE("CThreadSafeQueue size tracking", "[queue]")
 {
     SECTION("Size is 0 for empty queue")
