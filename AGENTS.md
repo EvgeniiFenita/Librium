@@ -49,6 +49,8 @@ After any structural change, always run `python scripts/Run.py --preset x64-debu
 5. Run `python scripts/Run.py --preset x64-debug`.
 6. Propose a commit message draft — **NEVER commit without explicit user approval**.
 
+**Documentation maintenance:** If a change affects behavior, architecture, workflow, constraints, commands, or any other information described in `docs/` or `.agents/skills/`, update the affected documentation and skill files in the same change. Do not leave documentation or skills stale after code changes.
+
 ---
 
 ## Critical Naming Rules
